@@ -1,9 +1,9 @@
-| Package                                                                | Version                                                                                                        | License                                                         | Downloads                                                          |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------ |
-| [convex-feedback](https://www.npmjs.com/package/convex-feedback)       | [![npm version](https://badge.fury.io/js/convex-feedback.svg)](https://badge.fury.io/js/convex-feedback)       | ![NPM License](https://img.shields.io/npm/l/convex-feedback)    | ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback)    |
-| [convex-feedback-ui](https://www.npmjs.com/package/convex-feedback-ui) | [![npm version](https://badge.fury.io/js/convex-feedback-ui.svg)](https://badge.fury.io/js/convex-feedback-ui) | ![NPM License](https://img.shields.io/npm/l/convex-feedback-ui) | ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback-ui) |
+| Package                                                                | Version                                                    | Convex                                                                                                                            | License     | Downloads     |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------- |
+| [convex-feedback](https://www.npmjs.com/package/convex-feedback)       | [npm version](https://badge.fury.io/js/convex-feedback)    | [![Convex Component](https://www.convex.dev/components/badge/convex-feedback)](https://www.convex.dev/components/convex-feedback) | NPM License | NPM Downloads |
+| [convex-feedback-ui](https://www.npmjs.com/package/convex-feedback-ui) | [npm version](https://badge.fury.io/js/convex-feedback-ui) | [![Convex Component](https://www.convex.dev/components/badge/convex-feedback)](https://www.convex.dev/components/convex-feedback) | NPM License | NPM Downloads |
 
-![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
+GitHub forks GitHub Repo stars
 
 [Vite demo](https://convex-feedback-vite.vercel.app/) • [Expo/React Native demo](https://convex-feedback-expo.vercel.app/)
 

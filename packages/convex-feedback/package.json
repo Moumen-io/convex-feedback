@@ -1,0 +1,63 @@
+{
+  "name": "convex-feedback",
+  "version": "0.1.0",
+  "description": "Type-safe Convex component for feedback, feature requests, bug reports, voting, comments, and duplicate search.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "default": "./dist/react/index.js"
+    },
+    "./_generated/component": {
+      "types": "./dist/component/_generated/component.d.ts"
+    },
+    "./_generated/component.js": {
+      "types": "./dist/component/_generated/component.d.ts"
+    },
+    "./test": "./src/test.ts",
+    "./convex.config": {
+      "types": "./dist/component/convex.config.d.ts",
+      "default": "./dist/component/convex.config.js"
+    },
+    "./convex.config.js": {
+      "types": "./dist/component/convex.config.d.ts",
+      "default": "./dist/component/convex.config.js"
+    }
+  },
+  "scripts": {
+    "codegen": "npx convex codegen --component-dir ./src/component",
+    "build": "tsc -p tsconfig.build.json",
+    "build:codegen": "npm run codegen && npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "test:all": "npm run typecheck && npm run lint && npm run test",
+    "prepack": "npm run build:codegen"
+  },
+  "peerDependencies": {
+    "convex": "^1.43.0",
+    "convex-helpers": "^0.1.120",
+    "react": "^18.3.1 || ^19.0.0"
+  },
+  "devDependencies": {
+    "convex": "^1.44.0",
+    "convex-helpers": "^0.1.120",
+    "convex-test": "^0.0.55",
+    "react": "^19.2.8",
+    "@types/react": "^19.2.18",
+    "@edge-runtime/vm": "^5.0.0"
+  },
+  "types": "./dist/client/index.d.ts",
+  "module": "./dist/client/index.js"
+}

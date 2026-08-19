@@ -1,0 +1,241 @@
+:where(.cf-board) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: calc(var(--cf-space) * 1.5);
+  color: var(--cf-text);
+  background: var(--cf-background);
+  font: inherit;
+}
+
+:where(.cf-board *),
+:where(.cf-board *::before),
+:where(.cf-board *::after) {
+  box-sizing: border-box;
+}
+:where(.cf-board) :where(.cf-board__header) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space);
+  margin-bottom: calc(var(--cf-space) * 1.5);
+}
+:where(.cf-board) :where(.cf-board__title) {
+  margin: 0;
+  font-size: 1.65rem;
+  line-height: 1.15;
+}
+:where(.cf-board) :where(.cf-board__subtitle) {
+  margin: 0.4rem 0 0;
+  color: var(--cf-muted);
+}
+:where(.cf-board) :where(.cf-board__list),
+:where(.cf-board) :where(.cf-comments) {
+  display: grid;
+  gap: 10px;
+}
+:where(.cf-board) :where(.cf-search),
+:where(.cf-board) :where(.cf-input),
+:where(.cf-board) :where(.cf-textarea),
+:where(.cf-board) :where(.cf-select) {
+  width: 100%;
+  border: 1px solid var(--cf-border);
+  border-radius: calc(var(--cf-radius) * 0.75);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  padding: 10px 12px;
+  font: inherit;
+  outline: none;
+}
+:where(.cf-board) :where(.cf-search) {
+  margin-bottom: var(--cf-space);
+}
+:where(.cf-board) :where(.cf-search:focus),
+:where(.cf-board) :where(.cf-input:focus),
+:where(.cf-board) :where(.cf-textarea:focus),
+:where(.cf-board) :where(.cf-select:focus) {
+  border-color: var(--cf-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cf-primary) 14%, transparent);
+}
+:where(.cf-board) :where(.cf-entry) {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+}
+:where(.cf-board) :where(.cf-entry__content) {
+  min-width: 0;
+  cursor: pointer;
+}
+:where(.cf-board) :where(.cf-entry__title) {
+  margin: 5px 0 3px;
+  font-size: 1rem;
+}
+:where(.cf-board) :where(.cf-entry__body) {
+  margin: 0;
+  color: var(--cf-muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+:where(.cf-board) :where(.cf-entry__meta) {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  color: var(--cf-muted);
+  font-size: 0.8rem;
+}
+:where(.cf-board) :where(.cf-status) {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--cf-surface-muted);
+  color: var(--cf-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+:where(.cf-board) :where(.cf-upvote) {
+  width: 46px;
+  min-height: 54px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--cf-border);
+  border-radius: 10px;
+  background: var(--cf-surface-muted);
+  color: var(--cf-muted);
+  cursor: pointer;
+}
+:where(.cf-board) :where(.cf-upvote[data-active="true"]) {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+  background: color-mix(in srgb, var(--cf-primary) 8%, var(--cf-surface));
+}
+:where(.cf-board) :where(.cf-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 1px solid var(--cf-border);
+  border-radius: 9px;
+  padding: 8px 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+:where(.cf-board) :where(.cf-button--primary) {
+  border-color: var(--cf-primary);
+  background: var(--cf-primary);
+  color: white;
+}
+:where(.cf-board) :where(.cf-button--link) {
+  border-color: transparent;
+  padding-inline: 0;
+  background: transparent;
+  color: var(--cf-primary);
+}
+:where(.cf-board) :where(.cf-form) {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface-muted);
+  margin-bottom: 14px;
+}
+:where(.cf-board) :where(.cf-field) {
+  display: grid;
+  gap: 5px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+:where(.cf-board) :where(.cf-duplicates) {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--cf-primary) 7%, var(--cf-surface));
+  font-size: 0.86rem;
+}
+:where(.cf-board) :where(.cf-state) {
+  color: var(--cf-muted);
+  padding: 12px 2px;
+}
+:where(.cf-board) :where(.cf-detail),
+:where(.cf-board) :where(.cf-discussion) {
+  display: grid;
+  gap: 14px;
+}
+:where(.cf-board) :where(.cf-discussion) {
+  margin-top: 8px;
+}
+:where(.cf-board) :where(.cf-comment) {
+  padding: 12px;
+  border: 1px solid var(--cf-border);
+  border-radius: calc(var(--cf-radius) * 0.85);
+  background: var(--cf-surface);
+}
+:where(.cf-board) :where(.cf-comment__body) {
+  margin: 0 0 8px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+:where(.cf-board) :where(.cf-comment__toolbar),
+:where(.cf-board) :where(.cf-inline-actions) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+:where(.cf-board) :where(.cf-comment__like),
+:where(.cf-board) :where(.cf-comment__action),
+:where(.cf-board) :where(.cf-comment__replies) {
+  border: 0;
+  padding: 4px 6px;
+  background: transparent;
+  color: var(--cf-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+:where(.cf-board) :where(.cf-comment__like[data-active="true"]) {
+  color: var(--cf-primary);
+}
+:where(.cf-board) :where(.cf-comment__children) {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0 16px;
+  padding-left: 10px;
+  border-left: 2px solid var(--cf-border);
+}
+:where(.cf-board) :where(.cf-comment__author) {
+  margin-bottom: 5px;
+  color: var(--cf-muted);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 600px) {
+  :where(.cf-board) {
+    padding: var(--cf-space);
+  }
+  :where(.cf-board) :where(.cf-board__header) {
+    flex-direction: column;
+  }
+  :where(.cf-board) :where(.cf-entry) {
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding: 10px;
+  }
+  :where(.cf-board) :where(.cf-upvote) {
+    width: 40px;
+    min-height: 48px;
+  }
+}

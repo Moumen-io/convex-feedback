@@ -1,0 +1,39 @@
+{
+  "name": "convex-feedback-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A type-safe Convex feedback component and cross-platform React UI primitives.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build:packages": "npm run build -w convex-feedback && npm run build -w convex-feedback-ui",
+    "build:examples": "npm run build -w convex-feedback-example-web && npm run build -w convex-feedback-example-native",
+    "build": "npm run build:packages && npm run build:examples",
+    "codegen:component": "npm run codegen -w convex-feedback",
+    "codegen:example": "npm run codegen -w convex-feedback-example-backend",
+    "codegen": "npm run codegen:component && npm run build -w convex-feedback && npm run codegen:example",
+    "lint": "npm run lint -w convex-feedback && npm run lint -w convex-feedback-ui",
+    "test": "npm run test -w convex-feedback && npm run test -w convex-feedback-ui",
+    "typecheck": "npm run typecheck -w convex-feedback && npm run typecheck -w convex-feedback-ui",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "test:all": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run build",
+    "dev:web": "npm run dev -w convex-feedback-example-web",
+    "dev:ios": "npm run dev:ios -w convex-feedback-example-native",
+    "dev:native": "npm run dev:web -w convex-feedback-example-native",
+    "postinstall": "npm run build:packages"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "^9.39.5",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.10",
+    "@types/node": "^24.13.3",
+    "@convex-dev/eslint-plugin": "^4.0.0",
+    "vite": "^8.2.0"
+  }
+}

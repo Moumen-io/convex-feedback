@@ -1,0 +1,28 @@
+{
+  "name": "convex-feedback-example-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint src",
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@convex-dev/auth": "^0.0.95",
+    "convex": "^1.44.0",
+    "convex-feedback": "^0.1.0",
+    "convex-feedback-ui": "^0.1.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "convex-feedback-example-backend": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.2.0"
+  }
+}

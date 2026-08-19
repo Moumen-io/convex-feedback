@@ -1,0 +1,33 @@
+{
+  "name": "convex-feedback-example-backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./api": {
+      "types": "./convex/_generated/api.d.ts",
+      "default": "./convex/_generated/api.js"
+    }
+  },
+  "scripts": {
+    "predev": "npm --prefix ../.. run build:packages",
+    "dev": "convex dev --typecheck-components",
+    "precodegen": "npm --prefix ../.. run build -w convex-feedback",
+    "codegen": "convex codegen",
+    "typecheck": "tsc --noEmit -p convex/tsconfig.json",
+    "lint": "eslint convex scripts",
+    "auth:init": "node ./scripts/configure-auth.mjs",
+    "setup": "npm --prefix ../.. run build:packages && convex dev --once --typecheck-components && npm run auth:init",
+    "deploy": "npm --prefix ../.. run build:packages && convex deploy --typecheck-components"
+  },
+  "dependencies": {
+    "@auth/core": "^0.41.1",
+    "@convex-dev/auth": "^0.0.95",
+    "convex": "^1.44.0",
+    "convex-feedback": "^0.1.0"
+  },
+  "devDependencies": {
+    "jose": "^5.2.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  }
+}

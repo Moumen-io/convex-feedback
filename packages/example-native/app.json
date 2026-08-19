@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Convex Feedback Native Demo",
+    "slug": "convex-feedback-native-demo",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "ios": {
+      "bundleIdentifier": "com.moumentos.convex-feedback-native-demo"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}

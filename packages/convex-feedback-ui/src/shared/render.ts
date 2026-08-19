@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-
-export type RenderChildren<State> = ReactNode | ((state: State) => ReactNode);
+import type { RenderChildren } from "./types";
 
 export function renderChildren<State>(
   children: RenderChildren<State> | undefined,

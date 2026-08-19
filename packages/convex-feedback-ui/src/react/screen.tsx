@@ -1,22 +1,19 @@
 "use client";
 
-import type {
-  CommentSort,
-  EntryKind,
-  EntrySort,
-  FeedbackComment,
-  FeedbackEntry as FeedbackEntryData,
-} from "convex-feedback";
+import type { CommentSort, EntryKind, EntrySort } from "convex-feedback";
 import type { FeedbackHooks } from "convex-feedback/react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type SyntheticEvent } from "react";
 
-import type { FeedbackMessageOverrides } from "../shared/messages.js";
-import type { FeedbackThemeOverride } from "../shared/theme.js";
-import {
-  FeedbackProvider,
-  useFeedbackUi,
-  type FeedbackColorProps,
-} from "./context.js";
+import type {
+  FeedbackColorProps,
+  FeedbackScreenCommentBranchProps,
+  FeedbackScreenEntryCardProps,
+  FeedbackScreenEntryDetailProps,
+  FeedbackScreenEntryModalProps,
+  FeedbackScreenReplyListProps,
+  FeedbackScreenRootProps,
+} from "../shared/types/";
+import { FeedbackProvider, useFeedbackUi } from "./context.js";
 import {
   Comment,
   FeedbackBoard,
@@ -30,19 +27,8 @@ const entryKinds: readonly EntryKind[] = [
   "bug_report",
 ];
 
-export interface FeedbackScreenProps extends FeedbackColorProps {
-  hooks: FeedbackHooks;
-  messages?: FeedbackMessageOverrides | undefined;
-  theme?: FeedbackThemeOverride | undefined;
-  unstyled?: boolean | undefined;
-  entrySort?: EntrySort | undefined;
-  commentSort?: CommentSort | undefined;
-  enabledKinds?: readonly EntryKind[] | undefined;
-  maxCommentDepth?: number | undefined;
-  transformComments?: (
-    comments: readonly FeedbackComment[],
-  ) => readonly FeedbackComment[];
-  renderActor?: (actorId: string) => ReactNode;
+export interface FeedbackScreenProps
+  extends FeedbackColorProps, FeedbackScreenRootProps {
   className?: string | undefined;
 }
 
@@ -103,8 +89,11 @@ function FeedbackScreenInner({
   const [searchQuery, setSearchQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
-  const list = hooks.useEntries({ sort: entrySort });
-  const searchResults = hooks.useSearchEntries({ searchQuery });
+  const list = hooks.useEntries({ sort: entrySort, kinds: enabledKinds });
+  const searchResults = hooks.useSearchEntries({
+    searchQuery,
+    kinds: enabledKinds,
+  });
 
   if (selectedEntryId !== null) {
     return (
@@ -193,15 +182,7 @@ function FeedbackScreenInner({
   );
 }
 
-function EntryCard({
-  entry,
-  hooks,
-  onOpen,
-}: {
-  entry: FeedbackEntryData;
-  hooks: FeedbackHooks;
-  onOpen: () => void;
-}) {
+function EntryCard({ entry, hooks, onOpen }: FeedbackScreenEntryCardProps) {
   const setUpvote = hooks.useSetEntryUpvote();
   return (
     <FeedbackEntry.Root entry={entry}>
@@ -222,6 +203,7 @@ function EntryCard({
         tabIndex={0}
       >
         <div className="cf-entry__meta">
+          <FeedbackEntry.Kind />
           <FeedbackEntry.Status />
           <FeedbackEntry.CommentCount />
         </div>
@@ -236,11 +218,7 @@ function CreateEntryForm({
   hooks,
   enabledKinds,
   onCreated,
-}: {
-  hooks: FeedbackHooks;
-  enabledKinds: readonly EntryKind[];
-  onCreated: (entryId: string) => void;
-}) {
+}: FeedbackScreenEntryModalProps) {
   const { messages } = useFeedbackUi();
   const [kind, setKind] = useState<EntryKind>(enabledKinds[0] ?? "feedback");
   const [title, setTitle] = useState("");
@@ -248,19 +226,49 @@ function CreateEntryForm({
   const [submitting, setSubmitting] = useState(false);
   const createEntry = hooks.useCreateEntry();
   const similar = hooks.useSimilarEntries({ title, body, kind });
+  const [confirmingDuplicate, setConfirmingDuplicate] = useState(false);
 
-  const submit = async () => {
+  const submit = (event: SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (
+      similar === undefined ||
+      title.trim().length === 0 ||
+      body.trim().length === 0
+    ) {
+      return;
+    }
+
+    if (suggestions.length > 0) {
+      setConfirmingDuplicate(true);
+      return;
+    }
+
+    void create();
+  };
+
+  const create = async () => {
+    if (submitting) return;
+
     setSubmitting(true);
+
     try {
-      const entryId = await createEntry({ kind, title, body });
+      const entryId = await createEntry({
+        kind,
+        title,
+        body,
+      });
+
       onCreated(entryId);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const suggestions =
-    similar === undefined ? [] : [...similar.exact, ...similar.similar];
+  const suggestions = useMemo(() => {
+    if (similar === undefined) return [];
+    return [...similar.exact, ...similar.similar];
+  }, [similar]);
 
   return (
     <FeedbackForm.Root onSubmit={submit}>
@@ -296,19 +304,83 @@ function CreateEntryForm({
           required
         />
       </label>
-      {suggestions.length > 0 ? (
+      {suggestions.length > 0 && (
         <aside className="cf-duplicates">
           <strong>
             {similar?.exact.length
               ? messages.form.exactDuplicate
               : messages.form.possibleDuplicates}
           </strong>
-          {suggestions.map((entry) => (
-            <span key={entry.id}>{entry.title}</span>
-          ))}
+
+          <div className="cf-duplicates__list">
+            {suggestions.map((entry) => (
+              <div key={entry.id} className="cf-duplicate">
+                <div className="cf-entry__meta">
+                  <span className="cf-entry__kind">
+                    {messages.kinds[entry.kind]}
+                  </span>
+
+                  <span className="cf-status">
+                    {messages.statuses[entry.status]}
+                  </span>
+                </div>
+
+                <strong>{entry.title}</strong>
+
+                <span className="cf-duplicate__body">{entry.body}</span>
+
+                <span className="cf-duplicate__meta">
+                  ▲ {entry.upvoteCount} ·{" "}
+                  {messages.entry.comments(entry.commentCount)}
+                </span>
+              </div>
+            ))}
+          </div>
         </aside>
-      ) : null}
-      <FeedbackForm.Submit submitting={submitting} />
+      )}
+      <FeedbackForm.Submit
+        submitting={submitting}
+        disabled={confirmingDuplicate || submitting}
+      />
+      {confirmingDuplicate && (
+        <div className="cf-confirm-backdrop">
+          <div
+            className="cf-confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="cf-duplicate-confirm-title"
+          >
+            <strong id="cf-duplicate-confirm-title">
+              {similar?.exact.length
+                ? messages.form.exactDuplicate
+                : messages.form.possibleDuplicates}
+            </strong>
+
+            <p>{messages.form.duplicateWarning}</p>
+
+            <div className="cf-inline-actions">
+              <button
+                type="button"
+                className="cf-button"
+                onClick={() => setConfirmingDuplicate(false)}
+              >
+                {messages.form.cancel}
+              </button>
+
+              <button
+                type="button"
+                className="cf-button cf-button--primary"
+                onClick={() => {
+                  setConfirmingDuplicate(false);
+                  void create();
+                }}
+              >
+                {messages.form.submitAnyway}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </FeedbackForm.Root>
   );
 }
@@ -321,15 +393,7 @@ function EntryDetail({
   maxCommentDepth,
   transformComments,
   renderActor,
-}: {
-  hooks: FeedbackHooks;
-  entryId: string;
-  onBack: () => void;
-  commentSort: CommentSort;
-  maxCommentDepth: number;
-  transformComments?: FeedbackScreenProps["transformComments"];
-  renderActor?: FeedbackScreenProps["renderActor"];
-}) {
+}: FeedbackScreenEntryDetailProps) {
   const { messages } = useFeedbackUi();
   const entry = hooks.useEntry(entryId);
   const setUpvote = hooks.useSetEntryUpvote();
@@ -411,8 +475,8 @@ function EntryDetail({
               comment={comment}
               entryId={entryId}
               hooks={hooks}
-              sort={commentSort}
-              maxDepth={maxCommentDepth}
+              commentSort={commentSort}
+              maxCommentDepth={maxCommentDepth}
               transformComments={transformComments}
               renderActor={renderActor}
             />
@@ -436,19 +500,11 @@ function CommentBranch({
   comment,
   entryId,
   hooks,
-  sort,
-  maxDepth,
+  commentSort,
+  maxCommentDepth,
   transformComments,
   renderActor,
-}: {
-  comment: FeedbackComment;
-  entryId: string;
-  hooks: FeedbackHooks;
-  sort: CommentSort;
-  maxDepth: number;
-  transformComments?: FeedbackScreenProps["transformComments"];
-  renderActor?: FeedbackScreenProps["renderActor"];
-}) {
+}: FeedbackScreenCommentBranchProps) {
   const { messages } = useFeedbackUi();
   const [expanded, setExpanded] = useState(false);
   const [replying, setReplying] = useState(false);
@@ -468,7 +524,7 @@ function CommentBranch({
             void setLike({ commentId: comment.id, desiredState: active })
           }
         />
-        {comment.body !== null && comment.depth < maxDepth ? (
+        {comment.body !== null && comment.depth < maxCommentDepth ? (
           <Comment.Reply onActivate={() => setReplying((value) => !value)} />
         ) : null}
         <Comment.RepliesButton
@@ -516,8 +572,8 @@ function CommentBranch({
           hooks={hooks}
           entryId={entryId}
           parentCommentId={comment.id}
-          sort={sort}
-          maxDepth={maxDepth}
+          commentSort={commentSort}
+          maxCommentDepth={maxCommentDepth}
           transformComments={transformComments}
           renderActor={renderActor}
         />
@@ -530,21 +586,17 @@ function ReplyList({
   hooks,
   entryId,
   parentCommentId,
-  sort,
-  maxDepth,
+  commentSort,
+  maxCommentDepth,
   transformComments,
   renderActor,
-}: {
-  hooks: FeedbackHooks;
-  entryId: string;
-  parentCommentId: string;
-  sort: CommentSort;
-  maxDepth: number;
-  transformComments?: FeedbackScreenProps["transformComments"];
-  renderActor?: FeedbackScreenProps["renderActor"];
-}) {
+}: FeedbackScreenReplyListProps) {
   const { messages } = useFeedbackUi();
-  const replies = hooks.useComments({ entryId, parentCommentId, sort });
+  const replies = hooks.useComments({
+    entryId,
+    parentCommentId,
+    sort: commentSort,
+  });
   const visibleReplies = useMemo(
     () => transformComments?.(replies.results) ?? replies.results,
     [replies.results, transformComments],
@@ -561,8 +613,8 @@ function ReplyList({
           comment={reply}
           entryId={entryId}
           hooks={hooks}
-          sort={sort}
-          maxDepth={maxDepth}
+          commentSort={commentSort}
+          maxCommentDepth={maxCommentDepth}
           transformComments={transformComments}
           renderActor={renderActor}
         />

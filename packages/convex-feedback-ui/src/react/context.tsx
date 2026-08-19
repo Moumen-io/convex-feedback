@@ -1,38 +1,17 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useMemo,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useMemo, type CSSProperties } from "react";
 
-import {
-  mergeFeedbackMessages,
-  type FeedbackMessageOverrides,
-  type FeedbackMessages,
-} from "../shared/messages.js";
-import {
-  mergeFeedbackTheme,
-  type FeedbackTheme,
-  type FeedbackThemeOverride,
-} from "../shared/theme.js";
-
-interface FeedbackUiContextValue {
-  messages: FeedbackMessages;
-  theme: FeedbackTheme;
-  unstyled: boolean;
-}
+import { mergeFeedbackMessages } from "../shared/messages.js";
+import { mergeFeedbackTheme } from "../shared/theme.js";
+import type {
+  FeedbackColorProps,
+  FeedbackProviderProps,
+  FeedbackTheme,
+  FeedbackUiContextValue,
+} from "../shared/types";
 
 const FeedbackUiContext = createContext<FeedbackUiContextValue | null>(null);
-
-export interface FeedbackProviderProps {
-  children: ReactNode;
-  messages?: FeedbackMessageOverrides | undefined;
-  theme?: FeedbackThemeOverride | undefined;
-  unstyled?: boolean | undefined;
-}
 
 export function FeedbackProvider({
   children,
@@ -67,6 +46,9 @@ export function useFeedbackUi(): FeedbackUiContextValue {
   return context;
 }
 
+/**
+ * CSS custom properties produced for a feedback board.
+ */
 export interface FeedbackCssVariables extends CSSProperties {
   "--cf-primary"?: string;
   "--cf-background"?: string;
@@ -79,16 +61,6 @@ export interface FeedbackCssVariables extends CSSProperties {
   "--cf-success"?: string;
   "--cf-radius"?: string;
   "--cf-space"?: string;
-}
-
-export interface FeedbackColorProps {
-  primaryColor?: string | undefined;
-  backgroundColor?: string | undefined;
-  surfaceColor?: string | undefined;
-  textColor?: string | undefined;
-  mutedColor?: string | undefined;
-  borderColor?: string | undefined;
-  dangerColor?: string | undefined;
 }
 
 export function feedbackCssVariables(

@@ -2,7 +2,7 @@ import type {
   FeedbackComment,
   FeedbackEntry as FeedbackEntryData,
 } from "convex-feedback";
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useMemo } from "react";
 import {
   Pressable,
   ScrollView,
@@ -23,12 +23,22 @@ import {
   type SafeAreaViewProps,
 } from "react-native-safe-area-context";
 
-import type { RenderChildren } from "../shared/render.js";
-import {
-  FeedbackNativeThemeScope,
-  useFeedbackUi,
-  type FeedbackNativeColorProps,
-} from "./context.js";
+import type {
+  BoardSearchBaseProps,
+  BoardSearchState,
+  CommentActionBaseProps,
+  CommentLikeBaseProps,
+  CommentLikeState,
+  CommentRootBaseProps,
+  EntryRootBaseProps,
+  EntryUpvoteBaseProps,
+  EntryUpvoteState,
+  FeedbackColorProps,
+  FormSubmitBaseProps,
+  FormSubmitState,
+  RepliesButtonBaseProps,
+} from "../shared/types";
+import { FeedbackNativeThemeScope, useFeedbackUi } from "./context.js";
 
 function combineStyle<T>(
   enabled: boolean,
@@ -38,8 +48,10 @@ function combineStyle<T>(
   return enabled ? [fallback, style] : style;
 }
 
-export interface BoardRootProps
-  extends SafeAreaViewProps, FeedbackNativeColorProps {}
+/**
+ * Props for `FeedbackBoard.Root`.
+ */
+export interface BoardRootProps extends SafeAreaViewProps, FeedbackColorProps {}
 
 function BoardRoot({
   primaryColor,
@@ -123,19 +135,13 @@ function BoardTitle({ style, children, ...props }: TextProps) {
   );
 }
 
-export interface BoardSearchState {
-  value: string;
-  setValue: (value: string) => void;
-}
-
-export interface BoardSearchProps extends Omit<
-  TextInputProps,
-  "children" | "value" | "onChangeText"
-> {
-  value: string;
-  onValueChange: (value: string) => void;
-  children?: RenderChildren<BoardSearchState>;
-}
+/**
+ * Props for native `FeedbackBoard.Search`.
+ */
+export interface BoardSearchProps
+  extends
+    Omit<TextInputProps, "children" | "value" | "onChangeText">,
+    BoardSearchBaseProps {}
 
 function BoardSearch({
   value,
@@ -209,9 +215,11 @@ function useEntryContext(): FeedbackEntryData {
   return value;
 }
 
-export interface EntryRootProps extends ViewProps {
-  entry: FeedbackEntryData;
-}
+/**
+ * Props for native `FeedbackEntry.Root`.
+ */
+export interface EntryRootProps extends ViewProps, EntryRootBaseProps {}
+
 function EntryRoot({ entry, style, ...props }: EntryRootProps) {
   const { theme, unstyled } = useFeedbackUi();
   return (
@@ -236,30 +244,24 @@ function EntryRoot({ entry, style, ...props }: EntryRootProps) {
   );
 }
 
-export interface EntryUpvoteState {
-  entry: FeedbackEntryData;
-  active: boolean;
-  count: number;
-  toggle: () => void | Promise<void>;
-}
-export interface EntryUpvoteProps extends Omit<
-  PressableProps,
-  "children" | "onPress" | "style"
-> {
-  onToggle: (nextActive: boolean) => void | Promise<void>;
-  children?: RenderChildren<EntryUpvoteState>;
+export interface EntryUpvoteProps
+  extends
+    Omit<PressableProps, "children" | "onPress" | "style">,
+    EntryUpvoteBaseProps {
   primaryColor?: string;
   style?: StyleProp<ViewStyle>;
 }
+
 function EntryUpvote({
   onToggle,
   children,
   primaryColor,
   style,
+  accessibilityLabel,
   ...props
 }: EntryUpvoteProps) {
   const entry = useEntryContext();
-  const { theme, unstyled } = useFeedbackUi();
+  const { theme, unstyled, messages } = useFeedbackUi();
   const activeColor = primaryColor ?? theme.colors.primary;
   const toggle = () => onToggle(!entry.viewerHasUpvoted);
   const state: EntryUpvoteState = {
@@ -272,6 +274,12 @@ function EntryUpvote({
   return (
     <Pressable
       {...props}
+      accessibilityLabel={
+        accessibilityLabel ??
+        (entry.viewerHasUpvoted
+          ? messages.entry.removeUpvote
+          : messages.entry.upvote)
+      }
       onPress={toggle}
       style={combineStyle<ViewStyle>(
         !unstyled,
@@ -314,7 +322,27 @@ function EntryUpvote({
     </Pressable>
   );
 }
+function EntryKind({ style, children, ...props }: TextProps) {
+  const entry = useEntryContext();
+  const { messages, theme, unstyled } = useFeedbackUi();
 
+  return (
+    <Text
+      {...props}
+      style={combineStyle<TextStyle>(
+        !unstyled,
+        {
+          color: theme.colors.mutedText,
+          fontSize: 12,
+          fontWeight: "600",
+        },
+        style,
+      )}
+    >
+      {children ?? messages.kinds[entry.kind]}
+    </Text>
+  );
+}
 function EntryContent({ style, ...props }: ViewProps) {
   return <View {...props} style={[{ flex: 1, minWidth: 0 }, style]} />;
 }
@@ -386,6 +414,7 @@ export const FeedbackEntry = {
   Root: EntryRoot,
   Upvote: EntryUpvote,
   Content: EntryContent,
+  Kind: EntryKind,
   Title: EntryTitle,
   Body: EntryBody,
   Status: EntryStatus,
@@ -399,9 +428,8 @@ function useCommentContext(): FeedbackComment {
     throw new Error("Comment compound must be inside Comment.Root.");
   return value;
 }
-export interface CommentRootProps extends ViewProps {
-  comment: FeedbackComment;
-}
+export interface CommentRootProps extends ViewProps, CommentRootBaseProps {}
+
 function CommentRoot({ comment, style, ...props }: CommentRootProps) {
   const { theme, unstyled } = useFeedbackUi();
   return (
@@ -444,18 +472,11 @@ function CommentBody({ style, children, ...props }: TextProps) {
     </Text>
   );
 }
-export interface CommentLikeState {
-  comment: FeedbackComment;
-  active: boolean;
-  count: number;
-  toggle: () => void | Promise<void>;
-}
-export interface CommentLikeProps extends Omit<
-  PressableProps,
-  "children" | "onPress" | "style"
-> {
-  onToggle: (nextActive: boolean) => void | Promise<void>;
-  children?: RenderChildren<CommentLikeState>;
+
+export interface CommentLikeProps
+  extends
+    Omit<PressableProps, "children" | "onPress" | "style">,
+    CommentLikeBaseProps {
   primaryColor?: string;
   style?: StyleProp<ViewStyle>;
 }
@@ -464,13 +485,14 @@ function CommentLike({
   children,
   primaryColor,
   style,
+  accessibilityLabel,
   ...props
 }: CommentLikeProps) {
   const comment = useCommentContext();
-  const { theme, unstyled } = useFeedbackUi();
+  const { theme, unstyled, messages } = useFeedbackUi();
   const color = primaryColor ?? theme.colors.primary;
   const toggle = () => onToggle(!comment.viewerHasLiked);
-  const state = {
+  const state: CommentLikeState = {
     comment,
     active: comment.viewerHasLiked,
     count: comment.likeCount,
@@ -480,6 +502,13 @@ function CommentLike({
   return (
     <Pressable
       {...props}
+      accessibilityLabel={
+        accessibilityLabel ??
+        props["aria-label"] ??
+        (comment.viewerHasLiked
+          ? messages.comments.unlike
+          : messages.comments.like)
+      }
       onPress={toggle}
       style={combineStyle<ViewStyle>(
         !unstyled,
@@ -515,16 +544,11 @@ function CommentLike({
     </Pressable>
   );
 }
-export interface CommentActionState {
-  comment: FeedbackComment;
-  activate: () => void;
-}
-export interface CommentActionProps extends Omit<
-  PressableProps,
-  "children" | "onPress" | "style"
-> {
-  onActivate: () => void;
-  children?: RenderChildren<CommentActionState>;
+
+export interface CommentActionProps
+  extends
+    Omit<PressableProps, "children" | "onPress" | "style">,
+    CommentActionBaseProps {
   style?: StyleProp<ViewStyle>;
 }
 function CommentReply({
@@ -549,17 +573,11 @@ function CommentReply({
     </Pressable>
   );
 }
-export interface RepliesButtonState extends CommentActionState {
-  expanded: boolean;
-  count: number;
-}
-export interface RepliesButtonProps extends Omit<
-  PressableProps,
-  "children" | "onPress" | "style"
-> {
-  expanded: boolean;
-  onExpandedChange: (expanded: boolean) => void;
-  children?: RenderChildren<RepliesButtonState>;
+
+export interface RepliesButtonProps
+  extends
+    Omit<PressableProps, "children" | "onPress" | "style">,
+    RepliesButtonBaseProps {
   style?: StyleProp<ViewStyle>;
 }
 function CommentRepliesButton({
@@ -663,15 +681,9 @@ function FormTextarea({ style, ...props }: TextInputProps) {
     />
   );
 }
-export interface FormSubmitState {
-  submitting: boolean;
-}
-export interface FormSubmitProps extends Omit<
-  PressableProps,
-  "children" | "style"
-> {
-  submitting?: boolean;
-  children?: RenderChildren<FormSubmitState>;
+
+export interface FormSubmitProps
+  extends Omit<PressableProps, "children" | "style">, FormSubmitBaseProps {
   primaryColor?: string;
   style?: StyleProp<ViewStyle>;
 }
@@ -684,7 +696,7 @@ function FormSubmit({
   ...props
 }: FormSubmitProps) {
   const { messages, theme, unstyled } = useFeedbackUi();
-  const state = { submitting };
+  const state: FormSubmitState = { submitting };
   if (typeof children === "function") return <>{children(state)}</>;
   return (
     <Pressable
@@ -716,5 +728,3 @@ export const FeedbackForm = {
   Textarea: FormTextarea,
   Submit: FormSubmit,
 };
-
-export type { ReactNode, StyleProp, TextStyle, ViewStyle };

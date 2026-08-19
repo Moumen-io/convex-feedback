@@ -12,8 +12,6 @@
     "ios": {
       "bundleIdentifier": "com.moumentos.convex-feedback-native-demo"
     },
-    "plugins": [
-      "expo-secure-store"
-    ]
+    "plugins": ["expo-secure-store"]
   }
 }

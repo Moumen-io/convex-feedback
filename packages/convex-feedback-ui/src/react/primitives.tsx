@@ -8,21 +8,31 @@ import {
   createContext,
   useContext,
   type ButtonHTMLAttributes,
-  type CSSProperties,
   type FormHTMLAttributes,
   type HTMLAttributes,
   type InputHTMLAttributes,
-  type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
 
-import type { RenderChildren } from "../shared/render.js";
-import {
-  feedbackCssVariables,
-  useFeedbackUi,
-  type FeedbackColorProps,
-} from "./context.js";
+import type {
+  BoardRootBaseProps,
+  BoardSearchBaseProps,
+  BoardSearchState,
+  CommentActionBaseProps,
+  CommentActionState,
+  CommentLikeBaseProps,
+  CommentLikeState,
+  CommentRootBaseProps,
+  EntryRootBaseProps,
+  EntryUpvoteBaseProps,
+  EntryUpvoteState,
+  FormSubmitBaseProps,
+  FormSubmitState,
+  RepliesButtonBaseProps,
+  RepliesButtonState,
+} from "../shared/types";
+import { feedbackCssVariables, useFeedbackUi } from "./context.js";
 
 function classes(
   unstyled: boolean,
@@ -33,10 +43,11 @@ function classes(
   return className === undefined ? base : `${base} ${className}`;
 }
 
+/**
+ * Props for `FeedbackBoard.Root`.
+ */
 export interface BoardRootProps
-  extends HTMLAttributes<HTMLDivElement>, FeedbackColorProps {
-  unstyled?: boolean;
-}
+  extends HTMLAttributes<HTMLDivElement>, BoardRootBaseProps {}
 
 function BoardRoot({
   primaryColor,
@@ -93,19 +104,16 @@ function BoardTitle(props: HTMLAttributes<HTMLHeadingElement>) {
   );
 }
 
-export interface BoardSearchState {
-  value: string;
-  setValue: (value: string) => void;
-}
-
-export interface BoardSearchProps extends Omit<
-  InputHTMLAttributes<HTMLInputElement>,
-  "children" | "value" | "onChange"
-> {
-  value: string;
-  onValueChange: (value: string) => void;
-  children?: RenderChildren<BoardSearchState>;
-}
+/**
+ * Props for `FeedbackBoard.Search`.
+ */
+export interface BoardSearchProps
+  extends
+    Omit<
+      InputHTMLAttributes<HTMLInputElement>,
+      "children" | "value" | "onChange"
+    >,
+    BoardSearchBaseProps {}
 
 function BoardSearch({
   value,
@@ -157,9 +165,11 @@ function useEntryContext(): FeedbackEntryData {
   return entry;
 }
 
-export interface EntryRootProps extends HTMLAttributes<HTMLElement> {
-  entry: FeedbackEntryData;
-}
+/**
+ * Props for `FeedbackEntry.Root`.
+ */
+export interface EntryRootProps
+  extends HTMLAttributes<HTMLElement>, EntryRootBaseProps {}
 
 function EntryRoot({ entry, className, ...props }: EntryRootProps) {
   const { unstyled } = useFeedbackUi();
@@ -173,26 +183,21 @@ function EntryRoot({ entry, className, ...props }: EntryRootProps) {
   );
 }
 
-export interface EntryUpvoteState {
-  entry: FeedbackEntryData;
-  active: boolean;
-  count: number;
-  toggle: () => void | Promise<void>;
-}
-
-export interface EntryUpvoteProps extends Omit<
-  ButtonHTMLAttributes<HTMLButtonElement>,
-  "children" | "onClick" | "onToggle"
-> {
-  onToggle: (nextActive: boolean) => void | Promise<void>;
-  children?: RenderChildren<EntryUpvoteState>;
-  label?: string;
-}
+/**
+ * Props for `FeedbackEntry.Upvote`.
+ */
+export interface EntryUpvoteProps
+  extends
+    Omit<
+      ButtonHTMLAttributes<HTMLButtonElement>,
+      "children" | "onClick" | "onToggle"
+    >,
+    EntryUpvoteBaseProps {}
 
 function EntryUpvote({
   onToggle,
   children,
-  label,
+  "aria-label": accessibilityLabel,
   className,
   ...props
 }: EntryUpvoteProps) {
@@ -213,7 +218,7 @@ function EntryUpvote({
       className={classes(unstyled, "cf-upvote", className)}
       data-active={entry.viewerHasUpvoted ? "true" : "false"}
       aria-label={
-        label ??
+        accessibilityLabel ??
         (entry.viewerHasUpvoted
           ? messages.entry.removeUpvote
           : messages.entry.upvote)
@@ -237,6 +242,20 @@ function EntryContent(props: HTMLAttributes<HTMLDivElement>) {
       {...props}
       className={classes(unstyled, "cf-entry__content", props.className)}
     />
+  );
+}
+
+function EntryKind(props: HTMLAttributes<HTMLSpanElement>) {
+  const entry = useEntryContext();
+  const { messages, unstyled } = useFeedbackUi();
+
+  return (
+    <span
+      {...props}
+      className={classes(unstyled, "cf-entry__kind", props.className)}
+    >
+      {props.children ?? messages.kinds[entry.kind]}
+    </span>
   );
 }
 
@@ -296,6 +315,7 @@ export const FeedbackEntry = {
   Root: EntryRoot,
   Upvote: EntryUpvote,
   Content: EntryContent,
+  Kind: EntryKind,
   Title: EntryTitle,
   Body: EntryBody,
   Status: EntryStatus,
@@ -311,9 +331,11 @@ function useCommentContext(): FeedbackComment {
   return comment;
 }
 
-export interface CommentRootProps extends HTMLAttributes<HTMLElement> {
-  comment: FeedbackComment;
-}
+/**
+ * Props for `Comment.Root`.
+ */
+export interface CommentRootProps
+  extends HTMLAttributes<HTMLElement>, CommentRootBaseProps {}
 
 function CommentRoot({ comment, className, ...props }: CommentRootProps) {
   const { unstyled } = useFeedbackUi();
@@ -340,26 +362,21 @@ function CommentBody(props: HTMLAttributes<HTMLParagraphElement>) {
   );
 }
 
-export interface CommentLikeState {
-  comment: FeedbackComment;
-  active: boolean;
-  count: number;
-  toggle: () => void | Promise<void>;
-}
-
-export interface CommentLikeProps extends Omit<
-  ButtonHTMLAttributes<HTMLButtonElement>,
-  "children" | "onClick" | "onToggle"
-> {
-  onToggle: (nextActive: boolean) => void | Promise<void>;
-  children?: RenderChildren<CommentLikeState>;
-  label?: string;
-}
+/**
+ * Props for `Comment.Like`.
+ */
+export interface CommentLikeProps
+  extends
+    Omit<
+      ButtonHTMLAttributes<HTMLButtonElement>,
+      "children" | "onClick" | "onToggle"
+    >,
+    CommentLikeBaseProps {}
 
 function CommentLike({
   onToggle,
   children,
-  label,
+  "aria-label": accessibilityLabel,
   className,
   ...props
 }: CommentLikeProps) {
@@ -380,7 +397,7 @@ function CommentLike({
       className={classes(unstyled, "cf-comment__like", className)}
       data-active={comment.viewerHasLiked ? "true" : "false"}
       aria-label={
-        label ??
+        accessibilityLabel ??
         (comment.viewerHasLiked
           ? messages.comments.unlike
           : messages.comments.like)
@@ -397,18 +414,16 @@ function CommentLike({
   );
 }
 
-export interface CommentActionState {
-  comment: FeedbackComment;
-  activate: () => void;
-}
-
-export interface CommentActionProps extends Omit<
-  ButtonHTMLAttributes<HTMLButtonElement>,
-  "children" | "onClick" | "onToggle"
-> {
-  onActivate: () => void;
-  children?: RenderChildren<CommentActionState>;
-}
+/**
+ * Props for a simple comment action.
+ */
+export interface CommentActionProps
+  extends
+    Omit<
+      ButtonHTMLAttributes<HTMLButtonElement>,
+      "children" | "onClick" | "onToggle"
+    >,
+    CommentActionBaseProps {}
 
 function CommentReply({
   onActivate,
@@ -418,7 +433,7 @@ function CommentReply({
 }: CommentActionProps) {
   const comment = useCommentContext();
   const { messages, unstyled } = useFeedbackUi();
-  const state = { comment, activate: onActivate };
+  const state: CommentActionState = { comment, activate: onActivate };
   return typeof children === "function" ? (
     <>{children(state)}</>
   ) : (
@@ -433,19 +448,16 @@ function CommentReply({
   );
 }
 
-export interface RepliesButtonState extends CommentActionState {
-  expanded: boolean;
-  count: number;
-}
-
-export interface RepliesButtonProps extends Omit<
-  ButtonHTMLAttributes<HTMLButtonElement>,
-  "children" | "onClick" | "onToggle"
-> {
-  expanded: boolean;
-  onExpandedChange: (expanded: boolean) => void;
-  children?: RenderChildren<RepliesButtonState>;
-}
+/**
+ * Props for `Comment.RepliesButton`.
+ */
+export interface RepliesButtonProps
+  extends
+    Omit<
+      ButtonHTMLAttributes<HTMLButtonElement>,
+      "children" | "onClick" | "onToggle"
+    >,
+    RepliesButtonBaseProps {}
 
 function CommentRepliesButton({
   expanded,
@@ -539,17 +551,13 @@ function FormSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
   );
 }
 
-export interface FormSubmitState {
-  submitting: boolean;
-}
-
-export interface FormSubmitProps extends Omit<
-  ButtonHTMLAttributes<HTMLButtonElement>,
-  "children"
-> {
-  submitting?: boolean;
-  children?: RenderChildren<FormSubmitState>;
-}
+/**
+ * Props for `FeedbackForm.Submit`.
+ */
+export interface FormSubmitProps
+  extends
+    Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">,
+    FormSubmitBaseProps {}
 
 function FormSubmit({
   submitting = false,
@@ -558,7 +566,7 @@ function FormSubmit({
   ...props
 }: FormSubmitProps) {
   const { messages, unstyled } = useFeedbackUi();
-  const state = { submitting };
+  const state: FormSubmitState = { submitting };
   if (typeof children === "function") return <>{children(state)}</>;
   return (
     <button
@@ -579,5 +587,3 @@ export const FeedbackForm = {
   Select: FormSelect,
   Submit: FormSubmit,
 };
-
-export type { CSSProperties, ReactNode };

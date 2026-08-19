@@ -1,26 +1,4 @@
-export interface FeedbackColors {
-  primary: string;
-  background: string;
-  surface: string;
-  surfaceMuted: string;
-  text: string;
-  mutedText: string;
-  border: string;
-  danger: string;
-  success: string;
-}
-
-export interface FeedbackTheme {
-  colors: FeedbackColors;
-  radius: number;
-  spacing: number;
-}
-
-export interface FeedbackThemeOverride {
-  colors?: Partial<FeedbackColors>;
-  radius?: number;
-  spacing?: number;
-}
+import type { FeedbackTheme, FeedbackThemeOverride } from "./types";
 
 export const defaultFeedbackTheme: FeedbackTheme = {
   colors: {

@@ -1,29 +1,50 @@
-# convex-feedback React demo
+# convex-feedback web example
 
-A real Vite + Convex application that exercises the bundled `convex-feedback` and `convex-feedback-ui` workspaces.
+Deployable Vite + React example for `convex-feedback` and `convex-feedback-ui`.
 
-## First run
+This frontend does **not** own a Convex backend. It connects to the shared `[example-backend](../example-backend/README.md)` deployment and imports its generated API.
 
-From the monorepo root:
+## Test locally
 
-```bash
-npm install
-cd packages/example-web
-npm run setup
-npm run dev
-```
-
-`setup` creates/selects the example's Convex development deployment, generates its app API, and configures the JWT signing keys required by the anonymous Convex Auth provider. Each browser session then receives its own feedback actor without a login UI.
-
-## Production backend + frontend build
-
-Configure production auth keys once, then deploy:
+From the repository root, first initialize and run the shared backend:
 
 ```bash
-npm run auth:init -- --prod
-npm run deploy
+npm run setup -w convex-feedback-example-backend
+npm run dev -w convex-feedback-example-backend
 ```
 
-The deploy script first builds both library workspaces, then runs `convex deploy --cmd 'vite build'`. Convex supplies `VITE_CONVEX_URL` to the Vite build. Upload the resulting `dist/` directory to Vercel, Netlify, Cloudflare Pages, GitHub Pages, or another static host.
+In `packages/example-web/.env.local`, point Vite at the backend's development deployment URL:
 
-The example is intentionally a workspace package under `/packages` so npm links `convex-feedback` and `convex-feedback-ui` locally.
+```bash
+VITE_CONVEX_URL=https://your-development-deployment.convex.cloud
+```
+
+Then start the web example in another terminal:
+
+```bash
+npm run dev -w convex-feedback-example-web
+```
+
+## Testing UI package changes
+
+Run the Vite server:
+
+```bash
+npm run dev -w convex-feedback-ui
+```
+
+and:
+
+```bash
+npm run dev -w convex-feedback-example-web
+```
+
+If you are not using the watcher, rebuild manually after UI changes:
+
+```bash
+npm run build -w convex-feedback-ui
+```
+
+---
+
+For actual application integration, use the package READMEs rather than copying demo-specific authentication setup.

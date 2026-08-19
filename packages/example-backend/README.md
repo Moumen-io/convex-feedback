@@ -1,13 +1,15 @@
 # convex-feedback example backend
 
-Shared Convex backend for both deployable examples:
+Shared Convex backend used by both demo clients:
 
 - `convex-feedback-example-web`
 - `convex-feedback-example-native`
 
-This workspace is the only example package that owns Convex functions, Convex Auth, the component installation, and generated application API types.
+This workspace is the only example package that owns the example Convex deployment, Convex Auth setup, `convex-feedback` component installation, host API wrapper, and generated application API.
 
-## Setup
+It is an example/test harness for this repository.
+
+## Test locally
 
 From the repository root:
 
@@ -16,46 +18,53 @@ npm install
 npm run setup -w convex-feedback-example-backend
 ```
 
-`setup` selects/creates the development deployment, pushes the backend once, and configures the signing keys used by the anonymous Convex Auth provider.
+`setup` initializes/selects the development deployment, builds the local packages, pushes the backend once, and configures the anonymous-auth signing keys used by the demo.
 
-Then keep the backend running while developing either client:
+Then run the backend while testing either client:
 
 ```bash
 npm run dev -w convex-feedback-example-backend
 ```
 
-## Generated API
+The Convex CLI writes the development deployment configuration locally. Use that deployment URL in both frontend examples.
 
-Run:
+## Code generation
 
 ```bash
 npm run codegen -w convex-feedback-example-backend
 ```
 
-The generated API is exported from this workspace as:
+The generated API is exported from this workspace:
 
 ```ts
 import { api } from "convex-feedback-example-backend/api";
 ```
 
-Both example clients should use this import. Do not duplicate the generated API or create another `convex/` directory in either client.
+All frontend examples should import this generated API. They should **not** contain their own `convex/` directories or run their own Convex codegen.
 
-## Deployment URL
+## Shared deployment URL
 
-Both clients must point to the same deployment URL:
+For local development:
 
-- web: `VITE_CONVEX_URL`
-- Expo/native: `EXPO_PUBLIC_CONVEX_URL`
+- web uses `VITE_CONVEX_URL`;
+- Expo/native uses `EXPO_PUBLIC_CONVEX_URL`.
 
-For local development, use the development deployment URL.
+Point both values at the same Convex development deployment.
 
-## Production
+## Deploy the backend
 
-Deploy this backend once:
+The production backend should be deployed once, independently from the two frontend deployments.
+
+Configure production anonymous-auth keys:
 
 ```bash
 npm run auth:init -w convex-feedback-example-backend -- --prod
+```
+
+Deploy:
+
+```bash
 npm run deploy -w convex-feedback-example-backend
 ```
 
-Then deploy the two frontend examples independently. Neither frontend should execute `convex deploy`.
+For production integration instructions, see `[../convex-feedback/README.md](../convex-feedback/README.md)`.

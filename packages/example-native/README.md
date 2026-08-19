@@ -1,29 +1,58 @@
-# convex-feedback React Native / Expo demo
+# convex-feedback native example
 
-A real Expo application for `convex-feedback-ui/native`. It runs on iOS, Android, and web; the web export can be hosted publicly so developers can try the native implementation in a browser.
+Expo / React Native example for `convex-feedback` and `convex-feedback-ui/native`.
 
-## First run
+The example also exports to web.
 
-From the monorepo root:
+This client does **not** own a Convex backend. It connects to the shared `[example-backend](../example-backend/README.md)` deployment.
 
-```bash
-npm install
-cd packages/example-native
-npm run setup
-npm run dev
-```
+## Test locally
 
-`setup` creates/selects the example's Convex development deployment, generates its app API, and configures the JWT signing keys required by the anonymous Convex Auth provider. Expo starts after Convex is ready. Open iOS/Android as usual, or press `w` for the web build.
-
-## Deploy the Expo web version
-
-Configure production auth keys once, then deploy:
+Initialize and run the shared backend from the repository root:
 
 ```bash
-npm run auth:init -- --prod
-npm run deploy:web
+npm run dev:ios -w convex-feedback-example-native
+npm run dev:web -w convex-feedback-example-native
 ```
 
-This builds `convex-feedback` and `convex-feedback-ui`, deploys the example Convex backend, injects its URL as `EXPO_PUBLIC_CONVEX_URL`, and runs `expo export --platform web`. Upload the generated `dist/` directory to a static host.
+Create `packages/example-native/.env.local`:
 
-For native App Store/TestFlight builds, use the same Convex production deployment and configure `EXPO_PUBLIC_CONVEX_URL` in the EAS build environment.
+```bash
+EXPO_PUBLIC_CONVEX_URL=https://your-development-deployment.convex.cloud
+```
+
+Then open the app on an iOS simulator, or Expo Web.
+
+## Testing UI package changes
+
+Run the Expo project:
+
+```bash
+npm run dev:ios -w convex-feedback-ui
+```
+
+and:
+
+```bash
+npm run dev -w convex-feedback-example-native
+```
+
+For Metro to pick up rebuilt workspace output, you must run:
+
+```bash
+npm run build -w convex-feedback-ui
+```
+
+or install a watcher to automatically run the build.
+
+## Build the web demo
+
+```bash
+npm run build -w convex-feedback-example-native
+```
+
+The Expo web export is written to `packages/example-native/dist`.
+
+---
+
+For application integration and theme/component customization, see `[../convex-feedback-ui/README.md](../convex-feedback-ui/README.md)`.

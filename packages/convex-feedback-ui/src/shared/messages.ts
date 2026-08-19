@@ -1,60 +1,4 @@
-import type { EntryKind, EntryStatus } from "convex-feedback";
-
-export interface FeedbackMessages {
-  board: {
-    title: string;
-    subtitle: string;
-    searchPlaceholder: string;
-    createEntry: string;
-    noEntries: string;
-    noSearchResults: string;
-    loading: string;
-    loadMore: string;
-  };
-  kinds: Record<EntryKind, string>;
-  statuses: Record<EntryStatus, string>;
-  entry: {
-    upvote: string;
-    removeUpvote: string;
-    comments: (count: number) => string;
-    open: string;
-    back: string;
-  };
-  form: {
-    kind: string;
-    title: string;
-    titlePlaceholder: string;
-    body: string;
-    bodyPlaceholder: string;
-    submit: string;
-    cancel: string;
-    possibleDuplicates: string;
-    exactDuplicate: string;
-  };
-  comments: {
-    title: string;
-    placeholder: string;
-    submit: string;
-    reply: string;
-    cancelReply: string;
-    like: string;
-    unlike: string;
-    viewReplies: (count: number) => string;
-    hideReplies: string;
-    deleted: string;
-    noComments: string;
-    loadMore: string;
-  };
-}
-
-export interface FeedbackMessageOverrides {
-  board?: Partial<FeedbackMessages["board"]>;
-  kinds?: Partial<FeedbackMessages["kinds"]>;
-  statuses?: Partial<FeedbackMessages["statuses"]>;
-  entry?: Partial<FeedbackMessages["entry"]>;
-  form?: Partial<FeedbackMessages["form"]>;
-  comments?: Partial<FeedbackMessages["comments"]>;
-}
+import type { FeedbackMessageOverrides, FeedbackMessages } from "./types";
 
 export const englishFeedbackMessages: FeedbackMessages = {
   board: {
@@ -97,6 +41,9 @@ export const englishFeedbackMessages: FeedbackMessages = {
     cancel: "Cancel",
     possibleDuplicates: "Possible existing feedback",
     exactDuplicate: "This may already exist",
+    duplicateWarning:
+      "Similar feedback already exists. Are you sure you want to submit another entry?",
+    submitAnyway: "Submit anyways",
   },
   comments: {
     title: "Discussion",

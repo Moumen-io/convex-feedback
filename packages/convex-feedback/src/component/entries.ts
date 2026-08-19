@@ -2,9 +2,12 @@ import { paginator } from "convex-helpers/server/pagination";
 import {
   paginationOptsValidator,
   paginationResultValidator,
+  type PaginationResult,
 } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
+import { mergedStream, stream } from "convex-helpers/server/stream";
+import type { Doc } from "./_generated/dataModel.js";
 import { mutation, query } from "./_generated/server.js";
 import {
   assertActorId,
@@ -19,13 +22,44 @@ import {
   entryStatusValidator,
   publicEntryValidator,
   similarEntriesValidator,
+  type EntryKind,
 } from "./model.js";
 import schema from "./schema.js";
+
+const allEntryKinds: readonly EntryKind[] = [
+  "feedback",
+  "feature_request",
+  "bug_report",
+];
+
+function normalizeKindFilter(
+  kinds: readonly EntryKind[] | undefined,
+): EntryKind[] | undefined {
+  if (kinds === undefined) {
+    return undefined;
+  }
+
+  const uniqueKinds = [...new Set(kinds)];
+
+  if (uniqueKinds.length === 0) {
+    throw new ConvexError(
+      "`kinds` must contain at least one entry kind when provided.",
+    );
+  }
+
+  // All known kinds is equivalent to no kind filter and lets us use the
+  // simpler global indexes.
+  if (uniqueKinds.length === allEntryKinds.length) {
+    return undefined;
+  }
+
+  return uniqueKinds;
+}
 
 export const list = query({
   args: {
     paginationOpts: paginationOptsValidator,
-    kind: v.optional(entryKindValidator),
+    kinds: v.optional(v.array(entryKindValidator)),
     status: v.optional(entryStatusValidator),
     sort: entrySortValidator,
     viewerActorId: v.optional(v.string()),
@@ -33,59 +67,123 @@ export const list = query({
   returns: paginationResultValidator(publicEntryValidator),
   handler: async (ctx, args) => {
     const db = paginator(ctx.db, schema);
-    const { kind, status } = args;
+    const kinds = normalizeKindFilter(args.kinds);
+    const { status } = args;
 
-    const result =
-      args.sort === "top"
-        ? kind !== undefined && status !== undefined
-          ? await db
-              .query("entries")
-              .withIndex("by_kind_status_upvotes", (q) =>
-                q.eq("kind", kind).eq("status", status),
-              )
-              .order("desc")
-              .paginate(args.paginationOpts)
-          : kind !== undefined
+    let result: PaginationResult<Doc<"entries">>;
+
+    if (kinds === undefined) {
+      result =
+        args.sort === "top"
+          ? status === undefined
+            ? await db
+                .query("entries")
+                .withIndex("by_upvotes")
+                .order("desc")
+                .paginate(args.paginationOpts)
+            : await db
+                .query("entries")
+                .withIndex("by_status_upvotes", (q) => q.eq("status", status))
+                .order("desc")
+                .paginate(args.paginationOpts)
+          : status === undefined
+            ? await db
+                .query("entries")
+                .order("desc")
+                .paginate(args.paginationOpts)
+            : await db
+                .query("entries")
+                .withIndex("by_status", (q) => q.eq("status", status))
+                .order("desc")
+                .paginate(args.paginationOpts);
+    } else if (kinds.length === 1) {
+      const kind = kinds[0];
+
+      if (kind === undefined) {
+        throw new ConvexError("Invalid kind filter.");
+      }
+
+      result =
+        args.sort === "top"
+          ? status === undefined
             ? await db
                 .query("entries")
                 .withIndex("by_kind_upvotes", (q) => q.eq("kind", kind))
                 .order("desc")
                 .paginate(args.paginationOpts)
-            : status !== undefined
-              ? await db
-                  .query("entries")
-                  .withIndex("by_status_upvotes", (q) => q.eq("status", status))
-                  .order("desc")
-                  .paginate(args.paginationOpts)
-              : await db
-                  .query("entries")
-                  .withIndex("by_upvotes")
-                  .order("desc")
-                  .paginate(args.paginationOpts)
-        : kind !== undefined && status !== undefined
-          ? await db
-              .query("entries")
-              .withIndex("by_kind_status", (q) =>
-                q.eq("kind", kind).eq("status", status),
-              )
-              .order("desc")
-              .paginate(args.paginationOpts)
-          : kind !== undefined
+            : await db
+                .query("entries")
+                .withIndex("by_kind_status_upvotes", (q) =>
+                  q.eq("kind", kind).eq("status", status),
+                )
+                .order("desc")
+                .paginate(args.paginationOpts)
+          : status === undefined
             ? await db
                 .query("entries")
                 .withIndex("by_kind", (q) => q.eq("kind", kind))
                 .order("desc")
                 .paginate(args.paginationOpts)
-            : status !== undefined
-              ? await db
-                  .query("entries")
-                  .withIndex("by_status", (q) => q.eq("status", status))
-                  .order("desc")
-                  .paginate(args.paginationOpts)
-              : await db
-                  .query("entries")
-                  .order("desc")
-                  .paginate(args.paginationOpts);
+            : await db
+                .query("entries")
+                .withIndex("by_kind_status", (q) =>
+                  q.eq("kind", kind).eq("status", status),
+                )
+                .order("desc")
+                .paginate(args.paginationOpts);
+    } else if (args.sort === "top") {
+      if (status === undefined) {
+        const streams = kinds.map((kind) =>
+          stream(ctx.db, schema)
+            .query("entries")
+            .withIndex("by_kind_upvotes", (q) => q.eq("kind", kind))
+            .order("desc"),
+        );
+
+        result = await mergedStream(streams, [
+          "upvoteCount",
+          "_creationTime",
+        ]).paginate(args.paginationOpts);
+      } else {
+        const streams = kinds.map((kind) =>
+          stream(ctx.db, schema)
+            .query("entries")
+            .withIndex("by_kind_status_upvotes", (q) =>
+              q.eq("kind", kind).eq("status", status),
+            )
+            .order("desc"),
+        );
+
+        result = await mergedStream(streams, [
+          "upvoteCount",
+          "_creationTime",
+        ]).paginate(args.paginationOpts);
+      }
+    } else if (status === undefined) {
+      const streams = kinds.map((kind) =>
+        stream(ctx.db, schema)
+          .query("entries")
+          .withIndex("by_kind", (q) => q.eq("kind", kind))
+          .order("desc"),
+      );
+
+      result = await mergedStream(streams, ["_creationTime"]).paginate(
+        args.paginationOpts,
+      );
+    } else {
+      const streams = kinds.map((kind) =>
+        stream(ctx.db, schema)
+          .query("entries")
+          .withIndex("by_kind_status", (q) =>
+            q.eq("kind", kind).eq("status", status),
+          )
+          .order("desc"),
+      );
+
+      result = await mergedStream(streams, ["_creationTime"]).paginate(
+        args.paginationOpts,
+      );
+    }
 
     return {
       ...result,
@@ -117,7 +215,7 @@ export const get = query({
 export const search = query({
   args: {
     searchQuery: v.string(),
-    kind: v.optional(entryKindValidator),
+    kinds: v.optional(v.array(entryKindValidator)),
     status: v.optional(entryStatusValidator),
     limit: v.number(),
     viewerActorId: v.optional(v.string()),
@@ -125,42 +223,88 @@ export const search = query({
   returns: v.array(publicEntryValidator),
   handler: async (ctx, args) => {
     const searchQuery = args.searchQuery.trim();
-    if (searchQuery.length === 0 || args.limit <= 0) return [];
-    const { kind, status } = args;
 
-    const entries =
-      kind !== undefined && status !== undefined
-        ? await ctx.db
-            .query("entries")
-            .withSearchIndex("search", (q) =>
-              q
-                .search("searchText", searchQuery)
-                .eq("kind", kind)
-                .eq("status", status),
-            )
-            .take(args.limit)
-        : kind !== undefined
+    if (searchQuery.length === 0 || args.limit <= 0) {
+      return [];
+    }
+
+    const kinds = normalizeKindFilter(args.kinds);
+    const { status } = args;
+
+    let entries: Doc<"entries">[];
+
+    if (kinds === undefined) {
+      entries =
+        status === undefined
+          ? await ctx.db
+              .query("entries")
+              .withSearchIndex("search", (q) =>
+                q.search("searchText", searchQuery),
+              )
+              .take(args.limit)
+          : await ctx.db
+              .query("entries")
+              .withSearchIndex("search", (q) =>
+                q.search("searchText", searchQuery).eq("status", status),
+              )
+              .take(args.limit);
+    } else if (kinds.length === 1) {
+      const kind = kinds[0];
+
+      if (kind === undefined) {
+        throw new ConvexError("Invalid kind filter.");
+      }
+
+      entries =
+        status === undefined
           ? await ctx.db
               .query("entries")
               .withSearchIndex("search", (q) =>
                 q.search("searchText", searchQuery).eq("kind", kind),
               )
               .take(args.limit)
-          : status !== undefined
-            ? await ctx.db
-                .query("entries")
-                .withSearchIndex("search", (q) =>
-                  q.search("searchText", searchQuery).eq("status", status),
-                )
-                .take(args.limit)
-            : await ctx.db
-                .query("entries")
-                .withSearchIndex("search", (q) =>
-                  q.search("searchText", searchQuery),
-                )
-                .take(args.limit);
+          : await ctx.db
+              .query("entries")
+              .withSearchIndex("search", (q) =>
+                q
+                  .search("searchText", searchQuery)
+                  .eq("kind", kind)
+                  .eq("status", status),
+              )
+              .take(args.limit);
+    } else {
+      const firstKind = kinds[0];
+      const secondKind = kinds[1];
 
-    return Promise.all(
+      if (firstKind === undefined || secondKind === undefined) {
+        throw new ConvexError("Invalid kind filter.");
+      }
+
+      const searchResults =
+        status === undefined
+          ? ctx.db
+              .query("entries")
+              .withSearchIndex("search", (q) =>
+                q.search("searchText", searchQuery),
+              )
+          : ctx.db
+              .query("entries")
+              .withSearchIndex("search", (q) =>
+                q.search("searchText", searchQuery).eq("status", status),
+              );
+
+      entries = await searchResults
+        // eslint-disable-next-line @convex-dev/no-filter-in-query
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("kind"), firstKind),
+            q.eq(q.field("kind"), secondKind),
+          ),
+        )
+        .take(args.limit);
+    }
+
+    return await Promise.all(
       entries.map((entry) => serializeEntry(ctx, entry, args.viewerActorId)),
     );
   },
@@ -176,16 +320,27 @@ export const similar = query({
   },
   returns: similarEntriesValidator,
   handler: async (ctx, args) => {
-    if (args.limit <= 0) return { exact: [], similar: [] };
+    if (args.limit <= 0) {
+      return {
+        exact: [],
+        similar: [],
+      };
+    }
 
     const title = args.title.trim();
     const body = args.body.trim();
-    const { kind } = args;
+    const kind = args.kind;
+
     if (title.length === 0 && body.length === 0) {
-      return { exact: [], similar: [] };
+      return {
+        exact: [],
+        similar: [],
+      };
     }
 
     const normalizedTitle = normalizeTitle(title);
+
+    // Exact normalized-title matches always consume the available limit first.
     const exactDocs =
       title.length === 0
         ? []
@@ -203,38 +358,57 @@ export const similar = query({
               )
               .take(args.limit);
 
-    const exactIds = new Set(exactDocs.map((entry) => entry._id));
+    const exact = await Promise.all(
+      exactDocs.map((entry) => serializeEntry(ctx, entry, args.viewerActorId)),
+    );
+
+    const remainingLimit = args.limit - exactDocs.length;
+
+    if (remainingLimit <= 0) {
+      return {
+        exact,
+        similar: [],
+      };
+    }
+
     const searchText = `${title}\n${body}`.trim();
 
-    const similarDocs =
-      searchText.length === 0
-        ? []
-        : kind === undefined
-          ? await ctx.db
-              .query("entries")
-              .withSearchIndex("search", (q) =>
-                q.search("searchText", searchText),
-              )
-              .take(args.limit + exactIds.size)
-          : await ctx.db
-              .query("entries")
-              .withSearchIndex("search", (q) =>
-                q.search("searchText", searchText).eq("kind", kind),
-              )
-              .take(args.limit + exactIds.size);
+    if (searchText.length === 0) {
+      return {
+        exact,
+        similar: [],
+      };
+    }
 
-    const similarFiltered = similarDocs
+    const exactIds = new Set(exactDocs.map((entry) => entry._id));
+
+    // We fetch enough candidates to account for exact matches also appearing
+    // in the full-text search results. Those duplicates are removed below.
+    const candidateLimit = remainingLimit + exactIds.size;
+
+    const similarDocs =
+      kind === undefined
+        ? await ctx.db
+            .query("entries")
+            .withSearchIndex("search", (q) =>
+              q.search("searchText", searchText),
+            )
+            .take(candidateLimit)
+        : await ctx.db
+            .query("entries")
+            .withSearchIndex("search", (q) =>
+              q.search("searchText", searchText).eq("kind", kind),
+            )
+            .take(candidateLimit);
+
+    const similarDocsWithoutExactMatches = similarDocs
       .filter((entry) => !exactIds.has(entry._id))
-      .slice(0, args.limit);
+      .slice(0, remainingLimit);
 
     return {
-      exact: await Promise.all(
-        exactDocs.map((entry) =>
-          serializeEntry(ctx, entry, args.viewerActorId),
-        ),
-      ),
+      exact,
       similar: await Promise.all(
-        similarFiltered.map((entry) =>
+        similarDocsWithoutExactMatches.map((entry) =>
           serializeEntry(ctx, entry, args.viewerActorId),
         ),
       ),
@@ -267,7 +441,7 @@ export const create = mutation({
     );
     const body = normalizeRequiredText(args.body, "Body", args.maxBodyLength);
 
-    return await ctx.db.insert("entries", {
+    const entry = await ctx.db.insert("entries", {
       actorId: args.actorId,
       kind: args.kind,
       status: args.defaultStatus,
@@ -275,9 +449,16 @@ export const create = mutation({
       body,
       normalizedTitle: normalizeTitle(title),
       searchText: `${title}\n${body}`,
-      upvoteCount: 0,
+      upvoteCount: 1,
       commentCount: 0,
     });
+
+    await ctx.db.insert("reactions", {
+      actorId: args.actorId,
+      entryId: entry,
+    });
+
+    return entry;
   },
 });
 

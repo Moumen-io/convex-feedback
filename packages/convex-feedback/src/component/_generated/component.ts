@@ -161,7 +161,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "query",
         "internal",
         {
-          kind?: "feedback" | "feature_request" | "bug_report";
+          kinds?: Array<"feedback" | "feature_request" | "bug_report">;
           paginationOpts: {
             cursor: string | null;
             endCursor?: string | null;
@@ -211,7 +211,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "query",
         "internal",
         {
-          kind?: "feedback" | "feature_request" | "bug_report";
+          kinds?: Array<"feedback" | "feature_request" | "bug_report">;
           limit: number;
           searchQuery: string;
           status?:

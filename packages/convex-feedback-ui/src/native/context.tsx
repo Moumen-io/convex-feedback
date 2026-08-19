@@ -1,40 +1,25 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
-import {
-  mergeFeedbackMessages,
-  type FeedbackMessageOverrides,
-  type FeedbackMessages,
-} from "../shared/messages.js";
-import {
-  mergeFeedbackTheme,
-  type FeedbackTheme,
-  type FeedbackThemeOverride,
-} from "../shared/theme.js";
+import { mergeFeedbackMessages } from "../shared/messages.js";
 
-interface FeedbackNativeContextValue {
-  messages: FeedbackMessages;
-  theme: FeedbackTheme;
-  unstyled: boolean;
-}
+import { mergeFeedbackTheme } from "../shared/theme.js";
+import type {
+  FeedbackProviderProps,
+  FeedbackTheme,
+  FeedbackUiContextValue,
+} from "../shared/types";
 
-const FeedbackNativeContext = createContext<FeedbackNativeContextValue | null>(
+const FeedbackNativeContext = createContext<FeedbackUiContextValue | null>(
   null,
 );
-
-export interface FeedbackNativeProviderProps {
-  children: ReactNode;
-  messages?: FeedbackMessageOverrides | undefined;
-  theme?: FeedbackThemeOverride | undefined;
-  unstyled?: boolean | undefined;
-}
 
 export function FeedbackProvider({
   children,
   messages,
   theme,
   unstyled = false,
-}: FeedbackNativeProviderProps) {
-  const value = useMemo<FeedbackNativeContextValue>(
+}: FeedbackProviderProps) {
+  const value = useMemo<FeedbackUiContextValue>(
     () => ({
       messages: mergeFeedbackMessages(messages),
       theme: mergeFeedbackTheme(theme),
@@ -49,7 +34,7 @@ export function FeedbackProvider({
   );
 }
 
-export function useFeedbackUi(): FeedbackNativeContextValue {
+export function useFeedbackUi(): FeedbackUiContextValue {
   const value = useContext(FeedbackNativeContext);
   return (
     value ?? {
@@ -70,7 +55,7 @@ export function FeedbackNativeThemeScope({
   colors,
 }: FeedbackNativeThemeScopeProps) {
   const parent = useFeedbackUi();
-  const value = useMemo<FeedbackNativeContextValue>(
+  const value = useMemo<FeedbackUiContextValue>(
     () => ({
       ...parent,
       theme: {
@@ -86,14 +71,4 @@ export function FeedbackNativeThemeScope({
       {children}
     </FeedbackNativeContext.Provider>
   );
-}
-
-export interface FeedbackNativeColorProps {
-  primaryColor?: string | undefined;
-  backgroundColor?: string | undefined;
-  surfaceColor?: string | undefined;
-  textColor?: string | undefined;
-  mutedColor?: string | undefined;
-  borderColor?: string | undefined;
-  dangerColor?: string | undefined;
 }

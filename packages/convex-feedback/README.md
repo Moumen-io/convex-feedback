@@ -1,91 +1,126 @@
 # convex-feedback
 
-Headless Convex component for product feedback, feature requests, bug reports, entry upvotes, recursive discussions, comment likes, and duplicate suggestions.
+[npm version](https://www.npmjs.com/package/convex-feedback)
+[npm downloads](https://www.npmjs.com/package/convex-feedback)
 
-## Data model
+A headless, fully typed Convex component for product feedback, feature requests, bug reports, entry upvotes, lazy nested comments, comment likes, full-text search, and duplicate suggestions.
 
-The component owns exactly three tables.
+> Looking for a ready-made interface? `[convex-feedback-ui](../convex-feedback-ui/README.md)` provides optional React DOM and React Native screens and compound primitives on top of this package.
 
-### `entries`
+## Features
 
-Stores the feedback body and list-query counters:
+- Feedback, feature requests, and bug reports.
+- Canny-style entry upvotes.
+- Recursive comments loaded one level at a time.
+- Comment likes.
+- Indexed `top` / `newest` entry ordering.
+- Indexed `top` / `newest` / `oldest` comment ordering.
+- Convex full-text search.
+- Exact-title + full-text duplicate suggestions.
+- Host-controlled authentication and moderator permissions.
+- Configurable limits and behavior
+- Typed React hooks.
+- `convex-test` helper entry point.
 
-- `kind`: `feedback | feature_request | bug_report`
-- `status`: `open | under_review | planned | in_progress | completed | closed`
-- `actorId`, `title`, `body`
-- `normalizedTitle`, `searchText`
-- `upvoteCount`, `commentCount`
-- optional `updatedAt`
+The component owns only three tables: `entries`, `comments`, and `reactions`.
 
-`_creationTime` is used instead of a duplicate `createdAt` field.
+## Requirements
 
-### `comments`
+- An existing Convex application.
+- `convex` installed in the host project.
+- React is required only when using `convex-feedback/react`.
 
-Stores one recursive adjacency-list node per comment:
+## Installation
 
-- `entryId`
-- optional `parentCommentId`
-- `actorId`, `depth`, `body`
-- `likeCount`
-- `replyCount` (direct children only)
-- optional `updatedAt`, `deletedAt`
-
-A deleted comment remains as a tombstone so descendants keep their place in the tree. Public serializers return `body: null` after deletion.
-
-### `reactions`
-
-A single sparse table stores both entry upvotes and comment likes. A record has either `entryId` or `commentId`, never both. Query-specific indexes enforce one reaction lookup per actor/target.
-
-## Lazy comments
-
-`listComments` accepts an optional `parentCommentId` and returns only direct children of that parent. Omitting `parentCommentId` returns top-level comments. Each level is independently paginated.
-
-Default UI behavior is therefore:
-
-```text
-root comments query
-  comment A
-    click "View replies"
-      direct replies query for A
-        reply A1
-          click "View replies"
-            direct replies query for A1
+```bash
+npm install convex-feedback
 ```
 
-`maxDepth` is enforced when a reply is created. The default host config is `5`.
+## 1. Install the component in Convex
 
-## Ordering
-
-Comments support three global server-side sorts:
-
-- `top`: `likeCount DESC`, then Convex index `_creationTime DESC`
-- `newest`: `_creationTime DESC`
-- `oldest`: `_creationTime ASC`
-
-All three are index-backed. Do not add an arbitrary server comparator: it cannot preserve correct cursor pagination without an index. UI clients may transform already-loaded comments locally.
-
-Entries support `top` and `newest` with filter-specific indexes for kind/status combinations.
-
-## Search and duplicates
-
-The component stores one derived `searchText` (`title + body`) and uses a Convex search index. `searchEntries` returns full-text results. `findSimilarEntries` returns:
+Create or update your host application's `convex/convex.config.ts`:
 
 ```ts
-{
-  exact: FeedbackEntry[];
-  similar: FeedbackEntry[];
-}
+import { defineApp } from "convex/server";
+import feedback from "convex-feedback/convex.config.js";
+
+const app = defineApp();
+app.use(feedback);
+
+export default app;
 ```
 
-`exact` uses normalized title equality. `similar` uses full-text relevance and excludes exact matches. These are lexical suggestions, not semantic/AI duplicate claims.
+You can install multiple independent instances by giving them different component names using Convex's normal component configuration APIs.
 
-## Static configuration
+Run Convex so the host application's component references are generated:
 
-Configuration is host code, not a database table.
+```bash
+npx convex dev
+```
+
+## 2. Expose the component through your host API
+
+A Convex component cannot make authorization decisions using your host application's authentication state directly. `convex-feedback` therefore exposes a host wrapper: your app resolves the current actor, and the wrapper passes the stable actor identity into the component.
+
+Create a host module such as `convex/feedback.ts`:
 
 ```ts
-exposeFeedbackApi(components.feedback, {
-  actor: resolveActor,
+import { exposeFeedbackApi } from "convex-feedback";
+
+import { components } from "./_generated/api";
+
+export const {
+  listEntries,
+  getEntry,
+  searchEntries,
+  findSimilarEntries,
+  createEntry,
+  updateEntry,
+  setEntryStatus,
+  setEntryUpvote,
+  listComments,
+  createComment,
+  updateComment,
+  deleteComment,
+  setCommentLike,
+} = exposeFeedbackApi(components.feedback, {
+  actor: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (identity === null) return null;
+
+    return {
+      id: identity.tokenIdentifier,
+      isModerator: false,
+    };
+  },
+});
+```
+
+### Actor IDs
+
+`actor.id` should be stable for the same user.
+
+The component does not store a user/profile table. Keep display names, avatars, roles, and profile data in your application.
+
+### Moderators
+
+Return `isModerator: true` for actors that may perform moderator-only operations such as status changes.
+
+```ts
+return {
+  id: identity.tokenIdentifier,
+  isModerator: await isFeedbackModerator(ctx, identity.tokenIdentifier),
+};
+```
+
+## 3. Configure behavior
+
+Configuration is optional static host code; The values shown are the default configuration.
+
+```ts
+export const feedbackApi = exposeFeedbackApi(components.feedback, {
+  actor: resolveFeedbackActor,
   config: {
     entries: {
       enabledKinds: ["feedback", "feature_request", "bug_report"],
@@ -109,75 +144,230 @@ exposeFeedbackApi(components.feedback, {
     },
     limits: {
       titleLength: 160,
-      bodyLength: 10000,
-      commentLength: 5000,
+      bodyLength: 10_000,
+      commentLength: 5_000,
     },
   },
 });
 ```
 
-All nested values are optional in overrides; defaults are merged by `createFeedbackConfig`.
+All configuration fields are documented in the exported TypeScript types and appear in editor IntelliSense.
 
-## Authentication boundary
+## 4. Create typed React hooks
 
-A Convex component is isolated from the host app. The host wrapper receives a resolver:
+If your client uses React or React Native, bind the generated host API once:
 
 ```ts
-actor: async (ctx) => {
-  const identity = await ctx.auth.getUserIdentity();
-  if (identity === null) return null;
-  return { id: identity.subject, isModerator: false };
-};
+// src/feedback.ts
+import { createFeedbackHooks } from "convex-feedback/react";
+
+import { api } from "../convex/_generated/api";
+
+export const feedbackHooks = createFeedbackHooks(api.feedback, {
+  entryPageSize: 20,
+  commentPageSize: 20,
+  replyPageSize: 10,
+});
 ```
 
-Reads can be anonymous. Writes call `requireActor`. Status changes require `isModerator: true`. Author edit/delete rules are still checked inside the component using the stable actor id passed by the host.
+Then use the hooks directly or pass `feedbackHooks` to `convex-feedback-ui`.
 
-## Host-facing API
+```tsx
+const entries = feedbackHooks.useEntries({
+  kinds: ["feature_request", "bug_report"],
+  sort: "top",
+});
 
-`exposeFeedbackApi` returns:
+const createEntry = feedbackHooks.useCreateEntry();
+```
 
-- `listEntries`
-- `getEntry`
-- `searchEntries`
-- `findSimilarEntries`
-- `createEntry`
-- `updateEntry`
-- `setEntryStatus`
-- `setEntryUpvote`
-- `listComments`
-- `createComment`
-- `updateComment`
-- `deleteComment`
-- `setCommentLike`
+## Entry kinds and statuses
 
-Export these from one of your host Convex modules so your generated host `api` can expose them to clients.
-
-## React hooks
-
-`convex-feedback/react` exports `createFeedbackHooks(api, options)`. It binds the generated host references once and returns hooks for every read/write operation. Client page sizes are configured there (`entryPageSize`, `commentPageSize`, and `replyPageSize`) while the host config enforces the hard maximum page sizes. The resolved sizes are also exposed as `hooks.pageSizes` for UI layers.
-
-Pagination uses the `convex-helpers/react` pagination hook because component pagination uses the stream/paginator helper and needs `endCursor` stitching for reactive, gap-free pages.
-
-## Testing
-
-The package exports `convex-feedback/test`:
+### Kinds
 
 ```ts
-import feedbackTest from "convex-feedback/test";
-import { convexTest } from "convex-test";
+type EntryKind = "feedback" | "feature_request" | "bug_report";
+```
 
-const t = convexTest();
+### Statuses
+
+```ts
+type EntryStatus =
+  "open" | "under_review" | "planned" | "in_progress" | "completed" | "closed";
+```
+
+The values are intentionally fixed for type safety. UI labels and presentation can be localized/customized in `convex-feedback-ui`.
+
+## Search
+
+Full-text search is backed by Convex search indexes:
+
+```ts
+const results = feedbackHooks.useSearchEntries({
+  searchQuery: "dark mode",
+  kinds: ["feature_request"],
+  limit: 10,
+});
+```
+
+## Duplicate suggestions
+
+```ts
+const result = feedbackHooks.useSimilarEntries({
+  title,
+  body,
+  kind: "feature_request",
+  limit: 3,
+});
+```
+
+The result has two groups:
+
+```ts
+{
+  exact: FeedbackEntry[];
+  similar: FeedbackEntry[];
+}
+```
+
+`limit` is the **maximum combined number of suggestions**. Exact normalized-title matches consume the limit first; only remaining slots are filled by relevance-ranked full-text matches.
+
+For `limit: 3`:
+
+- 3 exact matches → 3 exact, 0 similar;
+- 2 exact matches → 2 exact, at most 1 similar;
+- 0 exact matches → at most 3 similar.
+
+Exact matches are never duplicated in `similar`.
+
+This is lexical/full-text duplicate detection.
+
+## Comments and replies
+
+Comments are recursive but deliberately lazy.
+
+```ts
+// Top-level comments
+const comments = feedbackHooks.useComments({
+  entryId,
+  sort: "top",
+});
+
+// Direct replies to one comment
+const replies = feedbackHooks.useComments({
+  entryId,
+  parentCommentId: comment.id,
+  sort: "top",
+});
+```
+
+A comment query returns exactly one direct-child level. Opening a reply branch should mount another query for that child's direct replies.
+
+`replyCount` is the number of **direct children**. `entry.commentCount` is the total number of comments/replies belonging to the entry.
+
+Soft-deleted comments remain as tombstones so descendants keep their position in the thread.
+
+## Upvotes and likes
+
+Entry upvotes and comment likes have separate public APIs even though the component stores both efficiently in one reactions table.
+
+Both state mutations are idempotent and accept a desired final state:
+
+```ts
+await setEntryUpvote({
+  entryId,
+  desiredState: true,
+});
+
+await setCommentLike({
+  commentId,
+  desiredState: false,
+});
+```
+
+The mutation result uses `active` to report the authoritative final state returned by the server.
+
+## Host API
+
+The wrapper exposes:
+
+| Function             | Type     | Purpose                                            |
+| -------------------- | -------- | -------------------------------------------------- |
+| `listEntries`        | query    | Paginated entry list with server-side filters/sort |
+| `getEntry`           | query    | Fetch one entry                                    |
+| `searchEntries`      | query    | Full-text search                                   |
+| `findSimilarEntries` | query    | Exact + similar duplicate suggestions              |
+| `createEntry`        | mutation | Create feedback                                    |
+| `updateEntry`        | mutation | Edit author-owned/moderated feedback               |
+| `setEntryStatus`     | mutation | Moderator workflow status change                   |
+| `setEntryUpvote`     | mutation | Idempotently set entry upvote state                |
+| `listComments`       | query    | One paginated direct-child comment level           |
+| `createComment`      | mutation | Create comment or reply                            |
+| `updateComment`      | mutation | Edit a comment                                     |
+| `deleteComment`      | mutation | Soft-delete a comment                              |
+| `setCommentLike`     | mutation | Idempotently set comment like state                |
+
+Every public argument/result type is exported and documented for editor IntelliSense.
+
+## Package entry points
+
+```ts
+// Host wrapper, configuration, public model/API types
+import { exposeFeedbackApi } from "convex-feedback";
+
+// React / React Native hooks
+import { createFeedbackHooks } from "convex-feedback/react";
+
+// Convex component definition
+import feedback from "convex-feedback/convex.config.js";
+
+// ComponentApi type generated by Convex
+import type { ComponentApi } from "convex-feedback/_generated/component";
+
+// convex-test helper
+import feedbackTest from "convex-feedback/test";
+```
+
+## Testing host integrations
+
+The package exposes a `/test` entry point for `convex-test`.
+
+```ts
+import { convexTest } from "convex-test";
+import feedbackTest from "convex-feedback/test";
+
+import schema from "./convex/schema";
+
+const modules = import.meta.glob("./convex/**/*.ts");
+const t = convexTest(schema, modules);
+
 feedbackTest.register(t, "feedback");
 ```
 
-The repository tests cover idempotent entry upvotes, direct-child comment loading, max depth, idempotent comment likes/top ordering, exact duplicate normalization, and config merging.
+Use host-level tests when you need to verify your authentication wrapper and public host API in the same shape your client will consume.
 
-## Generated files
+## UI package
 
-The committed `_generated` files are starter/bootstrap output. After installing dependencies, regenerate them:
+`convex-feedback` is intentionally headless. For a complete board or customizable primitives, install:
 
 ```bash
-npm run codegen -w convex-feedback
+npm install convex-feedback-ui
 ```
 
-Do not manually maintain generated API/data-model definitions.
+Then read `[convex-feedback-ui](../convex-feedback-ui/README.md)`.
+
+## Development in this repository
+
+From the monorepo root:
+
+```bash
+npm install
+npm run codegen
+npm run test:all
+```
+
+When changing the component's schema or functions, regenerate component code before committing generated output.
+
+## License
+
+Apache-2.0

@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { exposeFeedbackApi } from "convex-feedback";
 
 import { components } from "./_generated/api";
@@ -19,13 +18,14 @@ export const {
   setCommentLike,
 } = exposeFeedbackApi(components.feedback, {
   actor: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    return userId === null
-      ? null
-      : {
-          id: String(userId),
-          isModerator: false,
-        };
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (identity === null) return null;
+
+    return {
+      id: identity.tokenIdentifier,
+      isModerator: false,
+    };
   },
   config: {
     comments: {

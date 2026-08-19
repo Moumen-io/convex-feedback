@@ -43,12 +43,36 @@ export {
   type FeedbackConfigOverrides,
 } from "./config.js";
 
+/**
+ * Minimal host context exposed to the actor resolver.
+ *
+ * The feedback component itself does not read host authentication. Use
+ * `auth` to resolve the current host identity into a `FeedbackActor`.
+ */
 export interface FeedbackAuthContext {
+  /** Host Convex authentication interface for the current request. */
   auth: Auth;
 }
 
+/**
+ * Configuration used when exposing feedback functions from the host Convex
+ * application.
+ */
 export interface ExposeFeedbackOptions {
+  /**
+   * Resolves the current request into a stable feedback actor.
+   *
+   * Return `null` for an unauthenticated request. Read-only queries may still
+   * execute, but mutations requiring an actor will reject unauthenticated
+   * callers.
+   */
   actor: (ctx: FeedbackAuthContext) => Promise<FeedbackActor | null>;
+
+  /**
+   * Optional component behavior overrides.
+   *
+   * Unspecified values use `defaultFeedbackConfig`.
+   */
   config?: FeedbackConfigOverrides;
 }
 
@@ -95,19 +119,20 @@ export function exposeFeedbackApi<Name extends string | undefined>(
     listEntries: queryGeneric({
       args: {
         paginationOpts: paginationOptsValidator,
-        kind: v.optional(entryKindValidator),
+        kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
         sort: v.optional(entrySortValidator),
       },
       returns: paginationResultValidator(publicEntryValidator),
       handler: async (ctx, args) => {
         const actor = await options.actor(ctx);
+
         return await ctx.runQuery(component.entries.list, {
           paginationOpts: clampPagination(
             args.paginationOpts,
             config.entries.maxPageSize,
           ),
-          ...(args.kind === undefined ? {} : { kind: args.kind }),
+          ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
           ...(args.status === undefined ? {} : { status: args.status }),
           sort: args.sort ?? config.entries.defaultSort,
           ...actorIdFields(actor),
@@ -130,16 +155,17 @@ export function exposeFeedbackApi<Name extends string | undefined>(
     searchEntries: queryGeneric({
       args: {
         searchQuery: v.string(),
-        kind: v.optional(entryKindValidator),
+        kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
         limit: v.optional(v.number()),
       },
       returns: v.array(publicEntryValidator),
       handler: async (ctx, args) => {
         const actor = await options.actor(ctx);
+
         return await ctx.runQuery(component.entries.search, {
           searchQuery: args.searchQuery,
-          ...(args.kind === undefined ? {} : { kind: args.kind }),
+          ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
           ...(args.status === undefined ? {} : { status: args.status }),
           limit: clampPositive(
             args.limit,
@@ -163,7 +189,9 @@ export function exposeFeedbackApi<Name extends string | undefined>(
         if (!config.search.duplicateSuggestions) {
           return { exact: [], similar: [] };
         }
+
         const actor = await options.actor(ctx);
+
         return await ctx.runQuery(component.entries.similar, {
           title: args.title,
           body: args.body,

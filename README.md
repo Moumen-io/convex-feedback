@@ -1,9 +1,11 @@
-# Convex Feedback
+| Package                                                                | Version                                                                                                        | License                                                         | Downloads                                                          |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [convex-feedback](https://www.npmjs.com/package/convex-feedback)       | [![npm version](https://badge.fury.io/js/convex-feedback.svg)](https://badge.fury.io/js/convex-feedback)       | ![NPM License](https://img.shields.io/npm/l/convex-feedback)    | ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback)    |
+| [convex-feedback-ui](https://www.npmjs.com/package/convex-feedback-ui) | [![npm version](https://badge.fury.io/js/convex-feedback-ui.svg)](https://badge.fury.io/js/convex-feedback-ui) | ![NPM License](https://img.shields.io/npm/l/convex-feedback-ui) | ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback-ui) |
 
-[convex-feedback npm version](https://www.npmjs.com/package/convex-feedback)
-[convex-feedback npm downloads](https://www.npmjs.com/package/convex-feedback)
-[convex-feedback-ui npm version](https://www.npmjs.com/package/convex-feedback-ui)
-[convex-feedback-ui npm downloads](https://www.npmjs.com/package/convex-feedback-ui)
+![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
+
+# Convex Feedback
 
 A type-safe Convex component for product feedback, feature requests, bug reports, upvotes, nested comments, comment likes, full-text search, and duplicate suggestions and an optional React and React Native UI.
 

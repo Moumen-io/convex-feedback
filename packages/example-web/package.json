@@ -16,7 +16,7 @@
     "convex-feedback-ui": "^0.1.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "convex-feedback-example-backend": "0.1.0"
+    "convex-feedback-example-backend": "^0.1.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

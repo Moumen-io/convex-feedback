@@ -1,7 +1,7 @@
 {
   "name": "convex-feedback-monorepo",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A type-safe Convex feedback component and cross-platform React UI primitives.",
   "license": "Apache-2.0",
   "type": "module",

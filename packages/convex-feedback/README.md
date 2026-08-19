@@ -1,7 +1,6 @@
-# convex-feedback
+[![npm version](https://badge.fury.io/js/convex-feedback.svg)](https://badge.fury.io/js/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
 
-[npm version](https://www.npmjs.com/package/convex-feedback)
-[npm downloads](https://www.npmjs.com/package/convex-feedback)
+# convex-feedback
 
 A headless, fully typed Convex component for product feedback, feature requests, bug reports, entry upvotes, lazy nested comments, comment likes, full-text search, and duplicate suggestions.
 

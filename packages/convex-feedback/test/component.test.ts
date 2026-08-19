@@ -27,6 +27,19 @@ async function createEntry(
 }
 
 describe("convex-feedback component", () => {
+  test("new entries are automatically upvoted by their creator", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance);
+
+    const entry = await testInstance.query(api.entries.get, {
+      entryId,
+      viewerActorId: "author-1",
+    });
+
+    expect(entry?.upvoteCount).toBe(1);
+    expect(entry?.viewerHasUpvoted).toBe(true);
+  });
+
   test("entry upvotes are idempotent and counted atomically", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);
@@ -51,7 +64,7 @@ describe("convex-feedback component", () => {
       entryId,
       viewerActorId: "user-a",
     });
-    expect(entry?.upvoteCount).toBe(2);
+    expect(entry?.upvoteCount).toBe(3);
     expect(entry?.viewerHasUpvoted).toBe(true);
 
     await testInstance.mutation(api.entries.setUpvote, {
@@ -60,7 +73,7 @@ describe("convex-feedback component", () => {
       desiredState: false,
     });
     const updated = await testInstance.query(api.entries.get, { entryId });
-    expect(updated?.upvoteCount).toBe(1);
+    expect(updated?.upvoteCount).toBe(2);
   });
 
   test("comments load one direct-child level at a time", async () => {

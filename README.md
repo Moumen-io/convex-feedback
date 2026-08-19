@@ -5,6 +5,8 @@
 
 ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
 
+[Vite demo](https://convex-feedback-expo.vercel.app/) • [Expo/React Native demo](https://convex-feedback-native.vercel.app/)
+
 # Convex Feedback
 
 A type-safe Convex component for product feedback, feature requests, bug reports, upvotes, nested comments, comment likes, full-text search, and duplicate suggestions and an optional React and React Native UI.

@@ -4,7 +4,13 @@ import { FeedbackScreen } from "convex-feedback-ui/native";
 import { ConvexReactClient, useConvexAuth } from "convex/react";
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { feedbackHooks } from "./src/feedback";
@@ -67,11 +73,13 @@ export const convexAuthTokenStorage: TokenStorage = {
 export default function App() {
   const convex = useMemo(() => new ConvexReactClient(convexUrl), []);
 
+  const isWeb = Platform.OS === "web";
+
   return (
     <ConvexAuthProvider
       client={convex}
-      storage={convexAuthTokenStorage}
-      storageNamespace="convex-feedback-native-demo"
+      storage={isWeb ? undefined : convexAuthTokenStorage}
+      storageNamespace={isWeb ? undefined : "convex-feedback-native-demo"}
     >
       <AnonymousSession>
         <SafeAreaProvider>

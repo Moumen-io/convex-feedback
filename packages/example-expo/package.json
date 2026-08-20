@@ -1,0 +1,31 @@
+{
+  "name": "convex-feedback-example-expo",
+  "private": true,
+  "version": "0.1.0",
+  "main": "index.ts",
+  "scripts": {
+    "build": "expo export --platform web",
+    "lint": "eslint App.tsx src",
+    "dev:ios": "expo run:ios --device",
+    "dev:web": "expo start --web",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@convex-dev/auth": "^0.0.95",
+    "convex": "^1.44.0",
+    "convex-feedback": "^0.1.0",
+    "convex-feedback-example-backend": "^0.1.0",
+    "convex-feedback-ui": "^0.1.0",
+    "expo": "~57.0.0",
+    "expo-secure-store": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "typescript": "~6.0.3"
+  }
+}

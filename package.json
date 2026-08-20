@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build:packages": "npm run build -w convex-feedback && npm run build -w convex-feedback-ui",
-    "build:examples": "npm run build -w convex-feedback-example-web && npm run build -w convex-feedback-example-native",
+    "build:examples": "npm run build -w convex-feedback-example-web && npm run build -w convex-feedback-example-native && npm run build -w convex-feedback-example-expo",
     "build": "npm run build:packages && npm run build:examples",
     "codegen:component": "npm run codegen -w convex-feedback",
     "codegen:example": "npm run codegen -w convex-feedback-example-backend",
@@ -23,7 +23,9 @@
     "test:all": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run build",
     "dev:web": "npm run dev -w convex-feedback-example-web",
     "dev:ios": "npm run dev:ios -w convex-feedback-example-native",
+    "dev:ios:native": "npm run dev:ios -w convex-feedback-example-expo",
     "dev:native": "npm run dev:web -w convex-feedback-example-native",
+    "dev:expo": "npm run dev:web -w convex-feedback-example-expo",
     "postinstall": "npm run build:packages",
     "check-version-bump:ui": "node scripts/check-version-bump.js packages/convex-feedback-ui",
     "check-version-bump:component": "node scripts/check-version-bump.js packages/convex-feedback",

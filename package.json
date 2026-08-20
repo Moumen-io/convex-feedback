@@ -24,7 +24,13 @@
     "dev:web": "npm run dev -w convex-feedback-example-web",
     "dev:ios": "npm run dev:ios -w convex-feedback-example-native",
     "dev:native": "npm run dev:web -w convex-feedback-example-native",
-    "postinstall": "npm run build:packages"
+    "postinstall": "npm run build:packages",
+    "check-version-bump:ui": "node scripts/check-version-bump.js packages/convex-feedback-ui",
+    "check-version-bump:component": "node scripts/check-version-bump.js packages/convex-feedback",
+    "pack:ui": "npm run check-version-bump:ui && npm pack -w convex-feedback-ui --dry-run",
+    "pack:component": "npm run check-version-bump:component && npm pack -w convex-feedback --dry-run",
+    "release:ui": "npm publish -w convex-feedback-ui --access public",
+    "release:component": "npm publish -w convex-feedback --access public"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

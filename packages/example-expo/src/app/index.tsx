@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { feedbackHooks } from "./src/feedback";
+import { feedbackHooks } from "../feedback";
 
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 if (!convexUrl) {

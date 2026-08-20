@@ -2,7 +2,7 @@
   "name": "convex-feedback-example-expo",
   "private": true,
   "version": "0.1.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "scripts": {
     "build": "expo export --platform web",
     "lint": "eslint App.tsx src",

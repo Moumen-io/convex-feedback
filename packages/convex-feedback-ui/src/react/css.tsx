@@ -1,50 +1,8 @@
 "use client";
 
-import { createContext, useContext, useMemo, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 
-import { mergeFeedbackMessages } from "../shared/messages.js";
-import { mergeFeedbackTheme } from "../shared/theme.js";
-import type {
-  FeedbackColorProps,
-  FeedbackProviderProps,
-  FeedbackTheme,
-  FeedbackUiContextValue,
-} from "../shared/types";
-
-const FeedbackUiContext = createContext<FeedbackUiContextValue | null>(null);
-
-export function FeedbackProvider({
-  children,
-  messages,
-  theme,
-  unstyled = false,
-}: FeedbackProviderProps) {
-  const value = useMemo<FeedbackUiContextValue>(
-    () => ({
-      messages: mergeFeedbackMessages(messages),
-      theme: mergeFeedbackTheme(theme),
-      unstyled,
-    }),
-    [messages, theme, unstyled],
-  );
-  return (
-    <FeedbackUiContext.Provider value={value}>
-      {children}
-    </FeedbackUiContext.Provider>
-  );
-}
-
-export function useFeedbackUi(): FeedbackUiContextValue {
-  const context = useContext(FeedbackUiContext);
-  if (context === null) {
-    return {
-      messages: mergeFeedbackMessages(),
-      theme: mergeFeedbackTheme(),
-      unstyled: false,
-    };
-  }
-  return context;
-}
+import type { FeedbackColorProps, FeedbackTheme } from "../shared/types";
 
 /**
  * CSS custom properties produced for a feedback board.

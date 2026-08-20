@@ -16,6 +16,16 @@ export const englishFeedbackMessages: FeedbackMessages = {
     feature_request: "Feature request",
     bug_report: "Bug report",
   },
+  kindsPlural: {
+    feedback: "Feedback",
+    feature_request: "Feature requests",
+    bug_report: "Bug reports",
+  },
+  newFeedback: {
+    feedback: "New feedback",
+    feature_request: "New feature request",
+    bug_report: "New bug report",
+  },
   statuses: {
     open: "Open",
     under_review: "Under review",
@@ -29,7 +39,7 @@ export const englishFeedbackMessages: FeedbackMessages = {
     removeUpvote: "Remove upvote",
     comments: (count) => `${count} ${count === 1 ? "comment" : "comments"}`,
     open: "Open",
-    back: "Back to feedback",
+    back: "Go back",
   },
   form: {
     kind: "Type",
@@ -68,29 +78,20 @@ export function mergeFeedbackMessages(
   return {
     board: { ...englishFeedbackMessages.board, ...overrides.board },
     kinds: {
-      feedback:
-        overrides.kinds?.feedback ?? englishFeedbackMessages.kinds.feedback,
-      feature_request:
-        overrides.kinds?.feature_request ??
-        englishFeedbackMessages.kinds.feature_request,
-      bug_report:
-        overrides.kinds?.bug_report ?? englishFeedbackMessages.kinds.bug_report,
+      ...englishFeedbackMessages.kinds,
+      ...overrides.kinds,
+    },
+    kindsPlural: {
+      ...englishFeedbackMessages.kindsPlural,
+      ...overrides.kindsPlural,
+    },
+    newFeedback: {
+      ...englishFeedbackMessages.newFeedback,
+      ...overrides.newFeedback,
     },
     statuses: {
-      open: overrides.statuses?.open ?? englishFeedbackMessages.statuses.open,
-      under_review:
-        overrides.statuses?.under_review ??
-        englishFeedbackMessages.statuses.under_review,
-      planned:
-        overrides.statuses?.planned ?? englishFeedbackMessages.statuses.planned,
-      in_progress:
-        overrides.statuses?.in_progress ??
-        englishFeedbackMessages.statuses.in_progress,
-      completed:
-        overrides.statuses?.completed ??
-        englishFeedbackMessages.statuses.completed,
-      closed:
-        overrides.statuses?.closed ?? englishFeedbackMessages.statuses.closed,
+      ...englishFeedbackMessages.statuses,
+      ...overrides.statuses,
     },
     entry: { ...englishFeedbackMessages.entry, ...overrides.entry },
     form: { ...englishFeedbackMessages.form, ...overrides.form },

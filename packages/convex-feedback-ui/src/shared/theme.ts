@@ -3,6 +3,7 @@ import type { FeedbackTheme, FeedbackThemeOverride } from "./types";
 export const defaultFeedbackTheme: FeedbackTheme = {
   colors: {
     primary: "#5b5bd6",
+    primaryForeground: "#ffffff",
     background: "#ffffff",
     surface: "#ffffff",
     surfaceMuted: "#f6f6f8",

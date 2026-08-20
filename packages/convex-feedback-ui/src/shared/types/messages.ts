@@ -18,7 +18,10 @@ export interface FeedbackMessages {
     /** Search input placeholder. */
     searchPlaceholder: string;
 
-    /** CTA for opening the create-entry flow. */
+    /** CTA for opening the create-entry flow.
+     * This is shown when enabled kinds are two or more.
+     * Use messages.newFeedback for a single-kind entry.
+     */
     createEntry: string;
 
     /** Empty-state copy when no entries exist. */
@@ -36,6 +39,12 @@ export interface FeedbackMessages {
 
   /** Localized display labels for each fixed entry kind. */
   kinds: Record<EntryKind, string>;
+
+  /** Localized plural display labels for each fixed entry kind. */
+  kindsPlural: Record<EntryKind, string>;
+
+  /** Localized display labels for creating a new entry. */
+  newFeedback: Record<EntryKind, string>;
 
   /** Localized display labels for each fixed workflow status. */
   statuses: Record<EntryStatus, string>;
@@ -145,6 +154,12 @@ export interface FeedbackMessageOverrides {
 
   /** Entry-kind label overrides. */
   kinds?: Partial<FeedbackMessages["kinds"]> | undefined;
+
+  /** Entry-kind plural label overrides. */
+  kindsPlural?: Partial<FeedbackMessages["kindsPlural"]> | undefined;
+
+  /** Create single entry copy overrides. */
+  newFeedback?: Partial<FeedbackMessages["newFeedback"]> | undefined;
 
   /** Workflow-status label overrides. */
   statuses?: Partial<FeedbackMessages["statuses"]> | undefined;

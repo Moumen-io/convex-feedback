@@ -1,10 +1,10 @@
-[![npm version](https://badge.fury.io/js/convex-feedback-ui.svg)][![Convex Component](https://www.convex.dev/components/badge/convex-feedback)](https://www.convex.dev/components/convex-feedback)(https://badge.fury.io/js/convex-feedback-ui) ![NPM License](https://img.shields.io/npm/l/convex-feedback-ui) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback-ui) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
+[![npm version](https://badge.fury.io/js/convex-feedback-ui.svg)](https://badge.fury.io/js/convex-feedback-ui) [![Convex Component](https://www.convex.dev/components/badge/convex-feedback)](https://www.convex.dev/components/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback-ui) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback-ui) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
 
 [Vite demo](https://convex-feedback-vite.vercel.app/) • [Expo/React Native demo](https://convex-feedback-expo.vercel.app/)
 
 # convex-feedback-ui
 
-Optional React DOM and React Native UI for `convex-feedback`.
+Optional React DOM, React Native, and Expo Router UI for `convex-feedback`.
 
 The package is intentionally layered:
 
@@ -14,14 +14,17 @@ convex-feedback hooks
 compound UI primitives
         ↓
 prebuilt FeedbackScreen
+        ↓
+optional Expo Router integration
 ```
 
-Use the prebuilt screen for a complete feedback board, compose primitives for custom layouts, or ignore this package and use the headless hooks directly.
+Use the prebuilt screen for a complete feedback board, compose primitives for custom layouts, or ignore this package entirely and use the headless `convex-feedback` hooks directly.
 
 ## React DOM
 
 ```tsx
 import { FeedbackScreen } from "convex-feedback-ui";
+import { feedbackHooks } from "./hooks/feedbackHooks";
 import "convex-feedback-ui/styles.css";
 
 <FeedbackScreen hooks={feedbackHooks} />;
@@ -33,8 +36,8 @@ The default stylesheet:
 - uses namespaced `cf-*` classes;
 - uses low-specificity `:where(...)` selectors;
 - uses CSS custom properties for theme values;
-- allows normal host CSS/Tailwind/CSS-module classes to override defaults;
-- can be omitted entirely if you want headless markup.
+- allows normal host CSS, Tailwind, or CSS-module classes to override defaults;
+- can be omitted entirely if you want to provide your own styling.
 
 Key colors can be overridden directly:
 
@@ -54,7 +57,7 @@ Or provide theme tokens through `FeedbackProvider`.
 
 ## React Native
 
-All native implementation files and exports live under `/native`:
+Use the `/native` entry point for React Native projects that do not use Expo Router, or whenever you want the standard React Native implementation without native stack integration:
 
 ```tsx
 import { FeedbackScreen } from "convex-feedback-ui/native";
@@ -71,17 +74,80 @@ import { FeedbackScreen } from "convex-feedback-ui/native";
 />;
 ```
 
-There is no NativeWind dependency. Native style precedence is:
+The native `FeedbackScreen` includes the feedback UI using React Native components.
 
-```text
-component color/style prop
-→ provider theme
-→ built-in fallback theme
+## Expo Router
+
+Expo Router projects can use the `/expo` entry point:
+
+```tsx
+import { FeedbackScreen } from "convex-feedback-ui/expo";
+
+<FeedbackScreen
+  hooks={feedbackHooks}
+  theme={{
+    colors: {
+      primary: "#6d5efc",
+      background: "#ffffff",
+      surface: "#ffffff",
+    },
+  }}
+/>;
 ```
 
-Normal React Native `style` props remain available.
+The Expo version uses the same native feedback UI, but adds optional Expo Router stack integration.
 
-## Compound components
+By default, `useStack` is enabled:
+
+```tsx
+<FeedbackScreen hooks={feedbackHooks} useStack />
+```
+
+When enabled, the prebuilt screen can integrate with the current Expo Router stack, including native stack configuration, toolbar actions, back behavior, and native search UI.
+
+Stack options can be customized through `StackOptions`:
+
+```tsx
+<FeedbackScreen
+  hooks={feedbackHooks}
+  stackOptions={{
+    headerLargeTitleEnabled: true,
+    headerTransparent: true,
+  }}
+/>
+```
+
+### Using the Expo screen without stack integration
+
+Expo projects do not have to use the native stack integration.
+
+Set `useStack={false}` to use the standard native feedback layout instead:
+
+```tsx
+<FeedbackScreen hooks={feedbackHooks} useStack={false} />
+```
+
+When `useStack={false}`, the Expo convenience screen behaves like the regular React Native screen.
+
+`StackOptions` is only available when stack integration is enabled.
+
+## Choosing an API
+
+For a complete implementation with minimal setup:
+
+```text
+Web                  → convex-feedback-ui
+React Native         → convex-feedback-ui/native
+Expo Router          → convex-feedback-ui/expo
+```
+
+For custom layouts, use the primitives exposed by the relevant entry point instead of the prebuilt `FeedbackScreen`.
+
+The prebuilt screens are convenience APIs. They are built from the same public primitives available to consumers, so applications are not required to adopt the prebuilt layout or navigation behavior.
+
+You can also import the prebuilt screen components directly if you only want certain parts without reaching for primitives.
+
+## Using primitives
 
 Web and native expose the same conceptual compounds:
 
@@ -95,6 +161,7 @@ Example:
 ```tsx
 <FeedbackEntry.Root entry={entry}>
   <FeedbackEntry.Upvote onToggle={setUpvote} />
+
   <FeedbackEntry.Content>
     <FeedbackEntry.Status />
     <FeedbackEntry.Title />
@@ -104,7 +171,29 @@ Example:
 </FeedbackEntry.Root>
 ```
 
-Containers accept arbitrary children, so layout is controlled by the host.
+Containers accept arbitrary children, so layout remains controlled by the host application.
+
+Native primitives can also be composed directly:
+
+```tsx
+<FeedbackBoard.Root>
+  <FeedbackBoard.Header>
+    <FeedbackBoard.Title />
+  </FeedbackBoard.Header>
+
+  <FeedbackBoard.Search value={query} onValueChange={setQuery} />
+
+  <FeedbackBoard.List>
+    {entries.map((entry) => (
+      <FeedbackEntry.Root key={entry.id} entry={entry}>
+        {/* custom entry layout */}
+      </FeedbackEntry.Root>
+    ))}
+  </FeedbackBoard.List>
+</FeedbackBoard.Root>
+```
+
+Using primitives directly is the recommended escape hatch when the prebuilt screen's navigation, search, layout, or presentation does not fit the host application.
 
 ## Replacing primitive implementations
 
@@ -118,9 +207,9 @@ Interactive leaf primitives accept typed render-function children. This is the e
 </Comment.Like>
 ```
 
-The render function replaces the entire visual implementation while preserving state/action wiring. Regular children replace only the default content where supported.
+The render function replaces the entire visual implementation while preserving state and action wiring. Regular children replace only the default content where supported.
 
-This pattern is intentionally used instead of relying on a DOM-specific `asChild` clone mechanism, so it works on both React DOM and React Native.
+This pattern is intentionally used instead of relying on a DOM-specific `asChild` clone mechanism, so it works across React DOM and React Native.
 
 ## Localization and copy customization
 
@@ -168,7 +257,9 @@ Pass `commentSort="top" | "newest" | "oldest"` to the prebuilt screen for global
 For custom presentation ordering, provide:
 
 ```tsx
-transformComments={(comments) => [...comments].sort(myComparator)}
+transformComments={(comments) =>
+  [...comments].sort(myComparator)
+}
 ```
 
 That transform only affects comments already loaded at the current direct-child level. It is deliberately not described as a globally paginated server sort.
@@ -186,4 +277,10 @@ Do not hardcode new visible sentences inside a primitive or prebuilt screen.
 
 ## Monorepo development
 
-From the repository root, run `npm install`, `npm run codegen`, then `npm run check`. The workspace intentionally avoids `prepare`; the root build compiles `convex-feedback` before this package so its exported declarations exist before the UI package is type-checked. `prepack` is reserved for package publishing.
+From the repository root, run:
+
+```bash
+npm install
+npm run codegen
+npm run test:all
+```

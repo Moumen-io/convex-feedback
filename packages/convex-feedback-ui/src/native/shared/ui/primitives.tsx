@@ -2,7 +2,13 @@ import type {
   FeedbackComment,
   FeedbackEntry as FeedbackEntryData,
 } from "convex-feedback";
-import { createContext, useContext, useMemo } from "react";
+import {
+  createContext,
+  forwardRef,
+  useContext,
+  useMemo,
+  type PropsWithChildren,
+} from "react";
 import {
   Pressable,
   ScrollView,
@@ -18,11 +24,11 @@ import {
   type ViewProps,
   type ViewStyle,
 } from "react-native";
-import {
-  SafeAreaView,
-  type SafeAreaViewProps,
-} from "react-native-safe-area-context";
 
+import {
+  FeedbackNativeThemeScope,
+  useFeedbackUi,
+} from "../../../shared/context/FeedbackProvider.js";
 import type {
   BoardSearchBaseProps,
   BoardSearchState,
@@ -37,21 +43,13 @@ import type {
   FormSubmitBaseProps,
   FormSubmitState,
   RepliesButtonBaseProps,
-} from "../shared/types";
-import { FeedbackNativeThemeScope, useFeedbackUi } from "./context.js";
-
-function combineStyle<T>(
-  enabled: boolean,
-  fallback: StyleProp<T>,
-  style: StyleProp<T>,
-): StyleProp<T> {
-  return enabled ? [fallback, style] : style;
-}
+} from "../../../shared/types";
+import { combineStyle } from "../helpers.js";
 
 /**
  * Props for `FeedbackBoard.Root`.
  */
-export interface BoardRootProps extends SafeAreaViewProps, FeedbackColorProps {}
+export type BoardRootProps = PropsWithChildren<FeedbackColorProps>;
 
 function BoardRoot({
   primaryColor,
@@ -62,10 +60,7 @@ function BoardRoot({
   borderColor,
   dangerColor,
   children,
-  style,
-  ...props
 }: BoardRootProps) {
-  const { theme, unstyled } = useFeedbackUi();
   const colorOverrides = useMemo(
     () => ({
       ...(primaryColor === undefined ? {} : { primary: primaryColor }),
@@ -86,25 +81,10 @@ function BoardRoot({
       textColor,
     ],
   );
-  const background = backgroundColor ?? theme.colors.background;
 
   return (
     <FeedbackNativeThemeScope colors={colorOverrides}>
-      <SafeAreaView
-        {...props}
-        style={combineStyle<ViewStyle>(
-          !unstyled,
-          {
-            flex: 1,
-            gap: theme.spacing,
-            padding: theme.spacing,
-            backgroundColor: background,
-          },
-          style,
-        )}
-      >
-        {children}
-      </SafeAreaView>
+      {children}
     </FeedbackNativeThemeScope>
   );
 }
@@ -114,7 +94,11 @@ function BoardHeader({ style, ...props }: ViewProps) {
   return (
     <View
       {...props}
-      style={combineStyle<ViewStyle>(!unstyled, { gap: theme.spacing }, style)}
+      style={combineStyle<ViewStyle>(
+        !unstyled,
+        { gap: theme.spacing, backgroundColor: theme.colors.background },
+        style,
+      )}
     />
   );
 }
@@ -143,59 +127,60 @@ export interface BoardSearchProps
     Omit<TextInputProps, "children" | "value" | "onChangeText">,
     BoardSearchBaseProps {}
 
-function BoardSearch({
-  value,
-  onValueChange,
-  children,
-  style,
-  ...props
-}: BoardSearchProps) {
-  const { messages, theme, unstyled } = useFeedbackUi();
-  const state: BoardSearchState = { value, setValue: onValueChange };
-  if (typeof children === "function") return <>{children(state)}</>;
-  return (
-    <TextInput
-      {...props}
-      value={value}
-      onChangeText={onValueChange}
-      placeholder={props.placeholder ?? messages.board.searchPlaceholder}
-      placeholderTextColor={
-        props.placeholderTextColor ?? theme.colors.mutedText
-      }
-      style={combineStyle<TextStyle>(
-        !unstyled,
-        {
-          color: theme.colors.text,
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-          borderRadius: Math.max(8, theme.radius - 2),
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-          backgroundColor: theme.colors.surface,
-        },
-        style,
-      )}
-    />
-  );
-}
+const BoardSearch = forwardRef<TextInput, BoardSearchProps>(
+  ({ value, onValueChange, children, style, ...props }, ref) => {
+    const { messages, theme, unstyled } = useFeedbackUi();
+    const state: BoardSearchState = { value, setValue: onValueChange };
+    if (typeof children === "function") return <>{children(state)}</>;
+    return (
+      <TextInput
+        ref={ref}
+        {...props}
+        value={value}
+        onChangeText={onValueChange}
+        placeholder={props.placeholder ?? messages.board.searchPlaceholder}
+        placeholderTextColor={
+          props.placeholderTextColor ?? theme.colors.mutedText
+        }
+        style={combineStyle<TextStyle>(
+          !unstyled,
+          {
+            color: theme.colors.text,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: Math.max(8, theme.radius - 2),
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            backgroundColor: theme.colors.surface,
+          },
+          style,
+        )}
+      />
+    );
+  },
+);
+// change to forwardRef
 
-function BoardList({ style, ...props }: ScrollViewProps) {
-  const { theme, unstyled } = useFeedbackUi();
-  return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      contentInsetAdjustmentBehavior="automatic"
-      automaticallyAdjustKeyboardInsets
-      style={{ flex: 1 }}
-      {...props}
-      contentContainerStyle={combineStyle<ViewStyle>(
-        !unstyled,
-        { gap: Math.max(8, theme.spacing - 2) },
-        style,
-      )}
-    />
-  );
-}
+const BoardList = forwardRef<ScrollView, ScrollViewProps>(
+  ({ style, ...props }, ref) => {
+    const { theme, unstyled } = useFeedbackUi();
+    return (
+      <ScrollView
+        ref={ref}
+        keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic"
+        automaticallyAdjustKeyboardInsets
+        style={{ flex: 1 }}
+        {...props}
+        contentContainerStyle={combineStyle<ViewStyle>(
+          !unstyled,
+          { gap: Math.max(8, theme.spacing - 2) },
+          style,
+        )}
+      />
+    );
+  },
+);
 
 export const FeedbackBoard = {
   Root: BoardRoot,
@@ -684,13 +669,15 @@ function FormTextarea({ style, ...props }: TextInputProps) {
 
 export interface FormSubmitProps
   extends Omit<PressableProps, "children" | "style">, FormSubmitBaseProps {
-  primaryColor?: string;
+  backgroundColor?: string;
+  color?: string;
   style?: StyleProp<ViewStyle>;
 }
 function FormSubmit({
   submitting = false,
   children,
-  primaryColor,
+  backgroundColor,
+  color,
   disabled,
   style,
   ...props
@@ -710,13 +697,18 @@ function FormSubmit({
           justifyContent: "center",
           borderRadius: Math.max(8, theme.radius - 2),
           paddingHorizontal: 12,
-          backgroundColor: primaryColor ?? theme.colors.primary,
+          backgroundColor: backgroundColor ?? theme.colors.primary,
           opacity: (disabled ?? submitting) ? 0.55 : 1,
         },
         style,
       )}
     >
-      <Text style={{ color: "#ffffff", fontWeight: "700" }}>
+      <Text
+        style={{
+          color: color ?? theme.colors.primaryForeground,
+          fontWeight: "700",
+        }}
+      >
         {children ?? messages.form.submit}
       </Text>
     </Pressable>

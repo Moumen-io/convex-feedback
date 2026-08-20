@@ -5,6 +5,11 @@ export interface FeedbackColors {
   /** Primary interaction and accent color. */
   primary: string;
 
+  /**
+   * Foreground color for primary interactions and accents.
+   */
+  primaryForeground: string;
+
   /** Main screen or board background color. */
   background: string;
 

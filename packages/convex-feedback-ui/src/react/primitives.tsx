@@ -15,6 +15,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 
+import { useFeedbackUi } from "../shared/context/FeedbackProvider";
 import type {
   BoardRootBaseProps,
   BoardSearchBaseProps,
@@ -32,7 +33,7 @@ import type {
   RepliesButtonBaseProps,
   RepliesButtonState,
 } from "../shared/types";
-import { feedbackCssVariables, useFeedbackUi } from "./context.js";
+import { feedbackCssVariables } from "./css.js";
 
 function classes(
   unstyled: boolean,

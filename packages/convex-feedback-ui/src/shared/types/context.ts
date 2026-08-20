@@ -61,6 +61,11 @@ export interface FeedbackColorProps {
   /** Primary interaction and accent color. */
   primaryColor?: string;
 
+  /**
+   * Foreground color for primary interactions and accents.
+   */
+  primaryForeground?: string;
+
   /** Main background color. */
   backgroundColor?: string;
 

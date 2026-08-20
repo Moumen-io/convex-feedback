@@ -1,19 +1,25 @@
 "use client";
 
-import type { CommentSort, EntryKind, EntrySort } from "convex-feedback";
-import type { FeedbackHooks } from "convex-feedback/react";
+import type { EntryKind } from "convex-feedback";
 import { useMemo, useState, type SyntheticEvent } from "react";
 
+import {
+  FeedbackBodyProvider,
+  useFeedbackBody,
+} from "../shared/context/FeedbackBodyProvider.js";
+import {
+  FeedbackProvider,
+  useFeedbackUi,
+} from "../shared/context/FeedbackProvider";
 import type {
-  FeedbackColorProps,
   FeedbackScreenCommentBranchProps,
+  FeedbackScreenContentProps,
   FeedbackScreenEntryCardProps,
   FeedbackScreenEntryDetailProps,
   FeedbackScreenEntryModalProps,
   FeedbackScreenReplyListProps,
   FeedbackScreenRootProps,
 } from "../shared/types/";
-import { FeedbackProvider, useFeedbackUi } from "./context.js";
 import {
   Comment,
   FeedbackBoard,
@@ -27,8 +33,7 @@ const entryKinds: readonly EntryKind[] = [
   "bug_report",
 ];
 
-export interface FeedbackScreenProps
-  extends FeedbackColorProps, FeedbackScreenRootProps {
+export interface FeedbackScreenProps extends FeedbackScreenRootProps {
   className?: string | undefined;
 }
 
@@ -43,55 +48,52 @@ export function FeedbackScreen({
   maxCommentDepth = 5,
   transformComments,
   renderActor,
-  className,
-  ...colors
+  debounceDuration = 300,
+  ...props
 }: FeedbackScreenProps) {
   return (
     <FeedbackProvider messages={messages} theme={theme} unstyled={unstyled}>
-      <FeedbackScreenInner
+      <FeedbackBodyProvider
         hooks={hooks}
         entrySort={entrySort}
         commentSort={commentSort}
         enabledKinds={enabledKinds}
         maxCommentDepth={maxCommentDepth}
+        debounceDuration={debounceDuration}
         transformComments={transformComments}
         renderActor={renderActor}
-        className={className}
-        {...colors}
-      />
+      >
+        <FeedbackScreenInner {...props} />
+      </FeedbackBodyProvider>
     </FeedbackProvider>
   );
 }
 
-interface FeedbackScreenInnerProps extends FeedbackColorProps {
-  hooks: FeedbackHooks;
-  entrySort: EntrySort;
-  commentSort: CommentSort;
-  enabledKinds: readonly EntryKind[];
-  maxCommentDepth: number;
-  transformComments?: FeedbackScreenProps["transformComments"];
-  renderActor?: FeedbackScreenProps["renderActor"];
+interface FeedbackScreenInnerProps extends FeedbackScreenContentProps {
   className?: string | undefined;
 }
 
 function FeedbackScreenInner({
-  hooks,
-  entrySort,
-  commentSort,
-  enabledKinds,
-  maxCommentDepth,
-  transformComments,
-  renderActor,
   className,
   ...colors
 }: FeedbackScreenInnerProps) {
+  const {
+    hooks,
+    entrySort,
+    enabledKinds,
+    showForm,
+    setShowForm,
+    setSelectedEntryId,
+    selectedEntryId,
+    query,
+    setQuery,
+    debouncedQuery,
+  } = useFeedbackBody();
   const { messages } = useFeedbackUi();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+
   const list = hooks.useEntries({ sort: entrySort, kinds: enabledKinds });
   const searchResults = hooks.useSearchEntries({
-    searchQuery,
+    searchQuery: debouncedQuery,
     kinds: enabledKinds,
   });
 
@@ -99,19 +101,14 @@ function FeedbackScreenInner({
     return (
       <FeedbackBoard.Root className={className} {...colors}>
         <EntryDetail
-          hooks={hooks}
           entryId={selectedEntryId}
           onBack={() => setSelectedEntryId(null)}
-          commentSort={commentSort}
-          maxCommentDepth={maxCommentDepth}
-          transformComments={transformComments}
-          renderActor={renderActor}
         />
       </FeedbackBoard.Root>
     );
   }
 
-  const searching = searchQuery.trim().length > 0;
+  const searching = query.trim().length > 0;
   const entries = searching ? searchResults : list.results;
   const loading = searching
     ? searchResults === undefined
@@ -133,30 +130,25 @@ function FeedbackScreenInner({
         </button>
       </FeedbackBoard.Header>
 
-      {showForm ? (
+      {showForm && (
         <CreateEntryForm
-          hooks={hooks}
-          enabledKinds={enabledKinds}
           onCreated={(entryId) => {
             setShowForm(false);
             setSelectedEntryId(entryId);
           }}
         />
-      ) : null}
+      )}
 
-      <FeedbackBoard.Search
-        value={searchQuery}
-        onValueChange={setSearchQuery}
-      />
+      <FeedbackBoard.Search value={query} onValueChange={setQuery} />
 
-      {loading ? <p className="cf-state">{messages.board.loading}</p> : null}
-      {!loading && entries !== undefined && entries.length === 0 ? (
+      {loading && <p className="cf-state">{messages.board.loading}</p>}
+      {!loading && entries !== undefined && entries.length === 0 && (
         <p className="cf-state">
           {searching
             ? messages.board.noSearchResults
             : messages.board.noEntries}
         </p>
-      ) : null}
+      )}
 
       <FeedbackBoard.List>
         {(entries ?? []).map((entry) => (
@@ -169,7 +161,7 @@ function FeedbackScreenInner({
         ))}
       </FeedbackBoard.List>
 
-      {!searching && list.status === "CanLoadMore" ? (
+      {!searching && list.status === "CanLoadMore" && (
         <button
           type="button"
           className="cf-button"
@@ -177,7 +169,7 @@ function FeedbackScreenInner({
         >
           {messages.board.loadMore}
         </button>
-      ) : null}
+      )}
     </FeedbackBoard.Root>
   );
 }
@@ -214,11 +206,8 @@ function EntryCard({ entry, hooks, onOpen }: FeedbackScreenEntryCardProps) {
   );
 }
 
-function CreateEntryForm({
-  hooks,
-  enabledKinds,
-  onCreated,
-}: FeedbackScreenEntryModalProps) {
+function CreateEntryForm({ onCreated }: FeedbackScreenEntryModalProps) {
+  const { hooks, enabledKinds } = useFeedbackBody();
   const { messages } = useFeedbackUi();
   const [kind, setKind] = useState<EntryKind>(enabledKinds[0] ?? "feedback");
   const [title, setTitle] = useState("");
@@ -385,15 +374,8 @@ function CreateEntryForm({
   );
 }
 
-function EntryDetail({
-  hooks,
-  entryId,
-  onBack,
-  commentSort,
-  maxCommentDepth,
-  transformComments,
-  renderActor,
-}: FeedbackScreenEntryDetailProps) {
+function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
+  const { hooks, commentSort, transformComments } = useFeedbackBody();
   const { messages } = useFeedbackUi();
   const entry = hooks.useEntry(entryId);
   const setUpvote = hooks.useSetEntryUpvote();
@@ -461,28 +443,23 @@ function EntryDetail({
           </button>
         </FeedbackForm.Root>
 
-        {comments.status === "LoadingFirstPage" ? (
+        {comments.status === "LoadingFirstPage" && (
           <p className="cf-state">{messages.board.loading}</p>
-        ) : null}
+        )}
         {comments.status !== "LoadingFirstPage" &&
-        visibleComments.length === 0 ? (
-          <p className="cf-state">{messages.comments.noComments}</p>
-        ) : null}
+          visibleComments.length === 0 && (
+            <p className="cf-state">{messages.comments.noComments}</p>
+          )}
         <div className="cf-comments">
           {visibleComments.map((comment) => (
             <CommentBranch
               key={comment.id}
               comment={comment}
               entryId={entryId}
-              hooks={hooks}
-              commentSort={commentSort}
-              maxCommentDepth={maxCommentDepth}
-              transformComments={transformComments}
-              renderActor={renderActor}
             />
           ))}
         </div>
-        {comments.status === "CanLoadMore" ? (
+        {comments.status === "CanLoadMore" && (
           <button
             type="button"
             className="cf-button"
@@ -490,21 +467,14 @@ function EntryDetail({
           >
             {messages.comments.loadMore}
           </button>
-        ) : null}
+        )}
       </section>
     </div>
   );
 }
 
-function CommentBranch({
-  comment,
-  entryId,
-  hooks,
-  commentSort,
-  maxCommentDepth,
-  transformComments,
-  renderActor,
-}: FeedbackScreenCommentBranchProps) {
+function CommentBranch({ comment, entryId }: FeedbackScreenCommentBranchProps) {
+  const { hooks, maxCommentDepth, renderActor } = useFeedbackBody();
   const { messages } = useFeedbackUi();
   const [expanded, setExpanded] = useState(false);
   const [replying, setReplying] = useState(false);
@@ -524,15 +494,15 @@ function CommentBranch({
             void setLike({ commentId: comment.id, desiredState: active })
           }
         />
-        {comment.body !== null && comment.depth < maxCommentDepth ? (
+        {comment.body !== null && comment.depth < maxCommentDepth && (
           <Comment.Reply onActivate={() => setReplying((value) => !value)} />
-        ) : null}
+        )}
         <Comment.RepliesButton
           expanded={expanded}
           onExpandedChange={setExpanded}
         />
       </div>
-      {replying ? (
+      {replying && (
         <FeedbackForm.Root
           onSubmit={async (event) => {
             event.preventDefault();
@@ -566,31 +536,14 @@ function CommentBranch({
             </button>
           </div>
         </FeedbackForm.Root>
-      ) : null}
-      {expanded ? (
-        <ReplyList
-          hooks={hooks}
-          entryId={entryId}
-          parentCommentId={comment.id}
-          commentSort={commentSort}
-          maxCommentDepth={maxCommentDepth}
-          transformComments={transformComments}
-          renderActor={renderActor}
-        />
-      ) : null}
+      )}
+      {expanded && <ReplyList entryId={entryId} parentCommentId={comment.id} />}
     </Comment.Root>
   );
 }
 
-function ReplyList({
-  hooks,
-  entryId,
-  parentCommentId,
-  commentSort,
-  maxCommentDepth,
-  transformComments,
-  renderActor,
-}: FeedbackScreenReplyListProps) {
+function ReplyList({ entryId, parentCommentId }: FeedbackScreenReplyListProps) {
+  const { hooks, commentSort, transformComments } = useFeedbackBody();
   const { messages } = useFeedbackUi();
   const replies = hooks.useComments({
     entryId,
@@ -604,22 +557,13 @@ function ReplyList({
 
   return (
     <Comment.Children>
-      {replies.status === "LoadingFirstPage" ? (
+      {replies.status === "LoadingFirstPage" && (
         <p className="cf-state">{messages.board.loading}</p>
-      ) : null}
+      )}
       {visibleReplies.map((reply) => (
-        <CommentBranch
-          key={reply.id}
-          comment={reply}
-          entryId={entryId}
-          hooks={hooks}
-          commentSort={commentSort}
-          maxCommentDepth={maxCommentDepth}
-          transformComments={transformComments}
-          renderActor={renderActor}
-        />
+        <CommentBranch key={reply.id} comment={reply} entryId={entryId} />
       ))}
-      {replies.status === "CanLoadMore" ? (
+      {replies.status === "CanLoadMore" && (
         <button
           type="button"
           className="cf-button"
@@ -627,7 +571,7 @@ function ReplyList({
         >
           {messages.comments.loadMore}
         </button>
-      ) : null}
+      )}
     </Comment.Children>
   );
 }

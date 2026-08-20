@@ -1,13 +1,13 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
-import { mergeFeedbackMessages } from "../shared/messages.js";
+import { mergeFeedbackMessages } from "../../shared/messages.js";
 
-import { mergeFeedbackTheme } from "../shared/theme.js";
+import { mergeFeedbackTheme } from "../../shared/theme.js";
 import type {
   FeedbackProviderProps,
   FeedbackTheme,
   FeedbackUiContextValue,
-} from "../shared/types";
+} from "../../shared/types/index.js";
 
 const FeedbackNativeContext = createContext<FeedbackUiContextValue | null>(
   null,

@@ -9,7 +9,6 @@ import type { FeedbackHooks } from "convex-feedback/react";
 import type { ReactNode } from "react";
 
 import type { FeedbackColorProps, FeedbackProviderProps } from "./context.js";
-import type { Require } from "./helpers.js";
 
 /**
  * Presentation-only transform applied to one currently loaded comment page.
@@ -29,7 +28,21 @@ export type FeedbackCommentTransform = (
  */
 export type FeedbackActorRenderer = (actorId: string) => ReactNode;
 
-export interface FeedbackScreenBaseProps extends FeedbackColorProps {
+export interface FeedbackScreenTransformationProps {
+  /**
+   * Optional presentation-only transform applied to each loaded page of
+   * comments/replies before rendering.
+   */
+  transformComments?: FeedbackCommentTransform;
+
+  /**
+   * Optional host renderer for actor IDs, useful for names, avatars, or other
+   * host-owned profile information.
+   */
+  renderActor?: FeedbackActorRenderer;
+}
+
+export interface FeedbackScreenBaseProps {
   /** Hooks created with `createFeedbackHooks`. */
   hooks: FeedbackHooks;
 
@@ -69,48 +82,80 @@ export interface FeedbackScreenBaseProps extends FeedbackColorProps {
   maxCommentDepth?: number;
 
   /**
-   * Optional presentation-only transform applied to each loaded page of
-   * comments/replies before rendering.
+   * Duration in milliseconds to wait before triggering a search.
+   *
+   * @default 300
    */
-  transformComments?: FeedbackCommentTransform;
-
-  /**
-   * Optional host renderer for actor IDs, useful for names, avatars, or other
-   * host-owned profile information.
-   */
-  renderActor?: FeedbackActorRenderer;
+  debounceDuration?: number;
 }
 
 export interface FeedbackScreenRootProps
-  extends Omit<FeedbackProviderProps, "children">, FeedbackScreenBaseProps {}
+  extends
+    Omit<FeedbackProviderProps, "children">,
+    FeedbackColorProps,
+    FeedbackScreenBaseProps,
+    FeedbackScreenTransformationProps {}
 
-export type FeedbackScreenBodyProps = Require<
-  FeedbackScreenBaseProps,
-  "entrySort" | "commentSort" | "enabledKinds" | "maxCommentDepth"
->;
+export interface FeedbackScreenProviderProps
+  extends
+    Required<FeedbackScreenBaseProps>,
+    FeedbackScreenTransformationProps {}
+
+export interface FeedbackScreenBodyContextValue
+  extends FeedbackScreenTransformationProps, FeedbackScreenProviderProps {
+  query: string;
+  debouncedQuery: string;
+  showForm: boolean;
+  isSearching: boolean;
+  selectedEntryId: string | null;
+  setQuery: React.Dispatch<React.SetStateAction<string>>;
+  setDebouncedQuery: React.Dispatch<React.SetStateAction<string>>;
+  setShowForm: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsSearching: React.Dispatch<React.SetStateAction<boolean>>;
+  setSelectedEntryId: React.Dispatch<React.SetStateAction<string | null>>;
+}
+
+export type FeedbackScreenBodyProps = FeedbackColorProps;
+
+export interface FeedbackScreenListProps {
+  /** Whether to show the header.
+   *  @default true
+   */
+  showHeader?: boolean;
+  /** Whether to hide the back button from the EntryCard.
+   *  @default false
+   */
+  hideBackButton?: boolean;
+  /** Callback when the EntryCard is opened. */
+  onEntryOpen: (entryId: string) => void;
+}
+
+export interface FeedbackScreenContentProps
+  extends FeedbackColorProps, Partial<FeedbackScreenListProps> {}
 
 export interface FeedbackScreenEntryCardProps {
   entry: FeedbackEntry;
   hooks: FeedbackHooks;
+  /** Callback when the EntryCard is opened. */
   onOpen: () => void;
 }
 
 export interface FeedbackScreenEntryModalProps {
-  hooks: FeedbackHooks;
-  enabledKinds: readonly EntryKind[];
+  /** Callback when an entry is created. */
   onCreated: (id: string) => void;
 }
 
 export interface FeedbackScreenEntryBaseProps {
+  /** The entry ID to open. */
   entryId: string;
-  hooks: FeedbackHooks;
-  commentSort: CommentSort;
-  maxCommentDepth: number;
-  transformComments?: FeedbackScreenBaseProps["transformComments"];
-  renderActor?: FeedbackScreenBaseProps["renderActor"];
 }
 
 export interface FeedbackScreenEntryDetailProps extends FeedbackScreenEntryBaseProps {
+  /** Whether to hide the back button from the EntryCard.
+   *  @default false
+   */
+  hideBackButton?: boolean;
+  /** Callback when the EntryCard is closed. */
   onBack: () => void;
 }
 
@@ -119,5 +164,6 @@ export interface FeedbackScreenCommentBranchProps extends FeedbackScreenEntryBas
 }
 
 export interface FeedbackScreenReplyListProps extends FeedbackScreenEntryBaseProps {
+  /** The parent comment ID of the reply list. */
   parentCommentId: string;
 }

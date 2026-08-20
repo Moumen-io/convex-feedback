@@ -156,3 +156,15 @@
 {"_e":"metro:bundling:progress","_t":1787170520325,"id":"1","progress":0,"total":1,"current":0}
 {"_e":"metro:bundling:progress","_t":1787170520326,"id":"1","progress":0,"total":1,"current":0}
 {"_e":"metro:bundling:done","_t":1787170520401,"id":"1","total":1,"ms":76.460917}
+{"_e":"root:init","_t":1787217069125,"format":"v0-jsonl","version":"57.0.16"}
+{"_e":"env:mode","_t":1787217069211,"nodeEnv":"production","babelEnv":"production","mode":"production"}
+{"_e":"env:load","_t":1787217069212,"mode":"production","files":["../../../.env.local"],"env":{"EXPO_PUBLIC_CONVEX_URL":"https://resilient-toucan-885.convex.cloud"}}
+{"_e":"devserver:start","_t":1787217069252,"mode":"production","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":true}
+{"_e":"metro:config","_t":1787217069581,"serverRoot":"../../../../..","projectRoot":"../../..","exporting":true,"flags":{"autolinkingModuleResolution":true,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1787217069641,"atlas":false,"workers":7,"host":null,"port":null}
+{"_e":"metro:bundling:started","_t":1787217069659,"id":"1","platform":"web","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787217069659,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787217069662,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787217069762,"id":"1","progress":0.9863482829799212,"total":146,"current":145}
+{"_e":"metro:bundling:progress","_t":1787217069909,"id":"1","progress":0.999,"total":146,"current":146}
+{"_e":"metro:bundling:done","_t":1787217069961,"id":"1","total":146,"ms":302.310708}

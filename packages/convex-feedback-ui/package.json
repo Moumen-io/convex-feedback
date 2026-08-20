@@ -63,7 +63,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
-    "convex-feedback": "latest",
+    "convex-feedback": "*",
     "react": "^19.2.0",
     "react-native": "^0.83.10",
     "react-native-safe-area-context": "~5.6.2",

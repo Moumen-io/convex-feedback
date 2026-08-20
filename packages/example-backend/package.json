@@ -24,7 +24,7 @@
     "@auth/core": "^0.41.1",
     "@convex-dev/auth": "^0.0.95",
     "convex": "^1.44.0",
-    "convex-feedback": "^0.1.0"
+    "convex-feedback": "*"
   },
   "devDependencies": {
     "jose": "^5.2.2",

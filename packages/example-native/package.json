@@ -13,9 +13,9 @@
   "dependencies": {
     "@convex-dev/auth": "^0.0.95",
     "convex": "^1.44.0",
-    "convex-feedback": "^0.1.0",
-    "convex-feedback-example-backend": "^0.1.0",
-    "convex-feedback-ui": "^0.1.0",
+    "convex-feedback": "*",
+    "convex-feedback-example-backend": "*",
+    "convex-feedback-ui": "*",
     "expo": "~57.0.0",
     "expo-secure-store": "~57.0.1",
     "react": "19.2.3",

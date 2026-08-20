@@ -12,11 +12,11 @@
   "dependencies": {
     "@convex-dev/auth": "^0.0.95",
     "convex": "^1.44.0",
-    "convex-feedback": "^0.1.0",
-    "convex-feedback-ui": "^0.1.0",
+    "convex-feedback": "*",
+    "convex-feedback-ui": "*",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "convex-feedback-example-backend": "^0.1.0"
+    "convex-feedback-example-backend": "*"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

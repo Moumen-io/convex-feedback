@@ -349,6 +349,10 @@ Use host-level tests when you need to verify your authentication wrapper and pub
 
 ## UI package
 
+| Expo                                 | React Native                                   |
+| ------------------------------------ | ---------------------------------------------- |
+| ![Expo](./docs/screenshots/expo.png) | ![React Native](./docs/screenshots/native.png) |
+
 `convex-feedback` is intentionally headless. For a complete board or customizable primitives, install:
 
 ```bash

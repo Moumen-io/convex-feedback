@@ -38,6 +38,10 @@ See **[convex-feedback](./packages/convex-feedback/README.md)** for the complete
 
 ### React or React Native UI
 
+| Expo                                 | React Native                                   |
+| ------------------------------------ | ---------------------------------------------- |
+| ![Expo](./docs/screenshots/expo.png) | ![React Native](./docs/screenshots/native.png) |
+
 ```bash
 npm install convex-feedback convex-feedback-ui
 ```
@@ -63,10 +67,10 @@ See **[convex-feedback-ui](./packages/convex-feedback-ui/README.md)** for web/na
 
 ## Packages
 
-| Package                                                         | Purpose                                         |
-| --------------------------------------------------------------- | ----------------------------------------------- |
-| `[convex-feedback](./packages/convex-feedback/README.md)`       | Headless Convex component and typed React hooks |
-| `[convex-feedback-ui](./packages/convex-feedback-ui/README.md)` | Optional React DOM and React Native UI          |
+| Package                                                       | Purpose                                         |
+| ------------------------------------------------------------- | ----------------------------------------------- |
+| [convex-feedback](./packages/convex-feedback/README.md)       | Headless Convex component and typed React hooks |
+| [convex-feedback-ui](./packages/convex-feedback-ui/README.md) | Optional React DOM and React Native UI          |
 
 The repository also contains a shared example backend and deployable web/native demos under `packages/example-*`.
 

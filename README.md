@@ -38,9 +38,9 @@ See **[convex-feedback](./packages/convex-feedback/README.md)** for the complete
 
 ### React or React Native UI
 
-| Expo                                 | React Native                                   |
-| ------------------------------------ | ---------------------------------------------- |
-| ![Expo](./docs/screenshots/expo.png) | ![React Native](./docs/screenshots/native.png) |
+| Expo                                                                                                | React Native                                                                                                  |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| ![Expo](https://raw.githubusercontent.com/Moumen-io/convex-feedback/main/docs/screenshots/expo.png) | ![React Native](https://raw.githubusercontent.com/Moumen-io/convex-feedback/main/docs/screenshots/native.png) |
 
 ```bash
 npm install convex-feedback convex-feedback-ui

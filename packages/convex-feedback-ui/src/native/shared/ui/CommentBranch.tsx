@@ -1,12 +1,46 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider.js";
 import type { FeedbackScreenCommentBranchProps } from "../../../shared/types";
 import { Button } from "./Button";
-import { ReplyList } from "./ReplyList";
 import { Comment, FeedbackForm } from "./primitives.js";
+
+import type { FeedbackScreenReplyListProps } from "../../../shared/types";
+
+export function ReplyList({
+  entryId,
+  parentCommentId,
+}: FeedbackScreenReplyListProps) {
+  const { hooks, commentSort, transformComments } = useFeedbackBody();
+  const { messages } = useFeedbackUi();
+
+  const replies = hooks.useComments({
+    entryId,
+    parentCommentId,
+    sort: commentSort,
+  });
+
+  const visible = useMemo(
+    () => transformComments?.(replies.results) ?? replies.results,
+    [replies.results, transformComments],
+  );
+
+  return (
+    <Comment.Children>
+      {visible.map((reply) => (
+        <CommentBranch key={reply.id} comment={reply} entryId={entryId} />
+      ))}
+      {replies.status === "CanLoadMore" && (
+        <Button
+          label={messages.comments.loadMore}
+          onPress={() => replies.loadMore(hooks.pageSizes.replies)}
+        />
+      )}
+    </Comment.Children>
+  );
+}
 
 export function CommentBranch({
   comment,

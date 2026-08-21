@@ -31,7 +31,7 @@ export function FeedbackScreenList({
 
   return (
     <>
-      <FeedbackBoard.List style={{ paddingHorizontal: theme.spacing }}>
+      <FeedbackBoard.List style={{ padding: theme.spacing }}>
         {selectedEntryId ? (
           <EntryDetail
             entryId={selectedEntryId}

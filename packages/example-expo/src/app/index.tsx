@@ -34,6 +34,8 @@ function AnonymousSession({ children }: { children: ReactNode }) {
     });
   }, [isAuthenticated, isLoading, signIn]);
 
+  console.log("isLoading, isAuthenticated", isLoading, isAuthenticated);
+
   if (isLoading || !isAuthenticated) {
     return (
       <View style={styles.loading}>

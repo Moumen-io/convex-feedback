@@ -307,3 +307,117 @@
 {"_e":"metro:bundling:started","_t":1787160580380,"id":"7","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
 {"_e":"metro:bundling:progress","_t":1787160580380,"id":"7","progress":0,"total":1,"current":0}
 {"_e":"metro:bundling:done","_t":1787160580410,"id":"7","total":1,"ms":29.852333}
+{"_e":"root:init","_t":1787269069617,"format":"v0-jsonl","version":"57.0.17"}
+{"_e":"devserver:start","_t":1787269069623,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1787269069957,"serverRoot":"../../../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":true,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1787269070015,"plugins":[]}
+{"_e":"metro:instantiate","_t":1787269070310,"atlas":false,"workers":7,"host":"::","port":8083}
+{"_e":"metro:bundling:started","_t":1787269079177,"id":"1","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787269079179,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787269079187,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787269079568,"id":"1","progress":0.010000000000000002,"total":1,"current":1}
+{"_e":"metro:bundling:progress","_t":1787269079669,"id":"1","progress":0.1111111111111111,"total":21,"current":7}
+{"_e":"metro:bundling:progress","_t":1787269079763,"id":"1","progress":0.14512471655328796,"total":21,"current":8}
+{"_e":"metro:bundling:progress","_t":1787269079862,"id":"1","progress":0.14512471655328796,"total":143,"current":14}
+{"_e":"metro:bundling:progress","_t":1787269079966,"id":"1","progress":0.14512471655328796,"total":145,"current":19}
+{"_e":"metro:bundling:progress","_t":1787269080076,"id":"1","progress":0.14512471655328796,"total":154,"current":23}
+{"_e":"metro:bundling:progress","_t":1787269080177,"id":"1","progress":0.14512471655328796,"total":199,"current":34}
+{"_e":"metro:bundling:progress","_t":1787269080282,"id":"1","progress":0.14512471655328796,"total":213,"current":47}
+{"_e":"metro:bundling:progress","_t":1787269080383,"id":"1","progress":0.14512471655328796,"total":228,"current":67}
+{"_e":"metro:bundling:progress","_t":1787269080484,"id":"1","progress":0.14512471655328796,"total":252,"current":84}
+{"_e":"metro:bundling:progress","_t":1787269080585,"id":"1","progress":0.21374788890973917,"total":292,"current":135}
+{"_e":"metro:bundling:progress","_t":1787269080686,"id":"1","progress":0.31089072543618,"total":330,"current":184}
+{"_e":"metro:bundling:progress","_t":1787269080786,"id":"1","progress":0.36061882240408116,"total":388,"current":233}
+{"_e":"metro:bundling:progress","_t":1787269080886,"id":"1","progress":0.3635011951020267,"total":481,"current":290}
+{"_e":"metro:bundling:progress","_t":1787269080986,"id":"1","progress":0.4079665021254895,"total":501,"current":320}
+{"_e":"metro:bundling:progress","_t":1787269081086,"id":"1","progress":0.4351985716144516,"total":526,"current":347}
+{"_e":"metro:bundling:progress","_t":1787269081186,"id":"1","progress":0.4954762084402193,"total":564,"current":397}
+{"_e":"metro:bundling:progress","_t":1787269081287,"id":"1","progress":0.6154131985731272,"total":580,"current":455}
+{"_e":"metro:bundling:progress","_t":1787269081387,"id":"1","progress":0.625035403344839,"total":659,"current":521}
+{"_e":"metro:bundling:progress","_t":1787269081487,"id":"1","progress":0.6849802355500362,"total":702,"current":581}
+{"_e":"metro:bundling:progress","_t":1787269081587,"id":"1","progress":0.7306348031197809,"total":723,"current":618}
+{"_e":"metro:bundling:progress","_t":1787269081698,"id":"1","progress":0.7474797000529604,"total":731,"current":632}
+{"_e":"metro:bundling:progress","_t":1787269081802,"id":"1","progress":0.7791004444444445,"total":750,"current":662}
+{"_e":"metro:bundling:progress","_t":1787269081902,"id":"1","progress":0.8104787941376188,"total":752,"current":677}
+{"_e":"metro:bundling:progress","_t":1787269082002,"id":"1","progress":0.8353054366136372,"total":767,"current":701}
+{"_e":"metro:bundling:progress","_t":1787269082103,"id":"1","progress":0.9016616071584753,"total":793,"current":753}
+{"_e":"metro:bundling:progress","_t":1787269082203,"id":"1","progress":0.9925512363555359,"total":804,"current":801}
+{"_e":"metro:bundling:progress","_t":1787269082304,"id":"1","progress":0.9950310635875349,"total":804,"current":802}
+{"_e":"metro:bundling:progress","_t":1787269082428,"id":"1","progress":0.9975139848023563,"total":804,"current":803}
+{"_e":"metro:bundling:progress","_t":1787269082529,"id":"1","progress":0.999,"total":818,"current":818}
+{"_e":"metro:bundling:done","_t":1787269082615,"id":"1","total":818,"ms":3437.262041}
+{"_e":"metro:client_log","_t":1787269082875,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js -> ../convex-feedback-ui/dist/native/shared/ui/ReplyList.js -> ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1787269082877,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/native/index.js -> ../convex-feedback-ui/dist/native/native/FeedbackScreen.js -> ../convex-feedback-ui/dist/native/shared/ui/BodyContent.js -> ../convex-feedback-ui/dist/native/shared/ui/NewEntry.js -> ../convex-feedback-ui/dist/native/native/index.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1787269087952,"level":"log","data":["WebSocket reconnected at","t=1937629.5s"]}
+{"_e":"metro:bundling:started","_t":1787269253799,"id":"4","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787269253799,"id":"4","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787269253818,"id":"4","total":1,"ms":19.19525}
+{"_e":"metro:client_log","_t":1787269254002,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js -> ../convex-feedback-ui/dist/native/shared/ui/ReplyList.js -> ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1787269254002,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/native/index.js -> ../convex-feedback-ui/dist/native/native/FeedbackScreen.js -> ../convex-feedback-ui/dist/native/shared/ui/BodyContent.js -> ../convex-feedback-ui/dist/native/shared/ui/NewEntry.js -> ../convex-feedback-ui/dist/native/native/index.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:bundling:started","_t":1787269668458,"id":"7","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787269668458,"id":"7","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787269668480,"id":"7","total":1,"ms":21.461375}
+{"_e":"metro:client_log","_t":1787269668645,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js -> ../convex-feedback-ui/dist/native/shared/ui/ReplyList.js -> ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1787269668645,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/native/index.js -> ../convex-feedback-ui/dist/native/native/FeedbackScreen.js -> ../convex-feedback-ui/dist/native/shared/ui/BodyContent.js -> ../convex-feedback-ui/dist/native/shared/ui/NewEntry.js -> ../convex-feedback-ui/dist/native/native/index.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:bundling:started","_t":1787269704898,"id":"a","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787269704899,"id":"a","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787269704909,"id":"a","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787269704965,"id":"a","total":1,"ms":66.045083}
+{"_e":"metro:client_log","_t":1787269705132,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js -> ../convex-feedback-ui/dist/native/shared/ui/ReplyList.js -> ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1787269705132,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/native/index.js -> ../convex-feedback-ui/dist/native/native/FeedbackScreen.js -> ../convex-feedback-ui/dist/native/shared/ui/BodyContent.js -> ../convex-feedback-ui/dist/native/shared/ui/NewEntry.js -> ../convex-feedback-ui/dist/native/native/index.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:bundling:started","_t":1787269753753,"id":"d","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787269753754,"id":"d","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787269753776,"id":"d","total":1,"ms":22.837042}
+{"_e":"metro:client_log","_t":1787269753939,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js -> ../convex-feedback-ui/dist/native/shared/ui/ReplyList.js -> ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1787269753939,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/native/index.js -> ../convex-feedback-ui/dist/native/native/FeedbackScreen.js -> ../convex-feedback-ui/dist/native/shared/ui/BodyContent.js -> ../convex-feedback-ui/dist/native/shared/ui/NewEntry.js -> ../convex-feedback-ui/dist/native/native/index.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:bundling:started","_t":1787269770904,"id":"g","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787269770904,"id":"g","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787269770924,"id":"g","total":1,"ms":20.114458}
+{"_e":"metro:client_log","_t":1787269771087,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js -> ../convex-feedback-ui/dist/native/shared/ui/ReplyList.js -> ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1787269771087,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/native/index.js -> ../convex-feedback-ui/dist/native/native/FeedbackScreen.js -> ../convex-feedback-ui/dist/native/shared/ui/BodyContent.js -> ../convex-feedback-ui/dist/native/shared/ui/NewEntry.js -> ../convex-feedback-ui/dist/native/native/index.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:bundling:started","_t":1787269782875,"id":"j","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787269782875,"id":"j","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787269782890,"id":"j","total":1,"ms":15.042125}
+{"_e":"metro:client_log","_t":1787269783052,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js -> ../convex-feedback-ui/dist/native/shared/ui/ReplyList.js -> ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1787269783052,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/native/index.js -> ../convex-feedback-ui/dist/native/native/FeedbackScreen.js -> ../convex-feedback-ui/dist/native/shared/ui/BodyContent.js -> ../convex-feedback-ui/dist/native/shared/ui/NewEntry.js -> ../convex-feedback-ui/dist/native/native/index.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:bundling:started","_t":1787269817511,"id":"m","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787269817511,"id":"m","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787269817517,"id":"m","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787269817555,"id":"m","total":1,"ms":43.235583}
+{"_e":"metro:client_log","_t":1787269817728,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js -> ../convex-feedback-ui/dist/native/shared/ui/ReplyList.js -> ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1787269817728,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/native/index.js -> ../convex-feedback-ui/dist/native/native/FeedbackScreen.js -> ../convex-feedback-ui/dist/native/shared/ui/BodyContent.js -> ../convex-feedback-ui/dist/native/shared/ui/NewEntry.js -> ../convex-feedback-ui/dist/native/native/index.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:bundling:started","_t":1787269964491,"id":"p","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787269964492,"id":"p","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787269964522,"id":"p","total":1,"ms":30.856125}
+{"_e":"metro:client_log","_t":1787269964693,"level":"warn","data":["Require cycle: ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js -> ../convex-feedback-ui/dist/native/shared/ui/ReplyList.js -> ../convex-feedback-ui/dist/native/shared/ui/CommentBranch.js\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"root:init","_t":1787271554804,"format":"v0-jsonl","version":"57.0.17"}
+{"_e":"env:mode","_t":1787271554804,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1787271554806,"mode":"development","files":["../../../.env.local"],"env":{"EXPO_PUBLIC_CONVEX_URL":"https://resilient-toucan-885.convex.cloud"}}
+{"_e":"devserver:start","_t":1787271557597,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1787271557918,"serverRoot":"../../../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":true,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1787271557971,"plugins":[]}
+{"_e":"metro:instantiate","_t":1787271558359,"atlas":false,"workers":7,"host":"::","port":8082}
+{"_e":"metro:bundling:started","_t":1787271574403,"id":"1","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
+{"_e":"metro:bundling:progress","_t":1787271574403,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787271574406,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787271574657,"id":"1","progress":0.010000000000000002,"total":1,"current":1}
+{"_e":"metro:bundling:progress","_t":1787271574757,"id":"1","progress":0.1111111111111111,"total":21,"current":7}
+{"_e":"metro:bundling:progress","_t":1787271574858,"id":"1","progress":0.1111111111111111,"total":137,"current":14}
+{"_e":"metro:bundling:progress","_t":1787271574958,"id":"1","progress":0.1111111111111111,"total":181,"current":27}
+{"_e":"metro:bundling:progress","_t":1787271575060,"id":"1","progress":0.1111111111111111,"total":212,"current":51}
+{"_e":"metro:bundling:progress","_t":1787271575160,"id":"1","progress":0.15940354199153486,"total":268,"current":107}
+{"_e":"metro:bundling:progress","_t":1787271575260,"id":"1","progress":0.2595838006729691,"total":316,"current":161}
+{"_e":"metro:bundling:progress","_t":1787271575360,"id":"1","progress":0.35692965154503614,"total":390,"current":233}
+{"_e":"metro:bundling:progress","_t":1787271575460,"id":"1","progress":0.37029570168978276,"total":493,"current":300}
+{"_e":"metro:bundling:progress","_t":1787271575560,"id":"1","progress":0.4351985716144516,"total":526,"current":347}
+{"_e":"metro:bundling:progress","_t":1787271575660,"id":"1","progress":0.5850907971683595,"total":570,"current":436}
+{"_e":"metro:bundling:progress","_t":1787271575760,"id":"1","progress":0.6474059171597634,"total":650,"current":523}
+{"_e":"metro:bundling:progress","_t":1787271575860,"id":"1","progress":0.7077724561292766,"total":712,"current":599}
+{"_e":"metro:bundling:progress","_t":1787271575962,"id":"1","progress":0.8063306955435235,"total":735,"current":660}
+{"_e":"metro:bundling:progress","_t":1787271576062,"id":"1","progress":0.8509704945616249,"total":774,"current":714}
+{"_e":"metro:bundling:progress","_t":1787271576163,"id":"1","progress":0.9432566678310341,"total":799,"current":776}
+{"_e":"metro:bundling:progress","_t":1787271576262,"id":"1","progress":0.9950248833375465,"total":803,"current":801}
+{"_e":"metro:bundling:progress","_t":1787271576370,"id":"1","progress":0.9975108908219333,"total":803,"current":802}
+{"_e":"metro:bundling:progress","_t":1787271576470,"id":"1","progress":0.9975108908219333,"total":815,"current":809}
+{"_e":"metro:bundling:done","_t":1787271576578,"id":"1","total":815,"ms":2174.690167}
+{"_e":"metro:server_log","_t":1787271635497,"level":"error","data":["[timeout] connection terminated with Device for app='%s' on device='%s' after not responding for %s seconds.","com.moumentos.convex-feedback-native-demo","iPhone 17 Pro","60"]}

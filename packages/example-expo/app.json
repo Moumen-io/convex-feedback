@@ -12,6 +12,9 @@
     "ios": {
       "bundleIdentifier": "com.moumentos.convex-feedback-expo-demo"
     },
-    "plugins": ["expo-secure-store"]
+    "plugins": ["expo-secure-store", "expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

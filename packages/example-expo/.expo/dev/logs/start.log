@@ -307,3 +307,108 @@
 {"_e":"metro:bundling:started","_t":1787160580380,"id":"7","platform":"ios","environment":null,"entry":"packages/example-native/index.ts"}
 {"_e":"metro:bundling:progress","_t":1787160580380,"id":"7","progress":0,"total":1,"current":0}
 {"_e":"metro:bundling:done","_t":1787160580410,"id":"7","total":1,"ms":29.852333}
+{"_e":"root:init","_t":1787270534223,"format":"v0-jsonl","version":"57.0.17"}
+{"_e":"devserver:start","_t":1787270534235,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../src/app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1787270534730,"serverRoot":"../../../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":true,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1787270534804,"plugins":[]}
+{"_e":"metro:instantiate","_t":1787270535275,"atlas":false,"workers":7,"host":"::","port":8084}
+{"_e":"metro:bundling:started","_t":1787270539989,"id":"1","platform":"ios","environment":null,"entry":"node_modules/expo-router/entry.js"}
+{"_e":"metro:bundling:progress","_t":1787270539990,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787270539992,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787270540239,"id":"1","progress":0.010000000000000002,"total":1,"current":1}
+{"_e":"metro:bundling:progress","_t":1787270540340,"id":"1","progress":0.12098298676748581,"total":23,"current":8}
+{"_e":"metro:bundling:progress","_t":1787270540444,"id":"1","progress":0.12098298676748581,"total":38,"current":13}
+{"_e":"metro:bundling:progress","_t":1787270540554,"id":"1","progress":0.12098298676748581,"total":149,"current":18}
+{"_e":"metro:bundling:progress","_t":1787270540654,"id":"1","progress":0.12098298676748581,"total":156,"current":21}
+{"_e":"metro:bundling:progress","_t":1787270540755,"id":"1","progress":0.12098298676748581,"total":175,"current":37}
+{"_e":"metro:bundling:progress","_t":1787270540856,"id":"1","progress":0.12098298676748581,"total":232,"current":56}
+{"_e":"metro:bundling:progress","_t":1787270540956,"id":"1","progress":0.12098298676748581,"total":280,"current":92}
+{"_e":"metro:bundling:progress","_t":1787270541056,"id":"1","progress":0.21301775147928997,"total":338,"current":156}
+{"_e":"metro:bundling:progress","_t":1787270541156,"id":"1","progress":0.21301775147928997,"total":430,"current":197}
+{"_e":"metro:bundling:progress","_t":1787270541258,"id":"1","progress":0.2445555170760296,"total":548,"current":271}
+{"_e":"metro:bundling:progress","_t":1787270541358,"id":"1","progress":0.29909943610495376,"total":629,"current":344}
+{"_e":"metro:bundling:progress","_t":1787270541470,"id":"1","progress":0.36,"total":655,"current":393}
+{"_e":"metro:bundling:progress","_t":1787270541560,"id":"1","progress":0.3789719001637209,"total":692,"current":426}
+{"_e":"metro:bundling:progress","_t":1787270541661,"id":"1","progress":0.38838734023583643,"total":767,"current":478}
+{"_e":"metro:bundling:progress","_t":1787270541761,"id":"1","progress":0.43503847894975095,"total":799,"current":527}
+{"_e":"metro:bundling:progress","_t":1787270541861,"id":"1","progress":0.5045303948576676,"total":825,"current":586}
+{"_e":"metro:bundling:progress","_t":1787270541961,"id":"1","progress":0.5501960160022571,"total":879,"current":652}
+{"_e":"metro:bundling:progress","_t":1787270542063,"id":"1","progress":0.6152495337542555,"total":909,"current":713}
+{"_e":"metro:bundling:progress","_t":1787270542162,"id":"1","progress":0.6447799247154146,"total":939,"current":754}
+{"_e":"metro:bundling:progress","_t":1787270542262,"id":"1","progress":0.6791583996000563,"total":1012,"current":834}
+{"_e":"metro:bundling:progress","_t":1787270542362,"id":"1","progress":0.6791583996000563,"total":1096,"current":895}
+{"_e":"metro:bundling:progress","_t":1787270542462,"id":"1","progress":0.6956516488136708,"total":1151,"current":960}
+{"_e":"metro:bundling:progress","_t":1787270542562,"id":"1","progress":0.7398608486063213,"total":1187,"current":1021}
+{"_e":"metro:bundling:progress","_t":1787270542662,"id":"1","progress":0.802180017541147,"total":1217,"current":1090}
+{"_e":"metro:bundling:progress","_t":1787270542762,"id":"1","progress":0.8694099669330876,"total":1243,"current":1159}
+{"_e":"metro:bundling:progress","_t":1787270542862,"id":"1","progress":0.9245562130177515,"total":1274,"current":1225}
+{"_e":"metro:bundling:progress","_t":1787270542963,"id":"1","progress":0.975347635358452,"total":1290,"current":1274}
+{"_e":"metro:bundling:progress","_t":1787270543066,"id":"1","progress":0.998455002161922,"total":1294,"current":1293}
+{"_e":"metro:bundling:progress","_t":1787270543167,"id":"1","progress":0.9984585744101951,"total":1297,"current":1296}
+{"_e":"metro:bundling:progress","_t":1787270543248,"id":"1","progress":0.999,"total":1297,"current":1297}
+{"_e":"metro:bundling:progress","_t":1787270543349,"id":"1","progress":0.999,"total":1308,"current":1308}
+{"_e":"metro:bundling:done","_t":1787270543394,"id":"1","total":1308,"ms":3404.01625}
+{"_e":"metro:client_log","_t":1787270543729,"level":"error","data":["[runtime not ready]: Error: Cannot find native module 'ExpoLinking'"]}
+{"_e":"metro:bundling:started","_t":1787270582842,"id":"2","platform":"ios","environment":null,"entry":"node_modules/expo-router/entry.js"}
+{"_e":"metro:bundling:progress","_t":1787270582842,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787270582893,"id":"2","total":1,"ms":50.395792}
+{"_e":"metro:client_log","_t":1787270583089,"level":"error","data":["[runtime not ready]: Error: Cannot find native module 'ExpoLinking'"]}
+{"_e":"metro:server_log","_t":1787270746572,"level":"error","data":["[timeout] connection terminated with Device for app='%s' on device='%s' after not responding for %s seconds.","com.moumentos.convex-feedback-native-demo","iPhone 17 Pro","60"]}
+{"_e":"metro:bundling:failed","_t":1787270850115,"id":null,"message":"Unable to resolve \"react-native-screens\" from \"node_modules/@react-navigation/native-stack/lib/module/views/NativeStackView.native.js\"\n   6 | import { Animated, Platform, StatusBar, StyleSheet, useAnimatedValue, View } from 'react-native';\n   7 | import { useSafeAreaInsets } from 'react-native-safe-area-context';\n>  8 | import { compatibilityFlags, ScreenStack, ScreenStackItem } from 'react-native-screens';\n     |                                                                   ^\n   9 | import { debounce } from \"../utils/debounce.js\";\n  10 | import { getModalRouteKeys } from \"../utils/getModalRoutesKeys.js\";\n  11 | import { AnimatedHeaderHeightContext } from \"../utils/useAnimatedHeaderHeight.js\";","importStack":"\u001b[1mImport stack:\u001b[22m\n\u001b[90m\u001b[39m\n\u001b[90m\u001b[90m \u001b[39m\u001b[90mnode_modules/\u001b[1m@react-navigation\u001b[22m/native-stack/lib/module/views/NativeStackView.native.js\u001b[39m\n\u001b[90m\u001b[90m |\u001b[39m\u001b[90m \u001b[36mimport\u001b[39m\u001b[90m \u001b[32m\"react-native-screens\"\u001b[39m\u001b[90m\u001b[39m\n\u001b[90m\u001b[39m\n\u001b[90m\u001b[90m \u001b[39m\u001b[90mnode_modules/\u001b[1m@react-navigation\u001b[22m/native-stack/lib/module/index.js\u001b[39m\n\u001b[90m\u001b[90m |\u001b[39m\u001b[90m \u001b[36mimport\u001b[39m\u001b[90m \u001b[32m\"./views/NativeStackView\"\u001b[39m\u001b[90m\u001b[39m\n\u001b[90m\u001b[39m\n\u001b[90m\u001b[90m \u001b[39m\u001b[90mnode_modules/\u001b[1mexpo-router\u001b[22m/build/fork/native-stack/createNativeStackNavigator.js\u001b[39m\n\u001b[90m\u001b[90m |\u001b[39m\u001b[90m \u001b[36mimport\u001b[39m\u001b[90m \u001b[32m\"@react-navigation/native-stack\"\u001b[39m\u001b[90m\u001b[39m\n\u001b[90m\u001b[39m\n\u001b[90m\u001b[90m \u001b[39m\u001b[90mnode_modules/\u001b[1mexpo-router\u001b[22m/build/layouts/StackClient.js\u001b[39m\n\u001b[90m\u001b[90m |\u001b[39m\u001b[90m \u001b[36mimport\u001b[39m\u001b[90m \u001b[32m\"../fork/native-stack/createNativeStackNavigator\"\u001b[39m\u001b[90m\u001b[39m\n\u001b[90m\u001b[39m\n\u001b[90m\u001b[90m \u001b[39m\u001b[90mnode_modules/\u001b[1mexpo-router\u001b[22m/build/views/Navigator.js\u001b[39m\n\u001b[90m\u001b[90m |\u001b[39m\u001b[90m \u001b[36mimport\u001b[39m\u001b[90m \u001b[32m\"../layouts/StackClient\"\u001b[39m\u001b[90m\u001b[39m\n\u001b[90m\u001b[39m\n\u001b[90m\u001b[90m \u001b[39m\u001b[90mnode_modules/\u001b[1mexpo-router\u001b[22m/build/exports.js\u001b[39m\n\u001b[90m\u001b[90m |\u001b[39m\u001b[90m \u001b[36mimport\u001b[39m\u001b[90m \u001b[32m\"./views/Navigator\"\u001b[39m\u001b[90m\u001b[39m\n\u001b[90m\u001b[39m\n\u001b[90m\u001b[90m \u001b[39m\u001b[90mnode_modules/\u001b[1mexpo-router\u001b[22m/build/index.js\u001b[39m\n\u001b[90m\u001b[90m |\u001b[39m\u001b[90m \u001b[36mimport\u001b[39m\u001b[90m \u001b[32m\"./exports\"\u001b[39m\u001b[90m\u001b[39m\n\n\u001b[90m \u001b[39mpackages/convex-feedback-ui/dist/native/expo/FeedbackStack.js\n\u001b[90m |\u001b[39m \u001b[36mimport\u001b[39m \u001b[32m\"expo-router\"\u001b[39m\n\n\u001b[90m \u001b[39mpackages/convex-feedback-ui/dist/native/expo/ExpoFeedbackBody.js\n\u001b[90m |\u001b[39m \u001b[36mimport\u001b[39m \u001b[32m\"./FeedbackStack.js\"\u001b[39m\n\n\u001b[90m \u001b[39mpackages/convex-feedback-ui/dist/native/expo/FeedbackScreen.js\n\u001b[90m |\u001b[39m \u001b[36mimport\u001b[39m \u001b[32m\"./ExpoFeedbackBody\"\u001b[39m\n\n\u001b[90m \u001b[39mpackages/convex-feedback-ui/dist/native/expo/index.js\n\u001b[90m |\u001b[39m \u001b[36mimport\u001b[39m \u001b[32m\"./FeedbackScreen.js\"\u001b[39m\n\n\u001b[90m \u001b[39mpackages/example-expo/src/app/index.tsx\n\u001b[90m |\u001b[39m \u001b[36mimport\u001b[39m \u001b[32m\"convex-feedback-ui/expo\"\u001b[39m\n\n\u001b[90m \u001b[39mpackages/example-expo/src/app\u001b[2m (require.context)\u001b[22m\n","filename":null,"targetModuleName":"react-native-screens","originModulePath":"node_modules/@react-navigation/native-stack/lib/module/views/NativeStackView.native.js"}
+{"_e":"root:init","_t":1787271026405,"format":"v0-jsonl","version":"57.0.17"}
+{"_e":"devserver:start","_t":1787271026411,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../src/app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1787271026795,"serverRoot":"../../../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":true,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1787271026860,"plugins":[]}
+{"_e":"metro:instantiate","_t":1787271027238,"atlas":false,"workers":7,"host":"::","port":8082}
+{"_e":"metro:bundling:started","_t":1787271031018,"id":"1","platform":"ios","environment":null,"entry":"node_modules/expo-router/entry.js"}
+{"_e":"metro:bundling:progress","_t":1787271031018,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787271031021,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787271031121,"id":"1","progress":0.28792385484830463,"total":574,"current":308}
+{"_e":"metro:bundling:progress","_t":1787271031221,"id":"1","progress":0.6554833113120028,"total":998,"current":808}
+{"_e":"metro:bundling:progress","_t":1787271031329,"id":"1","progress":0.999,"total":1301,"current":1301}
+{"_e":"metro:bundling:done","_t":1787271031363,"id":"1","total":1301,"ms":344.738459}
+{"_e":"metro:client_log","_t":1787271031678,"level":"error","data":["[runtime not ready]: Error: Cannot find native module 'ExpoLinking'"]}
+{"_e":"root:init","_t":1787271462175,"format":"v0-jsonl","version":"57.0.17"}
+{"_e":"env:mode","_t":1787271462175,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1787271462176,"mode":"development","files":["../../../.env.local"],"env":{"EXPO_PUBLIC_CONVEX_URL":"https://resilient-toucan-885.convex.cloud"}}
+{"_e":"devserver:start","_t":1787271465208,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../src/app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1787271465552,"serverRoot":"../../../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":true,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1787271465607,"plugins":[]}
+{"_e":"metro:instantiate","_t":1787271465968,"atlas":false,"workers":7,"host":"::","port":8082}
+{"_e":"metro:bundling:started","_t":1787271497693,"id":"1","platform":"ios","environment":null,"entry":"node_modules/expo-router/entry.js"}
+{"_e":"metro:bundling:progress","_t":1787271497694,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787271497696,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1787271497941,"id":"1","progress":0.010000000000000002,"total":1,"current":1}
+{"_e":"metro:bundling:progress","_t":1787271498042,"id":"1","progress":0.0625,"total":16,"current":4}
+{"_e":"metro:bundling:progress","_t":1787271498149,"id":"1","progress":0.16598079561042522,"total":27,"current":11}
+{"_e":"metro:bundling:progress","_t":1787271498250,"id":"1","progress":0.16598079561042522,"total":194,"current":24}
+{"_e":"metro:bundling:progress","_t":1787271498350,"id":"1","progress":0.16598079561042522,"total":255,"current":57}
+{"_e":"metro:bundling:progress","_t":1787271498451,"id":"1","progress":0.16598079561042522,"total":300,"current":93}
+{"_e":"metro:bundling:progress","_t":1787271498551,"id":"1","progress":0.18472754739287853,"total":349,"current":150}
+{"_e":"metro:bundling:progress","_t":1787271498651,"id":"1","progress":0.2696005917159764,"total":416,"current":216}
+{"_e":"metro:bundling:progress","_t":1787271498751,"id":"1","progress":0.3091360000000001,"total":500,"current":278}
+{"_e":"metro:bundling:progress","_t":1787271498851,"id":"1","progress":0.38739892984542207,"total":580,"current":361}
+{"_e":"metro:bundling:progress","_t":1787271498951,"id":"1","progress":0.43555919724611747,"total":647,"current":427}
+{"_e":"metro:bundling:progress","_t":1787271499052,"id":"1","progress":0.4715504061596272,"total":699,"current":480}
+{"_e":"metro:bundling:progress","_t":1787271499152,"id":"1","progress":0.5729068099264368,"total":724,"current":548}
+{"_e":"metro:bundling:progress","_t":1787271499252,"id":"1","progress":0.6412035728418791,"total":798,"current":639}
+{"_e":"metro:bundling:progress","_t":1787271499352,"id":"1","progress":0.655328798185941,"total":882,"current":714}
+{"_e":"metro:bundling:progress","_t":1787271499452,"id":"1","progress":0.6815029425079221,"total":940,"current":776}
+{"_e":"metro:bundling:progress","_t":1787271499552,"id":"1","progress":0.6891819469242046,"total":1001,"current":831}
+{"_e":"metro:bundling:progress","_t":1787271499652,"id":"1","progress":0.7135931945220663,"total":1037,"current":876}
+{"_e":"metro:bundling:progress","_t":1787271499752,"id":"1","progress":0.7829867172904549,"total":1077,"current":953}
+{"_e":"metro:bundling:progress","_t":1787271499852,"id":"1","progress":0.8447178111480086,"total":1137,"current":1045}
+{"_e":"metro:bundling:progress","_t":1787271499952,"id":"1","progress":0.8762824331536991,"total":1205,"current":1128}
+{"_e":"metro:bundling:progress","_t":1787271500057,"id":"1","progress":0.9091750234885222,"total":1269,"current":1210}
+{"_e":"metro:bundling:progress","_t":1787271500158,"id":"1","progress":0.9907834592962786,"total":1299,"current":1293}
+{"_e":"metro:bundling:progress","_t":1787271500258,"id":"1","progress":0.999,"total":1301,"current":1301}
+{"_e":"metro:bundling:done","_t":1787271500300,"id":"1","total":1301,"ms":2606.733083}
+{"_e":"metro:client_log","_t":1787271500733,"level":"warn","data":["Linking requires a build-time setting `scheme` in the project's Expo config (app.config.js or app.json) for production apps, if it's left blank, your app may crash. The scheme does not apply to development in the Expo client but you should add it as soon as you start working with Linking to avoid creating a broken build. Learn more: https://docs.expo.dev/guides/linking/"]}
+{"_e":"metro:client_log","_t":1787271501096,"level":"log","data":["isLoading, isAuthenticated","true","false"]}
+{"_e":"metro:client_log","_t":1787271501166,"level":"log","data":["isLoading, isAuthenticated","false","false"]}
+{"_e":"metro:client_log","_t":1787271502552,"level":"log","data":["isLoading, isAuthenticated","false","true"]}
+{"_e":"metro:client_log","_t":1787271516850,"level":"log","data":["cancel button pressed"]}
+{"_e":"metro:bundling:started","_t":1787271535868,"id":"2","platform":"ios","environment":null,"entry":"node_modules/expo-router/entry.js"}
+{"_e":"metro:bundling:progress","_t":1787271535868,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1787271535907,"id":"2","total":1,"ms":38.596084}
+{"_e":"metro:client_log","_t":1787271536113,"level":"error","data":["[runtime not ready]: Error: Cannot find native module 'ExpoLinking'"]}

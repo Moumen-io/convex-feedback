@@ -10,9 +10,9 @@ import {
   View,
 } from "react-native";
 
+import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider";
 import type { FeedbackScreenEntryModalProps } from "../../../shared/types";
-import { useFeedbackBody } from "../../native";
 import { EntryDetail } from "./EntryDetail";
 import { FeedbackForm } from "./primitives";
 

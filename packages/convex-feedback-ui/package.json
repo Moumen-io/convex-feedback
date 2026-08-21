@@ -1,6 +1,6 @@
 {
   "name": "convex-feedback-ui",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Customizable React and React Native UI primitives for convex-feedback.",
   "license": "Apache-2.0",
   "type": "module",

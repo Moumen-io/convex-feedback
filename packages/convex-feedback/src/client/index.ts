@@ -1,12 +1,25 @@
 import {
+  type DefaultFunctionArgs,
+  type FunctionReference,
+  type GenericDataModel,
+  type GenericMutationCtx,
   mutationGeneric,
   paginationOptsValidator,
   paginationResultValidator,
   queryGeneric,
   type Auth,
   type PaginationOptions,
+  type RegisteredMutation,
+  type RegisteredQuery,
 } from "convex/server";
-import { ConvexError, v } from "convex/values";
+import {
+  ConvexError,
+  v,
+  type Infer,
+  type Validator,
+  type Value,
+  type VUnion,
+} from "convex/values";
 
 import type { ComponentApi } from "../component/_generated/component.js";
 import {
@@ -55,10 +68,163 @@ export interface FeedbackAuthContext {
 }
 
 /**
- * Configuration used when exposing feedback functions from the host Convex
- * application.
+ * Minimal host mutation context passed to a feedback rate limiter.
+ *
+ * This provides the nested function calls needed by Convex rate-limiter
+ * helpers without coupling limiters to the host application's data model.
  */
-export interface ExposeFeedbackOptions {
+export type FeedbackRateLimitContext = Pick<
+  GenericMutationCtx<GenericDataModel>,
+  "runQuery" | "runMutation"
+>;
+
+/**
+ * A host-defined rate limiter keyed by the resolved feedback actor ID.
+ *
+ * In the default `"throw"` mode, return `undefined` when allowed and throw when
+ * rejected. In `"return"` mode, return `undefined` when allowed or a value
+ * matching the configured `returns` validator when rejected.
+ *
+ * @typeParam Result Rejection value used only by non-throwing limiters.
+ */
+export type FeedbackRateLimiter<Result = void> = (
+  ctx: FeedbackRateLimitContext,
+  key: string,
+) => Promise<Result | undefined>;
+
+/**
+ * Rate limiter hooks shared by related feedback mutations.
+ *
+ * @typeParam Result Rejection value used only in `"return"` mode.
+ */
+export interface FeedbackRateLimiters<Result = void> {
+  /** Applied when creating an entry. */
+  createEntry?: FeedbackRateLimiter<Result>;
+
+  /** Applied when creating a comment or reply. */
+  createComment?: FeedbackRateLimiter<Result>;
+
+  /** Applied to entry edits, status changes, comment edits, and deletion. */
+  editContent?: FeedbackRateLimiter<Result>;
+
+  /** Applied to entry upvotes and comment likes. */
+  reactions?: FeedbackRateLimiter<Result>;
+}
+
+/** Configuration for the default behavior, where limiters reject by throwing. */
+export interface ThrowingFeedbackRateLimitConfig {
+  /**
+   * Configures limiter functions to reject requests by throwing.
+   *
+   * This is the default when `behavior` is omitted.
+   */
+  behavior?: "throw";
+
+  /**
+   * Whether all configured limiter groups apply to moderators.
+   *
+   * @default false
+   */
+  limitModerators?: boolean;
+
+  /** Not accepted in throwing mode; select `"return"` to provide a validator. */
+  returns?: never;
+}
+
+/**
+ * A required, non-optional Convex validator for a returned rate-limit
+ * rejection.
+ */
+export type FeedbackRateLimitReturnValidator = Validator<
+  Value,
+  "required",
+  string
+>;
+
+/**
+ * Return behavior: a defined limiter result short-circuits the mutation.
+ *
+ * @typeParam ReturnsValidator Validator for the value returned on rejection.
+ */
+export interface ReturningFeedbackRateLimitConfig<
+  ReturnsValidator extends FeedbackRateLimitReturnValidator,
+> {
+  /** Configures limiter functions to return rejected requests to the client. */
+  behavior: "return";
+
+  /**
+   * Convex validator for the rejection value returned by a limiter.
+   *
+   * This field is required when `behavior` is `"return"`. Its inferred value
+   * type is added to the result type of every exposed feedback mutation.
+   */
+  returns: ReturnsValidator;
+
+  /**
+   * Whether all configured limiter groups apply to moderators.
+   *
+   * @default false
+   */
+  limitModerators?: boolean;
+}
+
+/**
+ * Configuration for feedback rate-limit rejection behavior.
+ *
+ * Without a validator, this resolves to throwing behavior. Supplying a
+ * validator requires `behavior: "return"` and the same validator in `returns`.
+ *
+ * @typeParam ReturnsValidator Validator for a non-throwing rejection value.
+ */
+export type FeedbackRateLimitConfig<
+  ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined =
+    undefined,
+> = ReturnsValidator extends FeedbackRateLimitReturnValidator
+  ? ReturningFeedbackRateLimitConfig<ReturnsValidator>
+  : ThrowingFeedbackRateLimitConfig;
+
+type RateLimitResult<
+  ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined,
+> = ReturnsValidator extends FeedbackRateLimitReturnValidator
+  ? Infer<ReturnsValidator>
+  : never;
+
+type RateLimiterResult<
+  ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined,
+> = ReturnsValidator extends FeedbackRateLimitReturnValidator
+  ? Infer<ReturnsValidator>
+  : void;
+
+type RegisteredFeedbackFunction<Function> =
+  Function extends FunctionReference<
+    "mutation",
+    "public",
+    infer Args,
+    infer Result
+  >
+    ? Args extends DefaultFunctionArgs
+      ? RegisteredMutation<"public", Args, Promise<Result>>
+      : never
+    : Function extends FunctionReference<
+          "query",
+          "public",
+          infer Args,
+          infer Result
+        >
+      ? Args extends DefaultFunctionArgs
+        ? RegisteredQuery<"public", Args, Promise<Result>>
+        : never
+      : never;
+
+type ExposedFeedbackApi<RateLimitResult> = {
+  [
+    FunctionName in keyof FeedbackPublicApi<string | undefined, RateLimitResult>
+  ]: RegisteredFeedbackFunction<
+    FeedbackPublicApi<string | undefined, RateLimitResult>[FunctionName]
+  >;
+};
+
+interface ExposeFeedbackOptionsBase {
   /**
    * Resolves the current request into a stable feedback actor.
    *
@@ -76,11 +242,120 @@ export interface ExposeFeedbackOptions {
   config?: FeedbackConfigOverrides;
 }
 
+/** Options for the default mode, where limiter functions reject by throwing. */
+export type ThrowingExposeFeedbackOptions = Omit<
+  ExposeFeedbackOptionsBase,
+  "config"
+> & {
+  /** Optional throwing rate limiters for the component's mutation groups. */
+  rateLimiters?: FeedbackRateLimiters;
+
+  /** Optional component behavior and throwing rate-limit overrides. */
+  config?: FeedbackConfigOverrides & {
+    /**
+     * Controls throwing behavior and the moderator exemption.
+     *
+     * Omit this object to use `behavior: "throw"` and
+     * `limitModerators: false`.
+     */
+    rateLimiting?: FeedbackRateLimitConfig;
+  };
+};
+
+/** Options for returning a validated rejection value instead of throwing. */
+export type ReturningExposeFeedbackOptions<
+  ReturnsValidator extends FeedbackRateLimitReturnValidator,
+> = Omit<ExposeFeedbackOptionsBase, "config"> & {
+  /**
+   * Optional returning rate limiters for the component's mutation groups.
+   *
+   * A limiter returns `undefined` to allow the request. Any other returned
+   * value must match `config.rateLimiting.returns` and prevents the component
+   * mutation from running.
+   */
+  rateLimiters?: FeedbackRateLimiters<NoInfer<Infer<ReturnsValidator>>>;
+
+  /** Component behavior plus the required non-throwing limiter configuration. */
+  config: FeedbackConfigOverrides & {
+    /**
+     * Configures non-throwing rejection behavior.
+     *
+     * Both `behavior: "return"` and a `returns` Convex validator are required.
+     */
+    rateLimiting: FeedbackRateLimitConfig<ReturnsValidator>;
+  };
+};
+
+/**
+ * Configuration used when exposing feedback functions from the host app.
+ *
+ * When `ReturnsValidator` is omitted, limiter functions use throwing behavior.
+ * Supplying a validator selects return behavior and adds its inferred value to
+ * the exposed mutation result types.
+ */
+export type ExposeFeedbackOptions<
+  ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined =
+    undefined,
+> = ReturnsValidator extends FeedbackRateLimitReturnValidator
+  ? ReturningExposeFeedbackOptions<ReturnsValidator>
+  : ThrowingExposeFeedbackOptions;
+
 function requireActor(actor: FeedbackActor | null): FeedbackActor {
   if (actor === null) {
     throw new ConvexError("Authentication is required.");
   }
   return actor;
+}
+
+function requireModerator(actor: FeedbackActor): void {
+  if (!actor.isModerator) {
+    throw new ConvexError("Moderator permissions are required.");
+  }
+}
+
+type RateLimitedReturnsValidator<
+  Base extends FeedbackRateLimitReturnValidator,
+  Limit extends FeedbackRateLimitReturnValidator | undefined,
+> = Limit extends FeedbackRateLimitReturnValidator
+  ? VUnion<Infer<Base> | Infer<Limit>, [Base, Limit]>
+  : Base;
+
+function rateLimitedReturns<
+  Base extends FeedbackRateLimitReturnValidator,
+  Limit extends FeedbackRateLimitReturnValidator | undefined,
+>(base: Base, limit: Limit): RateLimitedReturnsValidator<Base, Limit> {
+  return (
+    limit === undefined ? base : v.union(base, limit)
+  ) as RateLimitedReturnsValidator<Base, Limit>;
+}
+
+async function applyRateLimiter<
+  ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined,
+>(
+  ctx: FeedbackRateLimitContext,
+  actor: FeedbackActor,
+  limiter: FeedbackRateLimiter<RateLimiterResult<ReturnsValidator>> | undefined,
+  rateLimitConfig:
+    | ThrowingFeedbackRateLimitConfig
+    | ReturningFeedbackRateLimitConfig<FeedbackRateLimitReturnValidator>
+    | undefined,
+): Promise<RateLimitResult<ReturnsValidator> | undefined> {
+  if (
+    limiter === undefined ||
+    (actor.isModerator && rateLimitConfig?.limitModerators !== true)
+  ) {
+    return undefined;
+  }
+
+  const result = await limiter(ctx, actor.id);
+  if (rateLimitConfig?.behavior !== "return" || result === undefined) {
+    return undefined;
+  }
+  return result as RateLimitResult<ReturnsValidator>;
+}
+
+function asRateLimitContext(ctx: unknown): FeedbackRateLimitContext {
+  return ctx as FeedbackRateLimitContext;
 }
 
 function clampPositive(
@@ -109,11 +384,34 @@ function actorIdFields(actor: FeedbackActor | null): {
   return actor === null ? {} : { viewerActorId: actor.id };
 }
 
-export function exposeFeedbackApi<Name extends string | undefined>(
+function buildFeedbackApi<
+  Name extends string | undefined,
+  ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined =
+    undefined,
+>(
   component: ComponentApi<Name>,
-  options: ExposeFeedbackOptions,
+  options: ExposeFeedbackOptions<ReturnsValidator>,
 ) {
   const config = createFeedbackConfig(options.config);
+  const rateLimitConfig = options.config?.rateLimiting;
+  const rateLimitReturnValidator =
+    rateLimitConfig?.behavior === "return"
+      ? rateLimitConfig.returns
+      : undefined;
+
+  const createEntryReturns = rateLimitedReturns(
+    v.string(),
+    rateLimitReturnValidator,
+  );
+  const nullReturns = rateLimitedReturns(v.null(), rateLimitReturnValidator);
+  const entryUpvoteReturns = rateLimitedReturns(
+    v.object({ active: v.boolean(), upvoteCount: v.number() }),
+    rateLimitReturnValidator,
+  );
+  const commentLikeReturns = rateLimitedReturns(
+    v.object({ active: v.boolean(), likeCount: v.number() }),
+    rateLimitReturnValidator,
+  );
 
   return {
     listEntries: queryGeneric({
@@ -212,9 +510,16 @@ export function exposeFeedbackApi<Name extends string | undefined>(
         title: v.string(),
         body: v.string(),
       },
-      returns: v.string(),
+      returns: createEntryReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
+        const limited = await applyRateLimiter(
+          asRateLimitContext(ctx),
+          actor,
+          options.rateLimiters?.createEntry,
+          rateLimitConfig,
+        );
+        if (limited !== undefined) return limited;
         return await ctx.runMutation(component.entries.create, {
           actorId: actor.id,
           kind: args.kind,
@@ -234,9 +539,16 @@ export function exposeFeedbackApi<Name extends string | undefined>(
         title: v.string(),
         body: v.string(),
       },
-      returns: v.null(),
+      returns: nullReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
+        const limited = await applyRateLimiter(
+          asRateLimitContext(ctx),
+          actor,
+          options.rateLimiters?.editContent,
+          rateLimitConfig,
+        );
+        if (limited !== undefined) return limited;
         return await ctx.runMutation(component.entries.update, {
           actor,
           entryId: args.entryId,
@@ -251,9 +563,17 @@ export function exposeFeedbackApi<Name extends string | undefined>(
 
     setEntryStatus: mutationGeneric({
       args: { entryId: v.string(), status: entryStatusValidator },
-      returns: v.null(),
+      returns: nullReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
+        requireModerator(actor);
+        const limited = await applyRateLimiter(
+          asRateLimitContext(ctx),
+          actor,
+          options.rateLimiters?.editContent,
+          rateLimitConfig,
+        );
+        if (limited !== undefined) return limited;
         return await ctx.runMutation(component.entries.setStatus, {
           actor,
           entryId: args.entryId,
@@ -264,9 +584,16 @@ export function exposeFeedbackApi<Name extends string | undefined>(
 
     setEntryUpvote: mutationGeneric({
       args: { entryId: v.string(), desiredState: v.boolean() },
-      returns: v.object({ active: v.boolean(), upvoteCount: v.number() }),
+      returns: entryUpvoteReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
+        const limited = await applyRateLimiter(
+          asRateLimitContext(ctx),
+          actor,
+          options.rateLimiters?.reactions,
+          rateLimitConfig,
+        );
+        if (limited !== undefined) return limited;
         return await ctx.runMutation(component.entries.setUpvote, {
           actorId: actor.id,
           entryId: args.entryId,
@@ -306,9 +633,16 @@ export function exposeFeedbackApi<Name extends string | undefined>(
         parentCommentId: v.optional(v.string()),
         body: v.string(),
       },
-      returns: v.string(),
+      returns: createEntryReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
+        const limited = await applyRateLimiter(
+          asRateLimitContext(ctx),
+          actor,
+          options.rateLimiters?.createComment,
+          rateLimitConfig,
+        );
+        if (limited !== undefined) return limited;
         return await ctx.runMutation(component.comments.create, {
           actorId: actor.id,
           entryId: args.entryId,
@@ -324,9 +658,16 @@ export function exposeFeedbackApi<Name extends string | undefined>(
 
     updateComment: mutationGeneric({
       args: { commentId: v.string(), body: v.string() },
-      returns: v.null(),
+      returns: nullReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
+        const limited = await applyRateLimiter(
+          asRateLimitContext(ctx),
+          actor,
+          options.rateLimiters?.editContent,
+          rateLimitConfig,
+        );
+        if (limited !== undefined) return limited;
         return await ctx.runMutation(component.comments.update, {
           actor,
           commentId: args.commentId,
@@ -339,9 +680,16 @@ export function exposeFeedbackApi<Name extends string | undefined>(
 
     deleteComment: mutationGeneric({
       args: { commentId: v.string() },
-      returns: v.null(),
+      returns: nullReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
+        const limited = await applyRateLimiter(
+          asRateLimitContext(ctx),
+          actor,
+          options.rateLimiters?.editContent,
+          rateLimitConfig,
+        );
+        if (limited !== undefined) return limited;
         return await ctx.runMutation(component.comments.remove, {
           actor,
           commentId: args.commentId,
@@ -352,9 +700,16 @@ export function exposeFeedbackApi<Name extends string | undefined>(
 
     setCommentLike: mutationGeneric({
       args: { commentId: v.string(), desiredState: v.boolean() },
-      returns: v.object({ active: v.boolean(), likeCount: v.number() }),
+      returns: commentLikeReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
+        const limited = await applyRateLimiter(
+          asRateLimitContext(ctx),
+          actor,
+          options.rateLimiters?.reactions,
+          rateLimitConfig,
+        );
+        if (limited !== undefined) return limited;
         return await ctx.runMutation(component.comments.setLike, {
           actorId: actor.id,
           commentId: args.commentId,
@@ -363,4 +718,36 @@ export function exposeFeedbackApi<Name extends string | undefined>(
       },
     }),
   } satisfies Record<keyof FeedbackPublicApi, unknown>;
+}
+
+/**
+ * Exposes the feedback component through host queries and mutations.
+ *
+ * Rate limiters use throwing behavior unless
+ * `config.rateLimiting.behavior` is `"return"`. Return behavior requires a
+ * `returns` validator and adds that validator's inferred type to every
+ * mutation result.
+ */
+export function exposeFeedbackApi<
+  Name extends string | undefined,
+  ReturnsValidator extends FeedbackRateLimitReturnValidator,
+>(
+  component: ComponentApi<Name>,
+  options: ReturningExposeFeedbackOptions<ReturnsValidator>,
+): ExposedFeedbackApi<Infer<ReturnsValidator>>;
+
+/** Exposes feedback using optional throwing rate limiters. */
+export function exposeFeedbackApi<Name extends string | undefined>(
+  component: ComponentApi<Name>,
+  options: ThrowingExposeFeedbackOptions,
+): ExposedFeedbackApi<never>;
+
+export function exposeFeedbackApi<
+  Name extends string | undefined,
+  ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined,
+>(
+  component: ComponentApi<Name>,
+  options: ExposeFeedbackOptions<ReturnsValidator>,
+): ExposedFeedbackApi<RateLimitResult<ReturnsValidator>> {
+  return buildFeedbackApi(component, options);
 }

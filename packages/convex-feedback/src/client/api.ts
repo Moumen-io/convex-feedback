@@ -288,9 +288,14 @@ export type SetCommentLikeResult = {
  *
  * The host application exposes these wrappers from its own Convex deployment
  * after resolving authentication and configuration.
+ *
+ * @typeParam RateLimitResult A validated rejection value returned by mutations
+ * when non-throwing rate limiting is configured. The default `never` preserves
+ * the original success-only mutation results.
  */
 export interface FeedbackPublicApi<
   Name extends string | undefined = string | undefined,
+  RateLimitResult = never,
 > {
   /** Returns a cursor-paginated entry list. */
   listEntries: FunctionReference<
@@ -328,39 +333,39 @@ export interface FeedbackPublicApi<
     Name
   >;
 
-  /** Creates an entry and returns its public identifier. */
+  /** Creates an entry, returning its identifier or a rate-limit rejection. */
   createEntry: FunctionReference<
     "mutation",
     "public",
     CreateEntryArgs,
-    string,
+    string | RateLimitResult,
     Name
   >;
 
-  /** Replaces an entry's editable content. */
+  /** Replaces entry content, or returns a configured rate-limit rejection. */
   updateEntry: FunctionReference<
     "mutation",
     "public",
     UpdateEntryArgs,
-    null,
+    null | RateLimitResult,
     Name
   >;
 
-  /** Changes an entry's workflow status. */
+  /** Changes entry status, or returns a configured rate-limit rejection. */
   setEntryStatus: FunctionReference<
     "mutation",
     "public",
     SetEntryStatusArgs,
-    null,
+    null | RateLimitResult,
     Name
   >;
 
-  /** Sets the current actor's entry-upvote state. */
+  /** Sets entry-upvote state, or returns a configured rate-limit rejection. */
   setEntryUpvote: FunctionReference<
     "mutation",
     "public",
     SetEntryUpvoteArgs,
-    SetEntryUpvoteResult,
+    SetEntryUpvoteResult | RateLimitResult,
     Name
   >;
 
@@ -373,39 +378,39 @@ export interface FeedbackPublicApi<
     Name
   >;
 
-  /** Creates a comment or reply and returns its identifier. */
+  /** Creates a comment/reply, returning its ID or a rate-limit rejection. */
   createComment: FunctionReference<
     "mutation",
     "public",
     CreateCommentArgs,
-    string,
+    string | RateLimitResult,
     Name
   >;
 
-  /** Replaces a comment's editable body. */
+  /** Replaces comment content, or returns a configured rate-limit rejection. */
   updateComment: FunctionReference<
     "mutation",
     "public",
     UpdateCommentArgs,
-    null,
+    null | RateLimitResult,
     Name
   >;
 
-  /** Soft-deletes a comment while preserving thread structure. */
+  /** Soft-deletes a comment, or returns a configured rate-limit rejection. */
   deleteComment: FunctionReference<
     "mutation",
     "public",
     DeleteCommentArgs,
-    null,
+    null | RateLimitResult,
     Name
   >;
 
-  /** Sets the current actor's comment-like state. */
+  /** Sets comment-like state, or returns a configured rate-limit rejection. */
   setCommentLike: FunctionReference<
     "mutation",
     "public",
     SetCommentLikeArgs,
-    SetCommentLikeResult,
+    SetCommentLikeResult | RateLimitResult,
     Name
   >;
 }

@@ -1,6 +1,6 @@
 [![npm version](https://badge.fury.io/js/convex-feedback.svg)](https://badge.fury.io/js/convex-feedback) [![Convex Component](https://www.convex.dev/components/badge/convex-feedback)](https://www.convex.dev/components/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
 
-[Vite demo](https://convex-feedback-vite.vercel.app/) • [Expo/React Native demo](https://convex-feedback-expo.vercel.app/)
+[Vite demo](https://convex-feedback-vite.vercel.app/) • [Expo demo](https://convex-feedback-expo.vercel.app/) • [React Native demo](https://convex-feedback-native.vercel.app/)
 
 # convex-feedback
 
@@ -19,6 +19,7 @@ A headless, fully typed Convex component for product feedback, feature requests,
 - Convex full-text search.
 - Exact-title + full-text duplicate suggestions.
 - Host-controlled authentication and moderator permissions.
+- Optional host-defined mutation rate limiting.
 - Configurable limits and behavior
 - Typed React hooks.
 - `convex-test` helper entry point.
@@ -153,6 +154,69 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
 ```
 
 All configuration fields are documented in the exported TypeScript types and appear in editor IntelliSense.
+
+### Rate limiting
+
+Pass optional limiter functions to protect related mutation groups. Each limiter receives the mutation context and the resolved `actor.id`. By default, limiters allow a request by returning `undefined` and reject it by throwing.
+
+```ts
+export const feedbackApi = exposeFeedbackApi(components.feedback, {
+  actor: resolveFeedbackActor,
+  rateLimiters: {
+    createEntry: feedbackEntryRateLimiter,
+    createComment: feedbackCommentRateLimiter,
+    editContent: feedbackEditRateLimiter,
+    reactions: feedbackReactionRateLimiter,
+  },
+});
+```
+
+The groups cover:
+
+- `createEntry`: entry creation;
+- `createComment`: comments and replies;
+- `editContent`: entry edits, status changes, comment edits, and comment deletion;
+- `reactions`: entry upvotes and comment likes.
+
+Moderators bypass all limiters by default. Set `limitModerators: true` to apply them to moderators as well. `setEntryStatus` always requires a moderator, regardless of rate-limit configuration.
+
+To return a value to the client instead of throwing, use `"return"` behavior and provide its Convex validator. In this mode, `undefined` means the request is allowed; any defined value is returned immediately and the feedback mutation does not run. The validator is required by TypeScript and its inferred type is added to every mutation's result type.
+
+A discriminated object validator is recommended so callers can reliably distinguish a rejection from each mutation's normal success value.
+
+`null` is not allowed as a rejection because several feedback mutations already return `null` on success. Return `undefined` to allow a request or a non-null value matching `returns` to reject it.
+
+```ts
+import { v } from "convex/values";
+
+const rateLimitRejection = v.object({
+  kind: v.literal("rate_limited"),
+  retryAt: v.number(),
+});
+
+export const feedbackApi = exposeFeedbackApi(components.feedback, {
+  actor: resolveFeedbackActor,
+  rateLimiters: {
+    createEntry: async (ctx, key) => {
+      const status = await rateLimiter.limit(ctx, "feedbackEntryCreation", {
+        key,
+      });
+      if (status.ok) return undefined;
+      return {
+        kind: "rate_limited" as const,
+        retryAt: Date.now() + (status.retryAfter ?? 0),
+      };
+    },
+  },
+  config: {
+    rateLimiting: {
+      behavior: "return",
+      returns: rateLimitRejection,
+      limitModerators: false,
+    },
+  },
+});
+```
 
 ## 4. Create typed React hooks
 

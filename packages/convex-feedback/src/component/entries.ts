@@ -198,14 +198,12 @@ export const list = query({
 
 export const get = query({
   args: {
-    entryId: v.string(),
+    entryId: v.id("entries"),
     viewerActorId: v.optional(v.string()),
   },
   returns: v.union(publicEntryValidator, v.null()),
   handler: async (ctx, args) => {
-    const entryId = ctx.db.normalizeId("entries", args.entryId);
-    if (entryId === null) return null;
-    const entry = await ctx.db.get("entries", entryId);
+    const entry = await ctx.db.get("entries", args.entryId);
     return entry === null
       ? null
       : serializeEntry(ctx, entry, args.viewerActorId);
@@ -427,7 +425,7 @@ export const create = mutation({
     maxTitleLength: v.number(),
     maxBodyLength: v.number(),
   },
-  returns: v.string(),
+  returns: v.id("entries"),
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
     if (!args.enabledKinds.includes(args.kind)) {
@@ -465,7 +463,7 @@ export const create = mutation({
 export const update = mutation({
   args: {
     actor: actorValidator,
-    entryId: v.string(),
+    entryId: v.id("entries"),
     title: v.string(),
     body: v.string(),
     editableByAuthor: v.boolean(),
@@ -475,9 +473,7 @@ export const update = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     assertActorId(args.actor.id);
-    const entryId = ctx.db.normalizeId("entries", args.entryId);
-    if (entryId === null) throw new ConvexError("Entry not found.");
-    const entry = await ctx.db.get("entries", entryId);
+    const entry = await ctx.db.get("entries", args.entryId);
     if (entry === null) throw new ConvexError("Entry not found.");
 
     const canEdit =
@@ -492,7 +488,7 @@ export const update = mutation({
     );
     const body = normalizeRequiredText(args.body, "Body", args.maxBodyLength);
 
-    await ctx.db.patch("entries", entryId, {
+    await ctx.db.patch("entries", args.entryId, {
       title,
       body,
       normalizedTitle: normalizeTitle(title),
@@ -506,7 +502,7 @@ export const update = mutation({
 export const setStatus = mutation({
   args: {
     actor: actorValidator,
-    entryId: v.string(),
+    entryId: v.id("entries"),
     status: entryStatusValidator,
   },
   returns: v.null(),
@@ -514,11 +510,10 @@ export const setStatus = mutation({
     if (!args.actor.isModerator) {
       throw new ConvexError("Moderator access is required to change status.");
     }
-    const entryId = ctx.db.normalizeId("entries", args.entryId);
-    if (entryId === null || (await ctx.db.get("entries", entryId)) === null) {
+    if ((await ctx.db.get("entries", args.entryId)) === null) {
       throw new ConvexError("Entry not found.");
     }
-    await ctx.db.patch("entries", entryId, {
+    await ctx.db.patch("entries", args.entryId, {
       status: args.status,
       updatedAt: Date.now(),
     });
@@ -529,35 +524,36 @@ export const setStatus = mutation({
 export const setUpvote = mutation({
   args: {
     actorId: v.string(),
-    entryId: v.string(),
+    entryId: v.id("entries"),
     desiredState: v.boolean(),
   },
   returns: v.object({ active: v.boolean(), upvoteCount: v.number() }),
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
-    const entryId = ctx.db.normalizeId("entries", args.entryId);
-    if (entryId === null) throw new ConvexError("Entry not found.");
-    const entry = await ctx.db.get("entries", entryId);
+    const entry = await ctx.db.get("entries", args.entryId);
     if (entry === null) throw new ConvexError("Entry not found.");
 
     const existing = await ctx.db
       .query("reactions")
       .withIndex("by_entry_actor", (q) =>
-        q.eq("entryId", entryId).eq("actorId", args.actorId),
+        q.eq("entryId", args.entryId).eq("actorId", args.actorId),
       )
       .unique();
 
     if (args.desiredState && existing === null) {
-      await ctx.db.insert("reactions", { actorId: args.actorId, entryId });
+      await ctx.db.insert("reactions", {
+        actorId: args.actorId,
+        entryId: args.entryId,
+      });
       const upvoteCount = entry.upvoteCount + 1;
-      await ctx.db.patch("entries", entryId, { upvoteCount });
+      await ctx.db.patch("entries", args.entryId, { upvoteCount });
       return { active: true, upvoteCount };
     }
 
     if (!args.desiredState && existing !== null) {
       await ctx.db.delete("reactions", existing._id);
       const upvoteCount = Math.max(0, entry.upvoteCount - 1);
-      await ctx.db.patch("entries", entryId, { upvoteCount });
+      await ctx.db.patch("entries", args.entryId, { upvoteCount });
       return { active: false, upvoteCount };
     }
 

@@ -22,28 +22,16 @@ import schema from "./schema.js";
 export const list = query({
   args: {
     paginationOpts: paginationOptsValidator,
-    entryId: v.string(),
-    parentCommentId: v.optional(v.string()),
+    entryId: v.id("entries"),
+    parentCommentId: v.optional(v.id("comments")),
     sort: commentSortValidator,
     viewerActorId: v.optional(v.string()),
   },
   returns: paginationResultValidator(publicCommentValidator),
   handler: async (ctx, args) => {
-    const entryId = ctx.db.normalizeId("entries", args.entryId);
-    if (entryId === null) throw new ConvexError("Entry not found.");
-
-    const parentCommentId =
-      args.parentCommentId === undefined
-        ? undefined
-        : ctx.db.normalizeId("comments", args.parentCommentId);
-
-    if (parentCommentId === null) {
-      throw new ConvexError("Parent comment not found.");
-    }
-
-    if (parentCommentId !== undefined && parentCommentId !== null) {
-      const parent = await ctx.db.get("comments", parentCommentId);
-      if (parent === null || parent.entryId !== entryId) {
+    if (args.parentCommentId !== undefined) {
+      const parent = await ctx.db.get("comments", args.parentCommentId);
+      if (parent === null || parent.entryId !== args.entryId) {
         throw new ConvexError("Parent comment not found on this entry.");
       }
     }
@@ -54,14 +42,18 @@ export const list = query({
         ? await db
             .query("comments")
             .withIndex("by_entry_parent_likes", (q) =>
-              q.eq("entryId", entryId).eq("parentCommentId", parentCommentId),
+              q
+                .eq("entryId", args.entryId)
+                .eq("parentCommentId", args.parentCommentId),
             )
             .order("desc")
             .paginate(args.paginationOpts)
         : await db
             .query("comments")
             .withIndex("by_entry_parent", (q) =>
-              q.eq("entryId", entryId).eq("parentCommentId", parentCommentId),
+              q
+                .eq("entryId", args.entryId)
+                .eq("parentCommentId", args.parentCommentId),
             )
             .order(args.sort === "newest" ? "desc" : "asc")
             .paginate(args.paginationOpts);
@@ -80,21 +72,19 @@ export const list = query({
 export const create = mutation({
   args: {
     actorId: v.string(),
-    entryId: v.string(),
-    parentCommentId: v.optional(v.string()),
+    entryId: v.id("entries"),
+    parentCommentId: v.optional(v.id("comments")),
     body: v.string(),
     maxDepth: v.number(),
     maxCommentLength: v.number(),
   },
-  returns: v.string(),
+  returns: v.id("comments"),
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
     assertPositiveInteger(args.maxDepth, "Maximum comment depth");
     assertPositiveInteger(args.maxCommentLength, "Maximum comment length");
 
-    const entryId = ctx.db.normalizeId("entries", args.entryId);
-    if (entryId === null) throw new ConvexError("Entry not found.");
-    const entry = await ctx.db.get("entries", entryId);
+    const entry = await ctx.db.get("entries", args.entryId);
     if (entry === null) throw new ConvexError("Entry not found.");
 
     const body = normalizeRequiredText(
@@ -103,18 +93,10 @@ export const create = mutation({
       args.maxCommentLength,
     );
 
-    const parentCommentId =
-      args.parentCommentId === undefined
-        ? undefined
-        : ctx.db.normalizeId("comments", args.parentCommentId);
-    if (args.parentCommentId !== undefined && parentCommentId === null) {
-      throw new ConvexError("Parent comment not found.");
-    }
-
     let depth = 0;
-    if (parentCommentId !== undefined && parentCommentId !== null) {
-      const parent = await ctx.db.get("comments", parentCommentId);
-      if (parent === null || parent.entryId !== entryId) {
+    if (args.parentCommentId !== undefined) {
+      const parent = await ctx.db.get("comments", args.parentCommentId);
+      if (parent === null || parent.entryId !== args.entryId) {
         throw new ConvexError("Parent comment not found on this entry.");
       }
       depth = parent.depth + 1;
@@ -126,10 +108,10 @@ export const create = mutation({
     }
 
     const commentId = await ctx.db.insert("comments", {
-      entryId,
-      ...(parentCommentId === undefined || parentCommentId === null
+      entryId: args.entryId,
+      ...(args.parentCommentId === undefined
         ? {}
-        : { parentCommentId }),
+        : { parentCommentId: args.parentCommentId }),
       actorId: args.actorId,
       depth,
       body,
@@ -137,14 +119,14 @@ export const create = mutation({
       replyCount: 0,
     });
 
-    await ctx.db.patch("entries", entryId, {
+    await ctx.db.patch("entries", args.entryId, {
       commentCount: entry.commentCount + 1,
     });
 
-    if (parentCommentId !== undefined && parentCommentId !== null) {
-      const parent = await ctx.db.get("comments", parentCommentId);
+    if (args.parentCommentId !== undefined) {
+      const parent = await ctx.db.get("comments", args.parentCommentId);
       if (parent !== null) {
-        await ctx.db.patch("comments", parentCommentId, {
+        await ctx.db.patch("comments", args.parentCommentId, {
           replyCount: parent.replyCount + 1,
         });
       }
@@ -157,7 +139,7 @@ export const create = mutation({
 export const update = mutation({
   args: {
     actor: actorValidator,
-    commentId: v.string(),
+    commentId: v.id("comments"),
     body: v.string(),
     editableByAuthor: v.boolean(),
     maxCommentLength: v.number(),
@@ -165,9 +147,7 @@ export const update = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     assertActorId(args.actor.id);
-    const commentId = ctx.db.normalizeId("comments", args.commentId);
-    if (commentId === null) throw new ConvexError("Comment not found.");
-    const comment = await ctx.db.get("comments", commentId);
+    const comment = await ctx.db.get("comments", args.commentId);
     if (comment === null) throw new ConvexError("Comment not found.");
     if (comment.deletedAt !== undefined) {
       throw new ConvexError("Deleted comments cannot be edited.");
@@ -183,7 +163,10 @@ export const update = mutation({
       "Comment",
       args.maxCommentLength,
     );
-    await ctx.db.patch("comments", commentId, { body, updatedAt: Date.now() });
+    await ctx.db.patch("comments", args.commentId, {
+      body,
+      updatedAt: Date.now(),
+    });
     return null;
   },
 });
@@ -191,15 +174,13 @@ export const update = mutation({
 export const remove = mutation({
   args: {
     actor: actorValidator,
-    commentId: v.string(),
+    commentId: v.id("comments"),
     deletableByAuthor: v.boolean(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     assertActorId(args.actor.id);
-    const commentId = ctx.db.normalizeId("comments", args.commentId);
-    if (commentId === null) throw new ConvexError("Comment not found.");
-    const comment = await ctx.db.get("comments", commentId);
+    const comment = await ctx.db.get("comments", args.commentId);
     if (comment === null) throw new ConvexError("Comment not found.");
     if (comment.deletedAt !== undefined) return null;
 
@@ -210,7 +191,7 @@ export const remove = mutation({
       throw new ConvexError("Not authorized to delete this comment.");
     }
 
-    await ctx.db.patch("comments", commentId, { deletedAt: Date.now() });
+    await ctx.db.patch("comments", args.commentId, { deletedAt: Date.now() });
     return null;
   },
 });
@@ -218,15 +199,13 @@ export const remove = mutation({
 export const setLike = mutation({
   args: {
     actorId: v.string(),
-    commentId: v.string(),
+    commentId: v.id("comments"),
     desiredState: v.boolean(),
   },
   returns: v.object({ active: v.boolean(), likeCount: v.number() }),
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
-    const commentId = ctx.db.normalizeId("comments", args.commentId);
-    if (commentId === null) throw new ConvexError("Comment not found.");
-    const comment = await ctx.db.get("comments", commentId);
+    const comment = await ctx.db.get("comments", args.commentId);
     if (comment === null) throw new ConvexError("Comment not found.");
     if (comment.deletedAt !== undefined) {
       throw new ConvexError("Deleted comments cannot receive likes.");
@@ -235,21 +214,24 @@ export const setLike = mutation({
     const existing = await ctx.db
       .query("reactions")
       .withIndex("by_comment_actor", (q) =>
-        q.eq("commentId", commentId).eq("actorId", args.actorId),
+        q.eq("commentId", args.commentId).eq("actorId", args.actorId),
       )
       .unique();
 
     if (args.desiredState && existing === null) {
-      await ctx.db.insert("reactions", { actorId: args.actorId, commentId });
+      await ctx.db.insert("reactions", {
+        actorId: args.actorId,
+        commentId: args.commentId,
+      });
       const likeCount = comment.likeCount + 1;
-      await ctx.db.patch("comments", commentId, { likeCount });
+      await ctx.db.patch("comments", args.commentId, { likeCount });
       return { active: true, likeCount };
     }
 
     if (!args.desiredState && existing !== null) {
       await ctx.db.delete("reactions", existing._id);
       const likeCount = Math.max(0, comment.likeCount - 1);
-      await ctx.db.patch("comments", commentId, { likeCount });
+      await ctx.db.patch("comments", args.commentId, { likeCount });
       return { active: false, likeCount };
     }
 

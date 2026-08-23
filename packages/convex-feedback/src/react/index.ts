@@ -182,9 +182,12 @@ function positivePageSize(value: number | undefined, fallback: number): number {
  *
  * Create this once in the consuming application and reuse the returned hook
  * collection.
+ *
+ * @typeParam RateLimitResult The validated non-throwing rate-limit rejection
+ * type returned by mutation hooks. It is inferred from the supplied API.
  */
-export function createFeedbackHooks(
-  api: FeedbackPublicApi,
+export function createFeedbackHooks<RateLimitResult = never>(
+  api: FeedbackPublicApi<string | undefined, RateLimitResult>,
   options: FeedbackHooksOptions = {},
 ) {
   const entryPageSize = positivePageSize(options.entryPageSize, 20);
@@ -336,5 +339,10 @@ export function createFeedbackHooks(
  *
  * This type is intended to be passed to `FeedbackScreen` and other
  * `convex-feedback-ui` integrations.
+ *
+ * @typeParam RateLimitResult The validated non-throwing rate-limit rejection
+ * type returned by mutation hooks.
  */
-export type FeedbackHooks = ReturnType<typeof createFeedbackHooks>;
+export type FeedbackHooks<RateLimitResult = never> = ReturnType<
+  typeof createFeedbackHooks<RateLimitResult>
+>;

@@ -1,7 +1,9 @@
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import type { FunctionArgs, FunctionReturnType } from "convex/server";
+import { describe, expect, expectTypeOf, test } from "vitest";
 
 import { api } from "../src/component/_generated/api.js";
+import type { Id } from "../src/component/_generated/dataModel.js";
 import schema from "../src/component/schema.js";
 
 const modules = import.meta.glob("../src/component/**/*.ts");
@@ -13,7 +15,7 @@ function setup() {
 async function createEntry(
   testInstance: ReturnType<typeof setup>,
   title = "Dark mode",
-): Promise<string> {
+): Promise<Id<"entries">> {
   return await testInstance.mutation(api.entries.create, {
     actorId: "author-1",
     kind: "feature_request",
@@ -27,6 +29,60 @@ async function createEntry(
 }
 
 describe("convex-feedback component", () => {
+  test("component functions preserve generated document ID types", () => {
+    expectTypeOf<FunctionReturnType<typeof api.entries.create>>().toEqualTypeOf<
+      Id<"entries">
+    >();
+    expectTypeOf<
+      FunctionReturnType<typeof api.comments.create>
+    >().toEqualTypeOf<Id<"comments">>();
+
+    expectTypeOf<
+      FunctionArgs<typeof api.entries.get>["entryId"]
+    >().toEqualTypeOf<Id<"entries">>();
+    expectTypeOf<
+      FunctionArgs<typeof api.entries.update>["entryId"]
+    >().toEqualTypeOf<Id<"entries">>();
+    expectTypeOf<
+      FunctionArgs<typeof api.entries.setStatus>["entryId"]
+    >().toEqualTypeOf<Id<"entries">>();
+    expectTypeOf<
+      FunctionArgs<typeof api.entries.setUpvote>["entryId"]
+    >().toEqualTypeOf<Id<"entries">>();
+
+    expectTypeOf<
+      FunctionArgs<typeof api.comments.list>["entryId"]
+    >().toEqualTypeOf<Id<"entries">>();
+    expectTypeOf<
+      FunctionArgs<typeof api.comments.list>["parentCommentId"]
+    >().toEqualTypeOf<Id<"comments"> | undefined>();
+    expectTypeOf<
+      FunctionArgs<typeof api.comments.create>["entryId"]
+    >().toEqualTypeOf<Id<"entries">>();
+    expectTypeOf<
+      FunctionArgs<typeof api.comments.create>["parentCommentId"]
+    >().toEqualTypeOf<Id<"comments"> | undefined>();
+    expectTypeOf<
+      FunctionArgs<typeof api.comments.update>["commentId"]
+    >().toEqualTypeOf<Id<"comments">>();
+    expectTypeOf<
+      FunctionArgs<typeof api.comments.remove>["commentId"]
+    >().toEqualTypeOf<Id<"comments">>();
+    expectTypeOf<
+      FunctionArgs<typeof api.comments.setLike>["commentId"]
+    >().toEqualTypeOf<Id<"comments">>();
+  });
+
+  test("document ID validators reject malformed entry IDs", async () => {
+    const testInstance = setup();
+
+    await expect(
+      testInstance.query(api.entries.get, {
+        entryId: "not-an-id" as Id<"entries">,
+      }),
+    ).rejects.toThrow();
+  });
+
   test("new entries are automatically upvoted by their creator", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);

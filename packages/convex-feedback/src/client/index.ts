@@ -1,13 +1,13 @@
 import {
-  type DefaultFunctionArgs,
-  type FunctionReference,
-  type GenericDataModel,
-  type GenericMutationCtx,
   mutationGeneric,
   paginationOptsValidator,
   paginationResultValidator,
   queryGeneric,
   type Auth,
+  type DefaultFunctionArgs,
+  type FunctionReference,
+  type GenericDataModel,
+  type GenericMutationCtx,
   type PaginationOptions,
   type RegisteredMutation,
   type RegisteredQuery,
@@ -408,10 +408,7 @@ function buildFeedbackApi<
       ? rateLimitConfig.returns
       : undefined;
 
-  const createEntryReturns = rateLimitedReturns(
-    v.string(),
-    rateLimitReturnValidator,
-  );
+  const idReturns = rateLimitedReturns(v.string(), rateLimitReturnValidator);
   const nullReturns = rateLimitedReturns(v.null(), rateLimitReturnValidator);
   const entryUpvoteReturns = rateLimitedReturns(
     v.object({ active: v.boolean(), upvoteCount: v.number() }),
@@ -519,7 +516,7 @@ function buildFeedbackApi<
         title: v.string(),
         body: v.string(),
       },
-      returns: createEntryReturns,
+      returns: idReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
         const limited = await applyRateLimiter(
@@ -642,7 +639,7 @@ function buildFeedbackApi<
         parentCommentId: v.optional(v.string()),
         body: v.string(),
       },
-      returns: createEntryReturns,
+      returns: idReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
         const limited = await applyRateLimiter(

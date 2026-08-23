@@ -83,7 +83,8 @@ export type FeedbackRateLimitContext = Pick<
  *
  * In the default `"throw"` mode, return `undefined` when allowed and throw when
  * rejected. In `"return"` mode, return `undefined` when allowed or a value
- * matching the configured `returns` validator when rejected.
+ * matching the configured `returns` validator when rejected. `null` is never
+ * a valid return-mode result.
  *
  * @typeParam Result Rejection value used only by non-throwing limiters.
  */
@@ -132,14 +133,16 @@ export interface ThrowingFeedbackRateLimitConfig {
 }
 
 /**
- * A required, non-optional Convex validator for a returned rate-limit
+ * A required, non-optional Convex validator for a non-null rate-limit
  * rejection.
  */
 export type FeedbackRateLimitReturnValidator = Validator<
-  Value,
+  Exclude<Value, null>,
   "required",
   string
 >;
+
+type FeedbackFunctionReturnValidator = Validator<Value, "required", string>;
 
 /**
  * Return behavior: a defined limiter result short-circuits the mutation.
@@ -153,10 +156,11 @@ export interface ReturningFeedbackRateLimitConfig<
   behavior: "return";
 
   /**
-   * Convex validator for the rejection value returned by a limiter.
+   * Convex validator for the non-null rejection value returned by a limiter.
    *
-   * This field is required when `behavior` is `"return"`. Its inferred value
-   * type is added to the result type of every exposed feedback mutation.
+   * This field is required when `behavior` is `"return"` and may not accept
+   * `null`. Its inferred value type is added to the result type of every
+   * exposed feedback mutation.
    */
   returns: ReturnsValidator;
 
@@ -314,14 +318,14 @@ function requireModerator(actor: FeedbackActor): void {
 }
 
 type RateLimitedReturnsValidator<
-  Base extends FeedbackRateLimitReturnValidator,
+  Base extends FeedbackFunctionReturnValidator,
   Limit extends FeedbackRateLimitReturnValidator | undefined,
 > = Limit extends FeedbackRateLimitReturnValidator
   ? VUnion<Infer<Base> | Infer<Limit>, [Base, Limit]>
   : Base;
 
 function rateLimitedReturns<
-  Base extends FeedbackRateLimitReturnValidator,
+  Base extends FeedbackFunctionReturnValidator,
   Limit extends FeedbackRateLimitReturnValidator | undefined,
 >(base: Base, limit: Limit): RateLimitedReturnsValidator<Base, Limit> {
   return (
@@ -350,6 +354,11 @@ async function applyRateLimiter<
   const result = await limiter(ctx, actor.id);
   if (rateLimitConfig?.behavior !== "return" || result === undefined) {
     return undefined;
+  }
+  if (result === null) {
+    throw new ConvexError(
+      "A return-mode feedback rate limiter returned null. Return undefined to allow the request or a non-null value matching config.rateLimiting.returns to reject it.",
+    );
   }
   return result as RateLimitResult<ReturnsValidator>;
 }

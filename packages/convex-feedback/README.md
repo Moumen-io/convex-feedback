@@ -184,6 +184,8 @@ To return a value to the client instead of throwing, use `"return"` behavior and
 
 A discriminated object validator is recommended so callers can reliably distinguish a rejection from each mutation's normal success value.
 
+`null` is not allowed as a rejection because several feedback mutations already return `null` on success. Return `undefined` to allow a request or a non-null value matching `returns` to reject it.
+
 ```ts
 import { v } from "convex/values";
 

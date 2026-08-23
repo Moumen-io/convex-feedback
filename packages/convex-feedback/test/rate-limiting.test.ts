@@ -6,7 +6,10 @@ import type {
 import { v } from "convex/values";
 import { describe, expect, expectTypeOf, test, vi } from "vitest";
 
-import { exposeFeedbackApi } from "../src/client/index.js";
+import {
+  exposeFeedbackApi,
+  type FeedbackRateLimiter,
+} from "../src/client/index.js";
 import type { ComponentApi } from "../src/component/_generated/component.js";
 
 const component = {
@@ -132,6 +135,52 @@ describe("feedback rate limiting", () => {
     expect(runMutation).toHaveBeenCalledOnce();
   });
 
+  test("ignores a defined return value at runtime in throwing mode", async () => {
+    const runMutation = vi.fn(() => Promise.resolve("entry-1"));
+    const nullLimiter = (() =>
+      Promise.resolve(null)) as unknown as FeedbackRateLimiter;
+    const api = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+      rateLimiters: { createEntry: nullLimiter },
+    });
+
+    await expect(
+      invokeMutation(
+        api.createEntry,
+        mutationContext(runMutation),
+        createEntryArgs,
+      ),
+    ).resolves.toBe("entry-1");
+    expect(runMutation).toHaveBeenCalledOnce();
+  });
+
+  test("rejects null in return mode if static typing is bypassed", async () => {
+    const runMutation = vi.fn();
+    const nullLimiter = (() =>
+      Promise.resolve(null)) as unknown as FeedbackRateLimiter<{
+      kind: "rate_limited";
+    }>;
+    const api = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+      rateLimiters: { createEntry: nullLimiter },
+      config: {
+        rateLimiting: {
+          behavior: "return",
+          returns: v.object({ kind: v.literal("rate_limited") }),
+        },
+      },
+    });
+
+    await expect(
+      invokeMutation(
+        api.createEntry,
+        mutationContext(runMutation),
+        createEntryArgs,
+      ),
+    ).rejects.toThrow("return-mode feedback rate limiter returned null");
+    expect(runMutation).not.toHaveBeenCalled();
+  });
+
   test("bypasses moderators by default and can opt them into limits", async () => {
     const runMutation = vi.fn(() => Promise.resolve(null));
     const limiter = vi.fn(() => Promise.resolve(undefined));
@@ -230,6 +279,50 @@ describe("feedback rate limiting", () => {
 exposeFeedbackApi(component, {
   actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
   config: { rateLimiting: { behavior: "return" } },
+});
+
+exposeFeedbackApi(component, {
+  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  rateLimiters: {
+    // @ts-expect-error Throwing limiters may only resolve to void/undefined.
+    createEntry: () => Promise.resolve(null),
+  },
+});
+
+exposeFeedbackApi(component, {
+  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  config: {
+    rateLimiting: {
+      behavior: "return",
+      // @ts-expect-error Return-mode validators may not include null in a union.
+      returns: v.union(v.object({ kind: v.literal("rate_limited") }), v.null()),
+    },
+  },
+});
+
+exposeFeedbackApi(component, {
+  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  config: {
+    rateLimiting: {
+      behavior: "return",
+      // @ts-expect-error Return-mode rejection validators may not include null.
+      returns: v.null(),
+    },
+  },
+});
+
+exposeFeedbackApi(component, {
+  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  rateLimiters: {
+    // @ts-expect-error Null does not match this return-mode validator.
+    createEntry: () => Promise.resolve(null),
+  },
+  config: {
+    rateLimiting: {
+      behavior: "return",
+      returns: v.object({ kind: v.literal("rate_limited") }),
+    },
+  },
 });
 
 exposeFeedbackApi(component, {

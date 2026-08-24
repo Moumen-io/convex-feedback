@@ -186,7 +186,7 @@ function positivePageSize(value: number | undefined, fallback: number): number {
  * @typeParam RateLimitResult The validated non-throwing rate-limit rejection
  * type returned by mutation hooks. It is inferred from the supplied API.
  */
-export function createFeedbackHooks<RateLimitResult = never>(
+function createFeedbackHooksImplementation<RateLimitResult>(
   api: FeedbackPublicApi<string | undefined, RateLimitResult>,
   options: FeedbackHooksOptions = {},
 ) {
@@ -334,6 +334,29 @@ export function createFeedbackHooks<RateLimitResult = never>(
   };
 }
 
+type CreatedFeedbackHooks<RateLimitResult> = ReturnType<
+  typeof createFeedbackHooksImplementation<RateLimitResult>
+>;
+
+/** Creates hooks for a feedback API whose rate limiters reject by throwing. */
+export function createFeedbackHooks(
+  api: FeedbackPublicApi<string | undefined, never>,
+  options?: FeedbackHooksOptions,
+): CreatedFeedbackHooks<never>;
+
+/** Creates hooks carrying a validated non-throwing rate-limit result. */
+export function createFeedbackHooks<RateLimitResult>(
+  api: FeedbackPublicApi<string | undefined, RateLimitResult>,
+  options?: FeedbackHooksOptions,
+): CreatedFeedbackHooks<RateLimitResult>;
+
+export function createFeedbackHooks<RateLimitResult>(
+  api: FeedbackPublicApi<string | undefined, RateLimitResult>,
+  options: FeedbackHooksOptions = {},
+): CreatedFeedbackHooks<RateLimitResult> {
+  return createFeedbackHooksImplementation(api, options);
+}
+
 /**
  * Hook collection returned by `createFeedbackHooks`.
  *
@@ -343,6 +366,5 @@ export function createFeedbackHooks<RateLimitResult = never>(
  * @typeParam RateLimitResult The validated non-throwing rate-limit rejection
  * type returned by mutation hooks.
  */
-export type FeedbackHooks<RateLimitResult = never> = ReturnType<
-  typeof createFeedbackHooks<RateLimitResult>
->;
+export type FeedbackHooks<RateLimitResult = never> =
+  CreatedFeedbackHooks<RateLimitResult>;

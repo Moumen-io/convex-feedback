@@ -127,6 +127,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           kind: "feedback" | "feature_request" | "bug_report";
           maxBodyLength: number;
           maxTitleLength: number;
+          metadata?: {
+            additional?: Record<string, string | number | boolean>;
+            standard?: Record<string, string | number | boolean>;
+          };
           title: string;
         },
         string,
@@ -135,7 +139,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       get: FunctionReference<
         "query",
         "internal",
-        { entryId: string; viewerActorId?: string },
+        {
+          entryId: string;
+          viewerActorId?: string;
+          viewerIsModerator?: boolean;
+        },
         {
           actorId: string;
           body: string;
@@ -143,6 +151,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           creationTime: number;
           id: string;
           kind: "feedback" | "feature_request" | "bug_report";
+          metadata?: {
+            additional?: Record<string, string | number | boolean>;
+            standard?: Record<string, string | number | boolean>;
+          };
           status:
             | "open"
             | "under_review"
@@ -190,6 +202,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             creationTime: number;
             id: string;
             kind: "feedback" | "feature_request" | "bug_report";
+            metadata?: {
+              additional?: Record<string, string | number | boolean>;
+              standard?: Record<string, string | number | boolean>;
+            };
             status:
               | "open"
               | "under_review"
@@ -230,6 +246,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           creationTime: number;
           id: string;
           kind: "feedback" | "feature_request" | "bug_report";
+          metadata?: {
+            additional?: Record<string, string | number | boolean>;
+            standard?: Record<string, string | number | boolean>;
+          };
           status:
             | "open"
             | "under_review"
@@ -286,6 +306,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             creationTime: number;
             id: string;
             kind: "feedback" | "feature_request" | "bug_report";
+            metadata?: {
+              additional?: Record<string, string | number | boolean>;
+              standard?: Record<string, string | number | boolean>;
+            };
             status:
               | "open"
               | "under_review"
@@ -305,6 +329,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             creationTime: number;
             id: string;
             kind: "feedback" | "feature_request" | "bug_report";
+            metadata?: {
+              additional?: Record<string, string | number | boolean>;
+              standard?: Record<string, string | number | boolean>;
+            };
             status:
               | "open"
               | "under_review"

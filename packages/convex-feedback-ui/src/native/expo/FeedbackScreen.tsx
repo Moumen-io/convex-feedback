@@ -3,6 +3,7 @@ import { FeedbackProvider } from "../../shared/context/FeedbackProvider";
 import { kinds } from "../../shared/helpers";
 import { ExpoFeedbackBody } from "./ExpoFeedbackBody";
 import type { ExpoFeedbackScreenProps } from "./types";
+import { collectExpoMetadata } from "./metadata";
 
 export function FeedbackScreen({
   hooks,
@@ -14,6 +15,7 @@ export function FeedbackScreen({
   enabledKinds = kinds,
   maxCommentDepth = 5,
   debounceDuration = 300,
+  collectMetadata,
   transformComments,
   renderActor,
   ...props
@@ -27,6 +29,8 @@ export function FeedbackScreen({
         enabledKinds={enabledKinds}
         maxCommentDepth={maxCommentDepth}
         debounceDuration={debounceDuration}
+        collectMetadata={collectMetadata}
+        collectStandardMetadata={collectExpoMetadata}
         transformComments={transformComments}
         renderActor={renderActor}
       >

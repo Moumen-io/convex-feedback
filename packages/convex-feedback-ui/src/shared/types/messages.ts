@@ -67,6 +67,27 @@ export interface FeedbackMessages {
     back: string;
   };
 
+  /** Moderator-only diagnostic metadata copy. */
+  metadata: {
+    /** Action that opens the metadata viewer. */
+    view: string;
+
+    /** Metadata viewer heading. */
+    title: string;
+
+    /** Heading for automatically collected values. */
+    standard: string;
+
+    /** Heading for host-provided values. */
+    additional: string;
+
+    /** Empty state for a metadata object without values. */
+    empty: string;
+
+    /** Closes the metadata viewer. */
+    close: string;
+  };
+
   /** Create-entry form copy. */
   form: {
     /** Entry-kind field label. */
@@ -166,6 +187,9 @@ export interface FeedbackMessageOverrides {
 
   /** Entry action/counter copy overrides. */
   entry?: Partial<FeedbackMessages["entry"]> | undefined;
+
+  /** Diagnostic metadata copy overrides. */
+  metadata?: Partial<FeedbackMessages["metadata"]> | undefined;
 
   /** Create-entry form copy overrides. */
   form?: Partial<FeedbackMessages["form"]> | undefined;

@@ -22,6 +22,10 @@ export function FeedbackBodyProvider({
   enabledKinds,
   maxCommentDepth,
   debounceDuration,
+  collectMetadata,
+  collectStandardMetadata,
+  transformComments,
+  renderActor,
   children,
 }: PropsWithChildren<FeedbackScreenProviderProps>) {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -60,6 +64,10 @@ export function FeedbackBodyProvider({
     enabledKinds,
     maxCommentDepth,
     debounceDuration,
+    collectMetadata,
+    collectStandardMetadata,
+    transformComments,
+    renderActor,
   } satisfies FeedbackScreenBodyContextValue;
 
   return (

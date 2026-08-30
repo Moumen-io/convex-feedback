@@ -13,6 +13,7 @@ import {
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider";
 import type { FeedbackScreenEntryModalProps } from "../../../shared/types";
+import { collectEntryMetadata } from "../../../shared/metadata";
 import { EntryDetail } from "./EntryDetail";
 import { FeedbackForm } from "./primitives";
 
@@ -166,7 +167,8 @@ function CreateForm({
   onBodyChange: (body: string) => void;
   onOpenSuggestion: (id: string) => void;
 }) {
-  const { hooks, enabledKinds } = useFeedbackBody();
+  const { hooks, enabledKinds, collectMetadata, collectStandardMetadata } =
+    useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const [submitting, setSubmitting] = useState(false);
   const create = hooks.useCreateEntry();
@@ -185,7 +187,19 @@ function CreateForm({
     setSubmitting(true);
 
     try {
-      onCreated(await create({ kind, title, body }));
+      const metadata = await collectEntryMetadata(
+        collectMetadata,
+        kind,
+        collectStandardMetadata,
+      );
+      onCreated(
+        await create({
+          kind,
+          title,
+          body,
+          ...(metadata === undefined ? {} : { metadata }),
+        }),
+      );
     } finally {
       setSubmitting(false);
     }

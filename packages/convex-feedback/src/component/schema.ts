@@ -1,7 +1,11 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-import { entryKindValidator, entryStatusValidator } from "./model.js";
+import {
+  entryKindValidator,
+  entryStatusValidator,
+  feedbackMetadataValidator,
+} from "./model.js";
 
 const schema = defineSchema({
   entries: defineTable({
@@ -15,6 +19,7 @@ const schema = defineSchema({
     upvoteCount: v.number(),
     commentCount: v.number(),
     updatedAt: v.optional(v.number()),
+    metadata: v.optional(feedbackMetadataValidator),
   })
     .index("by_kind", ["kind"])
     .index("by_status", ["status"])

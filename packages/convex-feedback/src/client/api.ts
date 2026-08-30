@@ -11,6 +11,7 @@ import type {
   EntryStatus,
   FeedbackComment,
   FeedbackEntry,
+  FeedbackMetadata,
   SimilarEntriesResult,
 } from "../component/model.js";
 
@@ -134,6 +135,9 @@ export type CreateEntryArgs = {
 
   /** Entry description/body. */
   body: string;
+
+  /** Optional creation-time diagnostic metadata. */
+  metadata?: FeedbackMetadata;
 };
 
 /**

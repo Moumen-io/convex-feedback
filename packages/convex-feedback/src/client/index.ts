@@ -27,6 +27,7 @@ import {
   entryKindValidator,
   entrySortValidator,
   entryStatusValidator,
+  feedbackMetadataValidator,
   publicCommentValidator,
   publicEntryValidator,
   similarEntriesValidator,
@@ -46,6 +47,8 @@ export type {
   FeedbackActor,
   FeedbackComment,
   FeedbackEntry,
+  FeedbackMetadata,
+  FeedbackMetadataValue,
   SimilarEntriesResult,
 } from "../component/model.js";
 export type { FeedbackPublicApi } from "./api.js";
@@ -452,6 +455,7 @@ function buildFeedbackApi<
         return await ctx.runQuery(component.entries.get, {
           entryId: args.entryId,
           ...actorIdFields(actor),
+          ...(actor?.isModerator === true ? { viewerIsModerator: true } : {}),
         });
       },
     }),
@@ -515,6 +519,7 @@ function buildFeedbackApi<
         kind: entryKindValidator,
         title: v.string(),
         body: v.string(),
+        metadata: v.optional(feedbackMetadataValidator),
       },
       returns: idReturns,
       handler: async (ctx, args) => {
@@ -535,6 +540,7 @@ function buildFeedbackApi<
           enabledKinds: [...config.entries.enabledKinds],
           maxTitleLength: config.limits.titleLength,
           maxBodyLength: config.limits.bodyLength,
+          ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
         });
       },
     }),

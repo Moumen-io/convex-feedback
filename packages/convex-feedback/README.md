@@ -244,7 +244,23 @@ const entries = feedbackHooks.useEntries({
 });
 
 const createEntry = feedbackHooks.useCreateEntry();
+
+await createEntry({
+  kind: "bug_report",
+  title: "Checkout freezes",
+  body: "The confirmation screen stops responding.",
+  metadata: {
+    standard: { platform: "web", appVersion: "2.4.0" },
+    additional: { releaseChannel: "production" },
+  },
+});
 ```
+
+Entry metadata is optional, creation-only, and contains flat string, number, or boolean values grouped into `standard` and `additional` sections. It is never attached to comments. The server accepts at most 32 keys per section, 64 characters per key, 1,024 characters per string value, and 16 KiB total.
+
+Reserved keys are rejected with a field-specific error.
+
+Metadata is intentionally absent from entry lists, searches, and duplicate suggestions. `getEntry` includes it only when the host's server-side actor resolver returns `isModerator: true`; ordinary and anonymous callers receive no `metadata` property.
 
 ## Entry kinds and statuses
 

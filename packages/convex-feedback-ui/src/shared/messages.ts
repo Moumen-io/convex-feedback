@@ -41,6 +41,14 @@ export const englishFeedbackMessages: FeedbackMessages = {
     open: "Open",
     back: "Go back",
   },
+  metadata: {
+    view: "View metadata",
+    title: "Diagnostic metadata",
+    standard: "Standard",
+    additional: "Additional",
+    empty: "No metadata values were collected.",
+    close: "Close",
+  },
   form: {
     kind: "Type",
     title: "Title",
@@ -94,6 +102,7 @@ export function mergeFeedbackMessages(
       ...overrides.statuses,
     },
     entry: { ...englishFeedbackMessages.entry, ...overrides.entry },
+    metadata: { ...englishFeedbackMessages.metadata, ...overrides.metadata },
     form: { ...englishFeedbackMessages.form, ...overrides.form },
     comments: { ...englishFeedbackMessages.comments, ...overrides.comments },
   };

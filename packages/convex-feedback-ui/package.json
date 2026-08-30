@@ -42,6 +42,7 @@
     "react-native-safe-area-context": ">=5.4.0",
     "react-native-screens": ">=4.23.0",
     "expo": ">=55.0.0",
+    "expo-constants": ">=55.0.0",
     "expo-router": ">=55.0.0"
   },
   "peerDependenciesMeta": {
@@ -55,6 +56,9 @@
       "optional": true
     },
     "expo": {
+      "optional": true
+    },
+    "expo-constants": {
       "optional": true
     },
     "expo-router": {

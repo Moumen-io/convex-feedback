@@ -20,6 +20,9 @@ describe("UI contracts", () => {
       englishFeedbackMessages.board.searchPlaceholder,
     );
     expect(messages.comments.like).toBe("Helpful");
+    expect(messages.metadata.title).toBe(
+      englishFeedbackMessages.metadata.title,
+    );
     expect(messages.statuses.in_progress).toBe("In progress");
   });
 

@@ -297,3 +297,38 @@
   color: var(--cf-muted);
   line-height: 1.5;
 }
+
+:where(.cf-board) :where(.cf-metadata-dialog) {
+  width: min(100%, 560px);
+  max-height: min(80vh, 720px);
+  overflow: auto;
+}
+
+:where(.cf-board) :where(.cf-metadata-dialog h3),
+:where(.cf-board) :where(.cf-metadata-dialog h4),
+:where(.cf-board) :where(.cf-metadata-dialog dl) {
+  margin: 0;
+}
+
+:where(.cf-board) :where(.cf-metadata-section) {
+  display: grid;
+  gap: 8px;
+}
+
+:where(.cf-board) :where(.cf-metadata-row) {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+:where(.cf-board) :where(.cf-metadata-row dt) {
+  color: var(--cf-muted);
+  font-weight: 600;
+}
+
+:where(.cf-board) :where(.cf-metadata-row dd) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

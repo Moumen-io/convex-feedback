@@ -32,6 +32,22 @@ export const actorValidator = v.object({
   isModerator: v.boolean(),
 });
 
+export const feedbackMetadataValueValidator = v.union(
+  v.string(),
+  v.number(),
+  v.boolean(),
+);
+
+export const feedbackMetadataRecordValidator = v.record(
+  v.string(),
+  feedbackMetadataValueValidator,
+);
+
+export const feedbackMetadataValidator = v.object({
+  standard: v.optional(feedbackMetadataRecordValidator),
+  additional: v.optional(feedbackMetadataRecordValidator),
+});
+
 export const publicEntryValidator = v.object({
   id: v.string(),
   creationTime: v.number(),
@@ -44,6 +60,7 @@ export const publicEntryValidator = v.object({
   commentCount: v.number(),
   updatedAt: v.optional(v.number()),
   viewerHasUpvoted: v.boolean(),
+  metadata: v.optional(feedbackMetadataValidator),
 });
 
 export const publicCommentValidator = v.object({
@@ -119,6 +136,14 @@ export type CommentSort = Infer<typeof commentSortValidator>;
  */
 export type FeedbackActor = Infer<typeof actorValidator>;
 
+/** Scalar value accepted in entry diagnostic metadata. */
+export type FeedbackMetadataValue = Infer<
+  typeof feedbackMetadataValueValidator
+>;
+
+/** Flat metadata values grouped by their source. */
+export type FeedbackMetadata = Infer<typeof feedbackMetadataValidator>;
+
 /**
  * Public representation of a feedback, feature-request, or bug-report entry.
  *
@@ -157,6 +182,11 @@ export type FeedbackActor = Infer<typeof actorValidator>;
  * @property viewerHasUpvoted
  * Whether the actor associated with the current query has upvoted the entry.
  * `false` when no viewer actor is available.
+ *
+ * @property metadata
+ * Creation-time diagnostic metadata. Present only when `getEntry` is queried
+ * by a moderator. Ordinary entry lists, searches, and non-moderator reads omit
+ * this property.
  */
 export type FeedbackEntry = Infer<typeof publicEntryValidator>;
 

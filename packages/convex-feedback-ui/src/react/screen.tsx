@@ -1,6 +1,6 @@
 "use client";
 
-import type { EntryKind } from "convex-feedback";
+import type { EntryKind, FeedbackMetadata } from "convex-feedback";
 import { useMemo, useState, type SyntheticEvent } from "react";
 
 import {
@@ -26,6 +26,8 @@ import {
   FeedbackEntry,
   FeedbackForm,
 } from "./primitives.js";
+import { collectWebMetadata } from "./metadata.js";
+import { collectEntryMetadata, formatMetadataKey } from "../shared/metadata.js";
 
 const entryKinds: readonly EntryKind[] = [
   "feedback",
@@ -49,6 +51,7 @@ export function FeedbackScreen({
   transformComments,
   renderActor,
   debounceDuration = 300,
+  collectMetadata,
   ...props
 }: FeedbackScreenProps) {
   return (
@@ -60,6 +63,8 @@ export function FeedbackScreen({
         enabledKinds={enabledKinds}
         maxCommentDepth={maxCommentDepth}
         debounceDuration={debounceDuration}
+        collectMetadata={collectMetadata}
+        collectStandardMetadata={collectWebMetadata}
         transformComments={transformComments}
         renderActor={renderActor}
       >
@@ -207,7 +212,8 @@ function EntryCard({ entry, hooks, onOpen }: FeedbackScreenEntryCardProps) {
 }
 
 function CreateEntryForm({ onCreated }: FeedbackScreenEntryModalProps) {
-  const { hooks, enabledKinds } = useFeedbackBody();
+  const { hooks, enabledKinds, collectMetadata, collectStandardMetadata } =
+    useFeedbackBody();
   const { messages } = useFeedbackUi();
   const [kind, setKind] = useState<EntryKind>(enabledKinds[0] ?? "feedback");
   const [title, setTitle] = useState("");
@@ -242,10 +248,16 @@ function CreateEntryForm({ onCreated }: FeedbackScreenEntryModalProps) {
     setSubmitting(true);
 
     try {
+      const metadata = await collectEntryMetadata(
+        collectMetadata,
+        kind,
+        collectStandardMetadata,
+      );
       const entryId = await createEntry({
         kind,
         title,
         body,
+        ...(metadata === undefined ? {} : { metadata }),
       });
 
       onCreated(entryId);
@@ -382,6 +394,7 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
   const comments = hooks.useComments({ entryId, sort: commentSort });
   const createComment = hooks.useCreateComment();
   const [body, setBody] = useState("");
+  const [showMetadata, setShowMetadata] = useState(false);
 
   const visibleComments = useMemo(
     () => transformComments?.(comments.results) ?? comments.results,
@@ -421,6 +434,25 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
           <FeedbackEntry.Body />
         </FeedbackEntry.Content>
       </FeedbackEntry.Root>
+
+      {entry.metadata !== undefined && (
+        <div>
+          <button
+            type="button"
+            className="cf-button"
+            onClick={() => setShowMetadata(true)}
+          >
+            {messages.metadata.view}
+          </button>
+        </div>
+      )}
+
+      {showMetadata && entry.metadata !== undefined && (
+        <MetadataDialog
+          metadata={entry.metadata}
+          onClose={() => setShowMetadata(false)}
+        />
+      )}
 
       <section className="cf-discussion">
         <h3>{messages.comments.title}</h3>
@@ -469,6 +501,61 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
           </button>
         )}
       </section>
+    </div>
+  );
+}
+
+function MetadataDialog({
+  metadata,
+  onClose,
+}: {
+  metadata: FeedbackMetadata;
+  onClose: () => void;
+}) {
+  const { messages } = useFeedbackUi();
+  const sections = [
+    [messages.metadata.standard, metadata.standard],
+    [messages.metadata.additional, metadata.additional],
+  ] as const;
+  const hasValues = sections.some(
+    ([, values]) => values !== undefined && Object.keys(values).length > 0,
+  );
+
+  return (
+    <div className="cf-confirm-backdrop" onMouseDown={onClose}>
+      <div
+        className="cf-confirm cf-metadata-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cf-metadata-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <h3 id="cf-metadata-title">{messages.metadata.title}</h3>
+        {hasValues ? (
+          sections.map(([label, values]) =>
+            values === undefined || Object.keys(values).length === 0 ? null : (
+              <section key={label} className="cf-metadata-section">
+                <h4>{label}</h4>
+                <dl>
+                  {Object.entries(values).map(([key, value]) => (
+                    <div key={key} className="cf-metadata-row">
+                      <dt>{formatMetadataKey(key)}</dt>
+                      <dd>{String(value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ),
+          )
+        ) : (
+          <p>{messages.metadata.empty}</p>
+        )}
+        <div className="cf-inline-actions">
+          <button type="button" className="cf-button" onClick={onClose}>
+            {messages.metadata.close}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

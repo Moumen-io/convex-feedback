@@ -135,6 +135,55 @@ When `useStack={false}`, the Expo convenience screen behaves like the regular Re
 
 `StackOptions` is only available when stack integration is enabled.
 
+## Diagnostic metadata
+
+Prebuilt screens can collect creation-time diagnostic metadata for feedback entries. Collection is disabled by default and never applies to comments.
+
+Enable the platform defaults for every entry kind:
+
+```tsx
+<FeedbackScreen hooks={feedbackHooks} collectMetadata />
+```
+
+Or combine global defaults with per-kind behavior:
+
+```tsx
+<FeedbackScreen
+  hooks={feedbackHooks}
+  collectMetadata={{
+    standard: true,
+    additional: { releaseChannel: "production" },
+    kinds: {
+      feedback: false,
+      feature_request: {
+        standard: ["platform", "appVersion"],
+      },
+      bug_report: {
+        standard: true,
+        additional: async ({ kind }) => ({
+          kind,
+          accountTier: await getAccountTier(),
+        }),
+      },
+    },
+  }}
+/>
+```
+
+- A kind-specific `standard` selection replaces the global selection. Global and kind-specific `additional` values are merged, with kind-specific keys taking precedence.
+- A kind set to `false` disables all metadata collection for that kind.
+- Collection happens only when the user finally submits.
+- Unavailable or failed collection sources are omitted without blocking feedback submission.
+
+- Web defaults include `platform`, `user agent`, `language`, `timezone`, `screen` and `viewport` dimensions, and `device pixel ratio`.
+- React Native defaults include `platform`, `OS` version, available device model, screen `dimensions`, `pixel ratio`, and `font scale`.
+- The Expo entry point additionally uses `expo-constants` for app `version`, `build` number, `application ID`, `Expo runtime version`, and execution `environment` when available.
+- Generic React Native apps can provide app `version` and `build` values through `additional`.
+
+Metadata is stored in separate `standard` and `additional` sections. It is omitted from list and search results and from non-moderator reads. When the host's server-side actor resolver identifies a moderator, `getEntry` includes the metadata and the entry detail screen shows a metadata viewer.
+
+The platform collectors and `formatMetadataKey` helper are exported from their respective package entry points for custom integrations.
+
 ## Choosing an API
 
 For a complete implementation with minimal setup:

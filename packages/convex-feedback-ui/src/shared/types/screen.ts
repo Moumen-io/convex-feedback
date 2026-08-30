@@ -9,6 +9,8 @@ import type { FeedbackHooks } from "convex-feedback/react";
 import type { ReactNode } from "react";
 
 import type { FeedbackColorProps, FeedbackProviderProps } from "./context.js";
+import type { CollectMetadata } from "./metadata.js";
+import type { StandardMetadataCollector } from "../metadata.js";
 
 /**
  * Presentation-only transform applied to one currently loaded comment page.
@@ -87,6 +89,12 @@ export interface FeedbackScreenBaseProps {
    * @default 300
    */
   debounceDuration?: number;
+
+  /**
+   * Enables creation-time diagnostic metadata collection globally and/or by
+   * entry kind. Disabled by default.
+   */
+  collectMetadata?: CollectMetadata;
 }
 
 export interface FeedbackScreenRootProps
@@ -98,8 +106,11 @@ export interface FeedbackScreenRootProps
 
 export interface FeedbackScreenProviderProps
   extends
-    Required<FeedbackScreenBaseProps>,
-    FeedbackScreenTransformationProps {}
+    Required<Omit<FeedbackScreenBaseProps, "collectMetadata">>,
+    FeedbackScreenTransformationProps {
+  collectMetadata?: CollectMetadata;
+  collectStandardMetadata: StandardMetadataCollector;
+}
 
 export interface FeedbackScreenBodyContextValue
   extends FeedbackScreenTransformationProps, FeedbackScreenProviderProps {

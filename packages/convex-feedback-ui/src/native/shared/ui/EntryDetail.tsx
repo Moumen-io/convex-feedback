@@ -7,6 +7,7 @@ import type { FeedbackScreenEntryDetailProps } from "../../../shared/types";
 import { Button } from "./Button";
 import { CommentBranch } from "./CommentBranch";
 import { FeedbackEntry, FeedbackForm } from "./primitives";
+import { MetadataModal } from "./MetadataModal";
 
 export function EntryDetail({
   entryId,
@@ -21,6 +22,7 @@ export function EntryDetail({
   const setUpvote = hooks.useSetEntryUpvote();
   const createComment = hooks.useCreateComment();
   const [body, setBody] = useState("");
+  const [showMetadata, setShowMetadata] = useState(false);
   const visible = useMemo(
     () => transformComments?.(comments.results) ?? comments.results,
     [comments.results, transformComments],
@@ -66,6 +68,18 @@ export function EntryDetail({
           <FeedbackEntry.CommentCount />
         </FeedbackEntry.Content>
       </FeedbackEntry.Root>
+      {entry.metadata !== undefined && (
+        <Button
+          label={messages.metadata.view}
+          onPress={() => setShowMetadata(true)}
+        />
+      )}
+      {showMetadata && entry.metadata !== undefined && (
+        <MetadataModal
+          metadata={entry.metadata}
+          onRequestClose={() => setShowMetadata(false)}
+        />
+      )}
       <Text
         style={{ color: theme.colors.text, fontSize: 18, fontWeight: "700" }}
       >

@@ -96,6 +96,76 @@ describe("convex-feedback component", () => {
     expect(entry?.viewerHasUpvoted).toBe(true);
   });
 
+  test("entry metadata is returned only by moderator get queries", async () => {
+    const testInstance = setup();
+    const metadata = {
+      standard: { platform: "web", screenWidth: 1440 },
+      additional: { releaseChannel: "production", diagnosticsMode: true },
+    };
+    const entryId = await testInstance.mutation(api.entries.create, {
+      actorId: "author-1",
+      kind: "bug_report",
+      title: "Unexpected error",
+      body: "The page stopped responding.",
+      defaultStatus: "open",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+      metadata,
+    });
+
+    const anonymous = await testInstance.query(api.entries.get, { entryId });
+    const member = await testInstance.query(api.entries.get, {
+      entryId,
+      viewerActorId: "member-1",
+    });
+    const moderator = await testInstance.query(api.entries.get, {
+      entryId,
+      viewerActorId: "moderator-1",
+      viewerIsModerator: true,
+    });
+    const list = await testInstance.query(api.entries.list, {
+      paginationOpts: { numItems: 10, cursor: null },
+      sort: "newest",
+      viewerActorId: "moderator-1",
+    });
+
+    expect(anonymous).not.toHaveProperty("metadata");
+    expect(member).not.toHaveProperty("metadata");
+    expect(moderator?.metadata).toEqual(metadata);
+    expect(list.page[0]).not.toHaveProperty("metadata");
+  });
+
+  test("entry metadata validation reports the offending key and value", async () => {
+    const testInstance = setup();
+    const baseArgs = {
+      actorId: "author-1",
+      kind: "feedback" as const,
+      title: "Metadata validation",
+      body: "Validate diagnostic fields.",
+      defaultStatus: "open" as const,
+      enabledKinds: ["feedback", "feature_request", "bug_report"] as const,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    };
+
+    await expect(
+      testInstance.mutation(api.entries.create, {
+        ...baseArgs,
+        enabledKinds: [...baseArgs.enabledKinds],
+        metadata: { additional: { constructor: "reserved" } },
+      }),
+    ).rejects.toThrow("Metadata key 'constructor'");
+
+    await expect(
+      testInstance.mutation(api.entries.create, {
+        ...baseArgs,
+        enabledKinds: [...baseArgs.enabledKinds],
+        metadata: { additional: { trace: "x".repeat(1_025) } },
+      }),
+    ).rejects.toThrow("additional.trace");
+  });
+
   test("entry upvotes are idempotent and counted atomically", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);

@@ -30,8 +30,8 @@ export function MetadataModal({
       role="dialog"
     >
       <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={messages.metadata.close}
+        accessible={false}
+        focusable={false}
         onPress={onRequestClose}
         style={{
           flex: 1,
@@ -41,6 +41,8 @@ export function MetadataModal({
         }}
       >
         <Pressable
+          accessible={false}
+          focusable={false}
           onPress={(event) => event.stopPropagation()}
           style={{
             maxHeight: "80%",

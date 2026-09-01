@@ -54,7 +54,7 @@
     "convex": "^1.44.0",
     "convex-helpers": "^0.1.120",
     "convex-test": "^0.0.55",
-    "react": "^19.2.8",
+    "react": "19.2.3",
     "@types/react": "^19.2.18",
     "@edge-runtime/vm": "^5.0.0"
   },

@@ -8,6 +8,7 @@ import { FeedbackBoard } from "./primitives.js";
 
 export function FeedbackScreenList({
   hideBackButton = false,
+  showSelectedEntry = true,
   onEntryOpen,
 }: FeedbackScreenListProps) {
   const {
@@ -32,7 +33,7 @@ export function FeedbackScreenList({
   return (
     <>
       <FeedbackBoard.List style={{ padding: theme.spacing }}>
-        {selectedEntryId ? (
+        {showSelectedEntry && selectedEntryId ? (
           <EntryDetail
             entryId={selectedEntryId}
             hideBackButton={hideBackButton}

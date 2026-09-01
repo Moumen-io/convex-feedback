@@ -1,11 +1,10 @@
 {
-  "name": "convex-feedback-example-expo",
+  "name": "convex-feedback-example-expo-routed",
   "private": true,
   "version": "0.1.0",
   "main": "expo-router/entry",
   "scripts": {
     "build": "expo export --platform web",
-    "lint": "eslint App.tsx src",
     "dev:ios": "expo run:ios --device",
     "dev:web": "expo start --web",
     "typecheck": "tsc --noEmit"

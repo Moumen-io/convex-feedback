@@ -131,7 +131,7 @@ export function CreateEntryModal({
                 onBack={() => setPreviewEntryId(null)}
               />
             ) : (
-              <CreateForm
+              <CreateEntryForm
                 kind={kind}
                 onKindChange={setKind}
                 title={title}
@@ -149,7 +149,7 @@ export function CreateEntryModal({
   );
 }
 
-function CreateForm({
+export function CreateEntryForm({
   kind,
   onKindChange,
   title,

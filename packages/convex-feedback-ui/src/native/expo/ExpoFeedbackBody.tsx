@@ -11,6 +11,7 @@ import type { FeedbackScreenStackProps } from "./types.js";
 export function ExpoFeedbackBody({
   useStack = true,
   StackOptions,
+  androidToolbarIcons,
   ...props
 }: FeedbackScreenBodyProps & FeedbackScreenStackProps) {
   const { query, isSearching, setIsSearching, setSelectedEntryId } =
@@ -36,7 +37,11 @@ export function ExpoFeedbackBody({
     return <FeedbackScreenContent onEntryOpen={onEntryOpen} {...props} />;
 
   return (
-    <FeedbackStack stackOptions={StackOptions} searchRef={searchRef}>
+    <FeedbackStack
+      stackOptions={StackOptions}
+      searchRef={searchRef}
+      androidToolbarIcons={androidToolbarIcons}
+    >
       <FeedbackScreenContent
         hideBackButton
         showHeader={false}

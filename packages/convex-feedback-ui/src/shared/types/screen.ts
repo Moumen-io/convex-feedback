@@ -139,6 +139,10 @@ export interface FeedbackScreenListProps {
   hideBackButton?: boolean;
   /** Callback when the EntryCard is opened. */
   onEntryOpen: (entryId: string) => void;
+  /** Whether provider-selected entries are rendered in place of the list.
+   * @default true
+   */
+  showSelectedEntry?: boolean;
 }
 
 export interface FeedbackScreenContentProps

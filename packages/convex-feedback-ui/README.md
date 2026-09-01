@@ -121,6 +121,20 @@ Stack options can be customized through `StackOptions`:
 />
 ```
 
+iOS toolbar actions keep their package-provided SF Symbols. Android accepts
+host-provided image sources; when an image is omitted, the action falls back to
+its text label:
+
+```tsx
+<FeedbackScreen
+  hooks={feedbackHooks}
+  androidToolbarIcons={{
+    create: require("./assets/add.png"),
+    back: require("./assets/back.png"),
+  }}
+/>
+```
+
 ### Using the Expo screen without stack integration
 
 Expo projects do not have to use the native stack integration.
@@ -134,6 +148,116 @@ Set `useStack={false}` to use the standard native feedback layout instead:
 When `useStack={false}`, the Expo convenience screen behaves like the regular React Native screen.
 
 `StackOptions` is only available when stack integration is enabled.
+
+### Routed Expo navigation
+
+For real stacked routes, use the additive routed API. Expo Router discovers
+routes from the application's `app` directory, so the host application supplies
+small route files while the package supplies their layouts and screens:
+
+```text
+app/feedback/
+├── _layout.tsx
+├── index.tsx
+├── [entryId].tsx
+└── new/
+    ├── _layout.tsx
+    ├── index.tsx
+    └── [entryId].tsx
+```
+
+The layout owns the feedback providers and keeps them mounted across the board,
+entry-detail, and create-entry routes:
+
+```tsx
+// app/feedback/_layout.tsx
+import {
+  FeedbackStackLayout,
+  feedbackStackSettings,
+} from "convex-feedback-ui/expo";
+import { feedbackHooks } from "../../feedback";
+
+export const unstable_settings = feedbackStackSettings;
+
+export default function Layout() {
+  return (
+    <FeedbackStackLayout
+      hooks={feedbackHooks}
+      androidToolbarIcons={{
+        create: require("../../assets/add.png"),
+        back: require("../../assets/back.png"),
+        close: require("../../assets/close.png"),
+      }}
+      screenOptions={{ headerTintColor: "#5b5bd6" }}
+      boardOptions={{ headerLargeTitleEnabled: true }}
+      entryOptions={{ headerBackTitle: "Feedback" }}
+      createOptions={{ presentation: "formSheet" }}
+    />
+  );
+}
+```
+
+Each page file only needs to re-export its package screen:
+
+```tsx
+// app/feedback/index.tsx
+export { FeedbackBoardScreen as default } from "convex-feedback-ui/expo";
+
+// app/feedback/[entryId].tsx
+export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
+
+// app/feedback/new/_layout.tsx
+import {
+  FeedbackCreateStackLayout,
+  feedbackCreateStackSettings,
+} from "convex-feedback-ui/expo";
+
+export const unstable_settings = feedbackCreateStackSettings;
+export default FeedbackCreateStackLayout;
+
+// app/feedback/new/index.tsx
+export { CreateFeedbackScreen as default } from "convex-feedback-ui/expo";
+
+// app/feedback/new/[entryId].tsx
+export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
+```
+
+`FeedbackStackLayout` uses these route names by default:
+
+```ts
+{
+  board: "index",
+  entry: "[entryId]",
+  create: "new",
+}
+```
+
+Names can be partially overridden when the files use a different structure.
+The create name identifies its nested route directory, and the entry route must
+exist both beside that directory and inside it while retaining the `[entryId]`
+dynamic segment:
+
+```tsx
+const routes = {
+  entry: "entry/[entryId]",
+  create: "create",
+};
+
+export const unstable_settings = createFeedbackStackSettings(routes);
+
+export default function Layout() {
+  return <FeedbackStackLayout hooks={feedbackHooks} routes={routes} />;
+}
+```
+
+The board's search and loaded list remain mounted when another screen is
+pushed, so returning restores the prior query and scroll position. The create
+route is a modal navigator by default. Duplicate suggestions push the normal
+detail screen inside that modal's stack, with back and close controls. After
+creation, the complete modal is dismissed and the created entry replaces it on
+the board stack.
+
+See `packages/example-expo-routed` for a complete application.
 
 ## Diagnostic metadata
 

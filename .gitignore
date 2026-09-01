@@ -5,3 +5,29 @@ dist/
 *.tsbuildinfo
 .DS_Store
 coverage/
+
+# Expo and generated native projects
+.expo/
+.expo-shared/
+expo-env.d.ts
+web-build/
+ios/
+android/
+
+# Local tooling and build output
+.cache/
+.turbo/
+.vercel/
+.idea/
+.vscode/
+*.log
+
+# Native signing and service credentials
+*.jks
+*.keystore
+*.mobileprovision
+*.p8
+*.p12
+credentials.json
+GoogleService-Info.plist
+google-services.json

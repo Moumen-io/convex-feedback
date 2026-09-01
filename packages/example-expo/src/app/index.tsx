@@ -73,7 +73,7 @@ export const convexAuthTokenStorage: TokenStorage = {
 };
 
 export default function App() {
-  const convex = useMemo(() => new ConvexReactClient(convexUrl), []);
+  const convex = useMemo(() => new ConvexReactClient(convexUrl!), []);
 
   const isWeb = Platform.OS === "web";
 

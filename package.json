@@ -11,7 +11,7 @@
   "scripts": {
     "build:packages": "npm run build -w convex-feedback && npm run build -w convex-feedback-ui",
     "build:ui": "npm run build -w convex-feedback-ui",
-    "build:examples": "npm run build -w convex-feedback-example-web && npm run build -w convex-feedback-example-native && npm run build -w convex-feedback-example-expo",
+    "build:examples": "npm run build -w convex-feedback-example-web && npm run build -w convex-feedback-example-native && npm run build -w convex-feedback-example-expo && npm run build -w convex-feedback-example-expo-routed",
     "build": "npm run build:packages && npm run build:examples",
     "codegen:component": "npm run codegen -w convex-feedback",
     "codegen:example": "npm run codegen -w convex-feedback-example-backend",
@@ -24,9 +24,11 @@
     "test:all": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run build",
     "dev:web": "npm run dev -w convex-feedback-example-web",
     "dev:ios": "npm run dev:ios -w convex-feedback-example-expo",
+    "dev:ios:routed": "npm run dev:ios -w convex-feedback-example-expo-routed",
     "dev:ios:native": "npm run dev:ios -w convex-feedback-example-native",
     "dev:native": "npm run dev:web -w convex-feedback-example-native",
     "dev:expo": "npm run dev:web -w convex-feedback-example-expo",
+    "dev:expo:routed": "npm run dev:web -w convex-feedback-example-expo-routed",
     "postinstall": "npm run build:packages",
     "check-version-bump:ui": "node scripts/check-version-bump.js packages/convex-feedback-ui",
     "check-version-bump:component": "node scripts/check-version-bump.js packages/convex-feedback",
@@ -46,11 +48,12 @@
     "vite": "^8.2.0"
   },
   "dependencies": {
-    "expo-constants": "~55.0.17",
-    "expo-linking": "~55.0.17",
-    "expo-router": "~55.0.18",
-    "expo-status-bar": "~55.0.6",
-    "react-native-safe-area-context": "~5.6.2",
-    "react-native-screens": "~4.23.0"
+    "expo-constants": "~57.0.15",
+    "expo-linking": "~57.0.8",
+    "expo-router": "~57.0.17",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0"
   }
 }

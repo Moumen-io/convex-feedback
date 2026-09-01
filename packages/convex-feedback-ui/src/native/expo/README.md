@@ -19,15 +19,18 @@ Containers such as `FeedbackEntry.Content`, `FeedbackForm.Root`, and `Comment.Ch
 ## Routed screens
 
 Use `FeedbackStackLayout` with `FeedbackBoardScreen`,
-`FeedbackEntryScreen`, and `CreateFeedbackScreen` when board state should be
-shared across real Expo Router routes. Consumer applications must create the
-corresponding `index.tsx`, `[entryId].tsx`, and `new.tsx` files because Expo
-Router discovers pages from the application's route directory.
+`FeedbackCreateStackLayout`, `FeedbackEntryScreen`, and
+`CreateFeedbackScreen` when board state should be shared across real Expo
+Router routes. Consumer applications must create the corresponding board and
+entry files plus a nested create directory containing `_layout.tsx`,
+`index.tsx`, and `[entryId].tsx`, because Expo Router discovers pages from the
+application's route directory.
 
 Re-export `feedbackStackSettings` from the route layout as
 `unstable_settings` so a deep link to the create modal anchors the board behind
-it. Use `createFeedbackStackSettings(routes)` when overriding the default route
-names.
+it. Re-export `feedbackCreateStackSettings` from the nested create layout so
+suggested entries retain the form behind them. Use
+`createFeedbackStackSettings(routes)` when overriding the default route names.
 
 The existing `FeedbackScreen` remains the self-contained API for conditional
 in-screen navigation.

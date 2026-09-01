@@ -17,5 +17,6 @@ Then run from the repository root:
 npm run dev:expo:routed
 ```
 
-The four files under `src/app/feedback` are the intended integration example
-for consuming applications.
+The route files under `src/app/feedback` are the intended integration example
+for consuming applications. The nested `new` stack keeps suggested entries
+inside the existing modal instead of presenting an additional modal.

@@ -55,10 +55,6 @@ export function FeedbackStackLayout({
     enabledKinds.length === 1
       ? resolvedMessages.kindsPlural[enabledKinds.at(0)!]
       : resolvedMessages.board.title;
-  const createTitle =
-    enabledKinds.length === 1
-      ? resolvedMessages.newFeedback[enabledKinds.at(0)!]
-      : resolvedMessages.board.createEntry;
   const defaults: NativeStackNavigationOptions = {
     headerShown: true,
     headerBackButtonDisplayMode: "minimal",
@@ -105,7 +101,7 @@ export function FeedbackStackLayout({
               name={routes.create}
               options={{
                 ...defaults,
-                headerTitle: createTitle,
+                headerShown: false,
                 presentation: "modal",
                 ...screenOptions,
                 ...createOptions,

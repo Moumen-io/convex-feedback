@@ -53,6 +53,15 @@ export interface FeedbackStackLayoutProps extends FeedbackScreenRootProps {
   createOptions?: FeedbackStackScreenOptions;
 }
 
+export interface FeedbackCreateStackLayoutProps {
+  /** Options shared by the create form and suggested-entry screens. */
+  screenOptions?: FeedbackStackScreenOptions;
+  /** Create-form screen option overrides. */
+  createOptions?: FeedbackStackScreenOptions;
+  /** Suggested-entry screen option overrides. */
+  entryOptions?: FeedbackStackScreenOptions;
+}
+
 export interface RoutedFeedbackContextValue {
   routes: FeedbackRouteNames;
   colors: FeedbackColorProps;

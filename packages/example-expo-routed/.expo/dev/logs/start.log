@@ -155,3 +155,6 @@
 {"_e":"metro:bundling:started","_t":1788270302695,"id":"h","platform":"ios","environment":null,"entry":"node_modules/expo-router/entry.js"}
 {"_e":"metro:bundling:progress","_t":1788270302696,"id":"h","progress":0,"total":1,"current":0}
 {"_e":"metro:bundling:done","_t":1788270302733,"id":"h","total":1,"ms":37.939125}
+{"_e":"root:init","_t":1788270815429,"format":"v0-jsonl","version":"57.0.20"}
+{"_e":"env:mode","_t":1788270815429,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1788270815430,"mode":"development","files":["../../../.env.local"],"env":{"EXPO_PUBLIC_CONVEX_URL":"https://resilient-toucan-885.convex.cloud"}}

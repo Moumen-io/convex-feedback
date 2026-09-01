@@ -29,6 +29,9 @@ export function createFeedbackStackSettings(
 
 export const feedbackStackSettings = createFeedbackStackSettings();
 
+/** Anchor the create form beneath suggested-entry detail screens. */
+export const feedbackCreateStackSettings = { anchor: "index" };
+
 export function feedbackRouteHref(
   route: string,
   params?: Record<string, string>,

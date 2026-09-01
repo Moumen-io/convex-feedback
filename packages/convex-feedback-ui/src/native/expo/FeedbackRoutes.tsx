@@ -10,6 +10,7 @@ import { FeedbackScreenList } from "../shared/ui/FeedbackScreenList.js";
 import { CreateEntryForm } from "../shared/ui/NewEntry.js";
 import { FeedbackBoard } from "../shared/ui/primitives.js";
 import { feedbackRouteHref } from "./routes.js";
+import { useRoutedFeedbackModal } from "./RoutedFeedbackModalContext.js";
 import { useRoutedFeedback } from "./RoutedFeedbackContext.js";
 
 export function FeedbackBoardScreen() {
@@ -101,8 +102,9 @@ export function FeedbackEntryScreen() {
 
 function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
   const { hooks } = useFeedbackBody();
-  const { theme } = useFeedbackUi();
+  const { messages, theme } = useFeedbackUi();
   const { colors } = useRoutedFeedback();
+  const modal = useRoutedFeedbackModal();
   const router = useRouter();
   const entry = hooks.useEntry(entryId);
 
@@ -118,6 +120,15 @@ function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
           />
         </FeedbackBoard.List>
       </FeedbackBoard.Root>
+      {modal && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button
+            icon="xmark"
+            accessibilityLabel={messages.form.cancel}
+            onPress={modal.dismiss}
+          />
+        </Stack.Toolbar>
+      )}
     </>
   );
 }
@@ -126,6 +137,7 @@ export function CreateFeedbackScreen() {
   const { enabledKinds } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const { routes, colors } = useRoutedFeedback();
+  const modal = useRoutedFeedbackModal();
   const router = useRouter();
   const [kind, setKind] = useState<EntryKind>(enabledKinds[0] ?? "feedback");
   const [title, setTitle] = useState("");
@@ -150,7 +162,9 @@ export function CreateFeedbackScreen() {
             onTitleChange={setTitle}
             body={body}
             onBodyChange={setBody}
-            onOpenSuggestion={(entryId) => router.push(entryHref(entryId))}
+            onOpenSuggestion={(entryId) =>
+              router.push(entryHref(entryId), { relativeToDirectory: true })
+            }
             onCreated={(entryId) => {
               router.dismissTo(entryHref(entryId));
             }}
@@ -162,7 +176,7 @@ export function CreateFeedbackScreen() {
         <Stack.Toolbar.Button
           icon="xmark"
           accessibilityLabel={messages.form.cancel}
-          onPress={() => router.dismiss()}
+          onPress={() => (modal ? modal.dismiss() : router.dismiss())}
         />
       </Stack.Toolbar>
     </>

@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   createFeedbackStackSettings,
   defaultFeedbackRoutes,
+  feedbackCreateStackSettings,
   feedbackRouteHref,
   feedbackStackSettings,
   resolveFeedbackRoutes,
@@ -12,6 +13,7 @@ describe("Expo routed feedback contracts", () => {
   test("uses the prescribed route names by default", () => {
     expect(resolveFeedbackRoutes()).toEqual(defaultFeedbackRoutes);
     expect(feedbackStackSettings).toEqual({ anchor: "index" });
+    expect(feedbackCreateStackSettings).toEqual({ anchor: "index" });
   });
 
   test("merges partial route overrides", () => {

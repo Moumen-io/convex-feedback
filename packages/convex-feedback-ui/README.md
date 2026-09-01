@@ -139,14 +139,17 @@ When `useStack={false}`, the Expo convenience screen behaves like the regular Re
 
 For real stacked routes, use the additive routed API. Expo Router discovers
 routes from the application's `app` directory, so the host application supplies
-four small route files while the package supplies their layout and screens:
+small route files while the package supplies their layouts and screens:
 
 ```text
 app/feedback/
 ├── _layout.tsx
 ├── index.tsx
 ├── [entryId].tsx
-└── new.tsx
+└── new/
+    ├── _layout.tsx
+    ├── index.tsx
+    └── [entryId].tsx
 ```
 
 The layout owns the feedback providers and keeps them mounted across the board,
@@ -184,8 +187,20 @@ export { FeedbackBoardScreen as default } from "convex-feedback-ui/expo";
 // app/feedback/[entryId].tsx
 export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
 
-// app/feedback/new.tsx
+// app/feedback/new/_layout.tsx
+import {
+  FeedbackCreateStackLayout,
+  feedbackCreateStackSettings,
+} from "convex-feedback-ui/expo";
+
+export const unstable_settings = feedbackCreateStackSettings;
+export default FeedbackCreateStackLayout;
+
+// app/feedback/new/index.tsx
 export { CreateFeedbackScreen as default } from "convex-feedback-ui/expo";
+
+// app/feedback/new/[entryId].tsx
+export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
 ```
 
 `FeedbackStackLayout` uses these route names by default:
@@ -199,7 +214,9 @@ export { CreateFeedbackScreen as default } from "convex-feedback-ui/expo";
 ```
 
 Names can be partially overridden when the files use a different structure.
-The entry route must retain the `[entryId]` dynamic segment:
+The create name identifies its nested route directory, and the entry route must
+exist both beside that directory and inside it while retaining the `[entryId]`
+dynamic segment:
 
 ```tsx
 const routes = {
@@ -216,9 +233,10 @@ export default function Layout() {
 
 The board's search and loaded list remain mounted when another screen is
 pushed, so returning restores the prior query and scroll position. The create
-route is a modal by default. Duplicate suggestions push the normal detail route
-above that modal; after creation, the modal is dismissed and the created entry
-is pushed onto the board stack.
+route is a modal navigator by default. Duplicate suggestions push the normal
+detail screen inside that modal's stack, with back and close controls. After
+creation, the complete modal is dismissed and the created entry replaces it on
+the board stack.
 
 See `packages/example-expo-routed` for a complete application.
 

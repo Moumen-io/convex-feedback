@@ -6,6 +6,7 @@ import type { FeedbackStackProps } from "./types";
 export function FeedbackStack({
   searchRef,
   stackOptions,
+  androidToolbarIcons = {},
   children,
 }: FeedbackStackProps) {
   const {
@@ -54,19 +55,30 @@ export function FeedbackStack({
       />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          icon="plus"
+          icon={
+            process.env.EXPO_OS === "ios" ? "plus" : androidToolbarIcons.create
+          }
           variant="prominent"
           accessibilityLabel={messages.board.createEntry}
           onPress={() => setShowForm(true)}
           tintColor={theme.colors.primary}
-        />
+        >
+          {messages.board.createEntry}
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           hidden={!canGoBack}
-          icon="chevron.backward"
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "chevron.backward"
+              : androidToolbarIcons.back
+          }
+          accessibilityLabel={messages.entry.back}
           onPress={handleBackPress}
-        />
+        >
+          {messages.entry.back}
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
 
       {children}

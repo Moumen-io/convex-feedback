@@ -121,6 +121,20 @@ Stack options can be customized through `StackOptions`:
 />
 ```
 
+iOS toolbar actions keep their package-provided SF Symbols. Android accepts
+host-provided image sources; when an image is omitted, the action falls back to
+its text label:
+
+```tsx
+<FeedbackScreen
+  hooks={feedbackHooks}
+  androidToolbarIcons={{
+    create: require("./assets/add.png"),
+    back: require("./assets/back.png"),
+  }}
+/>
+```
+
 ### Using the Expo screen without stack integration
 
 Expo projects do not have to use the native stack integration.
@@ -169,6 +183,11 @@ export default function Layout() {
   return (
     <FeedbackStackLayout
       hooks={feedbackHooks}
+      androidToolbarIcons={{
+        create: require("../../assets/add.png"),
+        back: require("../../assets/back.png"),
+        close: require("../../assets/close.png"),
+      }}
       screenOptions={{ headerTintColor: "#5b5bd6" }}
       boardOptions={{ headerLargeTitleEnabled: true }}
       entryOptions={{ headerBackTitle: "Feedback" }}

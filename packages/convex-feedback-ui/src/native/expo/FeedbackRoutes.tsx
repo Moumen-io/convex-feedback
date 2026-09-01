@@ -16,7 +16,7 @@ import { useRoutedFeedback } from "./RoutedFeedbackContext.js";
 export function FeedbackBoardScreen() {
   const { query, isSearching, setQuery, setIsSearching } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
-  const { routes, colors } = useRoutedFeedback();
+  const { routes, colors, androidToolbarIcons } = useRoutedFeedback();
   const router = useRouter();
   const searchRef = useRef<SearchBarCommands>(null);
 
@@ -46,7 +46,9 @@ export function FeedbackBoardScreen() {
 
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          icon="plus"
+          icon={
+            process.env.EXPO_OS === "ios" ? "plus" : androidToolbarIcons.create
+          }
           variant="prominent"
           accessibilityLabel={messages.board.createEntry}
           onPress={() =>
@@ -55,15 +57,23 @@ export function FeedbackBoardScreen() {
             })
           }
           tintColor={theme.colors.primary}
-        />
+        >
+          {messages.board.createEntry}
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           hidden={!router.canGoBack()}
-          icon="chevron.backward"
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "chevron.backward"
+              : androidToolbarIcons.back
+          }
           accessibilityLabel={messages.entry.back}
           onPress={() => router.back()}
-        />
+        >
+          {messages.entry.back}
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.SearchBar
         ref={searchRef}
@@ -103,7 +113,7 @@ export function FeedbackEntryScreen() {
 function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
   const { hooks } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
-  const { colors } = useRoutedFeedback();
+  const { colors, androidToolbarIcons } = useRoutedFeedback();
   const modal = useRoutedFeedbackModal();
   const router = useRouter();
   const entry = hooks.useEntry(entryId);
@@ -123,10 +133,16 @@ function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
       {modal && (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
-            icon="xmark"
+            icon={
+              process.env.EXPO_OS === "ios"
+                ? "xmark"
+                : androidToolbarIcons.close
+            }
             accessibilityLabel={messages.form.cancel}
             onPress={modal.dismiss}
-          />
+          >
+            {messages.form.cancel}
+          </Stack.Toolbar.Button>
         </Stack.Toolbar>
       )}
     </>
@@ -136,7 +152,7 @@ function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
 export function CreateFeedbackScreen() {
   const { enabledKinds } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
-  const { routes, colors } = useRoutedFeedback();
+  const { routes, colors, androidToolbarIcons } = useRoutedFeedback();
   const modal = useRoutedFeedbackModal();
   const router = useRouter();
   const [kind, setKind] = useState<EntryKind>(enabledKinds[0] ?? "feedback");
@@ -174,10 +190,14 @@ export function CreateFeedbackScreen() {
 
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
-          icon="xmark"
+          icon={
+            process.env.EXPO_OS === "ios" ? "xmark" : androidToolbarIcons.close
+          }
           accessibilityLabel={messages.form.cancel}
           onPress={() => (modal ? modal.dismiss() : router.dismiss())}
-        />
+        >
+          {messages.form.cancel}
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
     </>
   );

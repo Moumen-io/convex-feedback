@@ -1,4 +1,5 @@
 import type { StackScreenProps } from "expo-router";
+import type { ImageSourcePropType } from "react-native";
 import type { SearchBarCommands } from "react-native-screens";
 import type {
   FeedbackColorProps,
@@ -8,10 +9,13 @@ import type {
 interface FeedbackScreenWithStack {
   useStack?: true;
   StackOptions?: StackScreenProps["options"];
+  /** Android image sources for toolbar actions. iOS continues to use SF Symbols. */
+  androidToolbarIcons?: FeedbackAndroidToolbarIcons;
 }
 interface FeedbackScreenWithoutStack {
   useStack?: false;
   StackOptions?: never;
+  androidToolbarIcons?: never;
 }
 export type FeedbackScreenStackProps =
   FeedbackScreenWithStack | FeedbackScreenWithoutStack;
@@ -22,6 +26,7 @@ export type ExpoFeedbackScreenProps = FeedbackScreenStackProps &
 export interface FeedbackStackProps {
   searchRef: React.RefObject<SearchBarCommands | null>;
   stackOptions?: StackScreenProps["options"];
+  androidToolbarIcons?: FeedbackAndroidToolbarIcons;
   children: React.ReactNode;
 }
 
@@ -40,6 +45,15 @@ export type FeedbackStackScreenOptions = Exclude<
   (...args: never[]) => unknown
 >;
 
+export interface FeedbackAndroidToolbarIcons {
+  /** Android image source for the create-entry action. */
+  create?: ImageSourcePropType;
+  /** Android image source for the back action. */
+  back?: ImageSourcePropType;
+  /** Android image source for modal close actions. */
+  close?: ImageSourcePropType;
+}
+
 export interface FeedbackStackLayoutProps extends FeedbackScreenRootProps {
   /** Partial overrides for the prescribed route file names. */
   routes?: Partial<FeedbackRouteNames>;
@@ -51,6 +65,8 @@ export interface FeedbackStackLayoutProps extends FeedbackScreenRootProps {
   entryOptions?: FeedbackStackScreenOptions;
   /** Create-entry modal option overrides. */
   createOptions?: FeedbackStackScreenOptions;
+  /** Android image sources for toolbar actions. iOS continues to use SF Symbols. */
+  androidToolbarIcons?: FeedbackAndroidToolbarIcons;
 }
 
 export interface FeedbackCreateStackLayoutProps {
@@ -65,4 +81,5 @@ export interface FeedbackCreateStackLayoutProps {
 export interface RoutedFeedbackContextValue {
   routes: FeedbackRouteNames;
   colors: FeedbackColorProps;
+  androidToolbarIcons: FeedbackAndroidToolbarIcons;
 }

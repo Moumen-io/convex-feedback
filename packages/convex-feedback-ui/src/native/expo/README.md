@@ -32,5 +32,10 @@ it. Re-export `feedbackCreateStackSettings` from the nested create layout so
 suggested entries retain the form behind them. Use
 `createFeedbackStackSettings(routes)` when overriding the default route names.
 
+Toolbar actions retain their package-provided SF Symbols on iOS. Pass
+`androidToolbarIcons` to `FeedbackScreen` or `FeedbackStackLayout` with Android
+`ImageSourcePropType` values for the create, back, and close actions. Missing
+Android images fall back to text labels.
+
 The existing `FeedbackScreen` remains the self-contained API for conditional
 in-screen navigation.

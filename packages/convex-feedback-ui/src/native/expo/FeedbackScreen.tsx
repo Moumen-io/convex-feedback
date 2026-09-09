@@ -16,6 +16,7 @@ export function FeedbackScreen({
   maxCommentDepth = 5,
   debounceDuration = 300,
   collectMetadata,
+  emptyState,
   transformComments,
   renderActor,
   ...props
@@ -30,6 +31,7 @@ export function FeedbackScreen({
         maxCommentDepth={maxCommentDepth}
         debounceDuration={debounceDuration}
         collectMetadata={collectMetadata}
+        emptyState={emptyState}
         collectStandardMetadata={collectExpoMetadata}
         transformComments={transformComments}
         renderActor={renderActor}

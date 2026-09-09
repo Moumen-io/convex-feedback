@@ -1,6 +1,7 @@
 import { Stack, useRouter } from "expo-router";
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider";
+import { createEntryLabel } from "../../shared/helpers";
 import type { FeedbackStackProps } from "./types";
 
 export function FeedbackStack({
@@ -59,11 +60,11 @@ export function FeedbackStack({
             process.env.EXPO_OS === "ios" ? "plus" : androidToolbarIcons.create
           }
           variant="prominent"
-          accessibilityLabel={messages.board.createEntry}
+          accessibilityLabel={createEntryLabel(enabledKinds, messages)}
           onPress={() => setShowForm(true)}
           tintColor={theme.colors.primary}
         >
-          {messages.board.createEntry}
+          {createEntryLabel(enabledKinds, messages)}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Toolbar placement="left">

@@ -5,6 +5,7 @@ import type { EntryKind } from "convex-feedback";
 
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider.js";
+import { createEntryLabel } from "../../shared/helpers.js";
 import { EntryDetail } from "../shared/ui/EntryDetail.js";
 import { FeedbackScreenList } from "../shared/ui/FeedbackScreenList.js";
 import { CreateEntryForm } from "../shared/ui/NewEntry.js";
@@ -14,7 +15,8 @@ import { useRoutedFeedbackModal } from "./RoutedFeedbackModalContext.js";
 import { useRoutedFeedback } from "./RoutedFeedbackContext.js";
 
 export function FeedbackBoardScreen() {
-  const { query, isSearching, setQuery, setIsSearching } = useFeedbackBody();
+  const { query, isSearching, setQuery, setIsSearching, enabledKinds } =
+    useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const { routes, colors, androidToolbarIcons } = useRoutedFeedback();
   const router = useRouter();
@@ -41,6 +43,11 @@ export function FeedbackBoardScreen() {
           showSelectedEntry={false}
           hideBackButton
           onEntryOpen={openEntry}
+          onCreateEntry={() =>
+            router.push(feedbackRouteHref(routes.create), {
+              relativeToDirectory: true,
+            })
+          }
         />
       </FeedbackBoard.Root>
 
@@ -50,7 +57,7 @@ export function FeedbackBoardScreen() {
             process.env.EXPO_OS === "ios" ? "plus" : androidToolbarIcons.create
           }
           variant="prominent"
-          accessibilityLabel={messages.board.createEntry}
+          accessibilityLabel={createEntryLabel(enabledKinds, messages)}
           onPress={() =>
             router.push(feedbackRouteHref(routes.create), {
               relativeToDirectory: true,
@@ -58,7 +65,7 @@ export function FeedbackBoardScreen() {
           }
           tintColor={theme.colors.primary}
         >
-          {messages.board.createEntry}
+          {createEntryLabel(enabledKinds, messages)}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Toolbar placement="left">

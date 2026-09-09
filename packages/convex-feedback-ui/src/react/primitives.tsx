@@ -147,12 +147,23 @@ function BoardList(props: HTMLAttributes<HTMLDivElement>) {
   );
 }
 
+function BoardState(props: HTMLAttributes<HTMLDivElement>) {
+  const { unstyled } = useFeedbackUi();
+  return (
+    <div
+      {...props}
+      className={classes(unstyled, "cf-state", props.className)}
+    />
+  );
+}
+
 export const FeedbackBoard = {
   Root: BoardRoot,
   Header: BoardHeader,
   Title: BoardTitle,
   Search: BoardSearch,
   List: BoardList,
+  State: BoardState,
 };
 
 const EntryContext = createContext<FeedbackEntryData | null>(null);

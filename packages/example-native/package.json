@@ -2,6 +2,10 @@
   "name": "convex-feedback-example-native",
   "private": true,
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Moumen-io/convex-feedback.git"
+  },
   "main": "index.ts",
   "scripts": {
     "build": "expo export --platform web",

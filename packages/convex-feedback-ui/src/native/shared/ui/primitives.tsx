@@ -182,12 +182,33 @@ const BoardList = forwardRef<ScrollView, ScrollViewProps>(
   },
 );
 
+function BoardState({ style, ...props }: ViewProps) {
+  const { theme, unstyled } = useFeedbackUi();
+  return (
+    <View
+      {...props}
+      style={combineStyle<ViewStyle>(
+        !unstyled,
+        {
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: theme.spacing,
+          padding: theme.spacing,
+        },
+        style,
+      )}
+    />
+  );
+}
+
 export const FeedbackBoard = {
   Root: BoardRoot,
   Header: BoardHeader,
   Title: BoardTitle,
   Search: BoardSearch,
   List: BoardList,
+  State: BoardState,
 };
 
 const EntryContext = createContext<FeedbackEntryData | null>(null);

@@ -95,6 +95,9 @@ export interface FeedbackScreenBaseProps {
    * entry kind. Disabled by default.
    */
   collectMetadata?: CollectMetadata;
+
+  /** Optional host-owned content rendered above the empty-state message. */
+  emptyState?: ReactNode;
 }
 
 export interface FeedbackScreenRootProps
@@ -106,9 +109,10 @@ export interface FeedbackScreenRootProps
 
 export interface FeedbackScreenProviderProps
   extends
-    Required<Omit<FeedbackScreenBaseProps, "collectMetadata">>,
+    Required<Omit<FeedbackScreenBaseProps, "collectMetadata" | "emptyState">>,
     FeedbackScreenTransformationProps {
   collectMetadata?: CollectMetadata;
+  emptyState?: ReactNode;
   collectStandardMetadata: StandardMetadataCollector;
 }
 
@@ -143,6 +147,9 @@ export interface FeedbackScreenListProps {
    * @default true
    */
   showSelectedEntry?: boolean;
+
+  /** Callback for the empty-state create-entry action. */
+  onCreateEntry?: () => void;
 }
 
 export interface FeedbackScreenContentProps

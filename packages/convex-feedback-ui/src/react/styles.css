@@ -198,8 +198,18 @@
   -webkit-box-orient: vertical;
 }
 :where(.cf-board) :where(.cf-state) {
+  display: flex;
+  min-height: 180px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-space);
+  padding: calc(var(--cf-space) * 1.5);
   color: var(--cf-muted);
-  padding: 12px 2px;
+  text-align: center;
+}
+:where(.cf-board) :where(.cf-state__message) {
+  margin: 0;
 }
 :where(.cf-board) :where(.cf-detail),
 :where(.cf-board) :where(.cf-discussion) {

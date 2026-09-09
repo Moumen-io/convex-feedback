@@ -1,5 +1,8 @@
+import { Text } from "react-native";
+
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider.js";
+import { createEntryLabel } from "../../../shared/helpers.js";
 import type { FeedbackScreenListProps } from "../../../shared/types/index.js";
 import { Button } from "./Button.js";
 import { EntryCard } from "./EntryCard.js";
@@ -10,6 +13,7 @@ export function FeedbackScreenList({
   hideBackButton = false,
   showSelectedEntry = true,
   onEntryOpen,
+  onCreateEntry,
 }: FeedbackScreenListProps) {
   const {
     hooks,
@@ -19,6 +23,8 @@ export function FeedbackScreenList({
     selectedEntryId,
     debouncedQuery,
     setSelectedEntryId,
+    setShowForm,
+    emptyState,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
 
@@ -29,27 +35,56 @@ export function FeedbackScreenList({
   });
 
   const entries = isSearching ? search : list.results;
+  const createEntry = onCreateEntry ?? (() => setShowForm(true));
+
+  const loading = isSearching
+    ? search === undefined
+    : list.status === "LoadingFirstPage";
 
   return (
     <>
-      <FeedbackBoard.List style={{ padding: theme.spacing }}>
-        {showSelectedEntry && selectedEntryId ? (
+      {showSelectedEntry && selectedEntryId ? (
+        <FeedbackBoard.List style={{ padding: theme.spacing }}>
           <EntryDetail
             entryId={selectedEntryId}
             hideBackButton={hideBackButton}
             onBack={() => setSelectedEntryId(null)}
           />
-        ) : (
-          (entries ?? []).map((entry) => (
+        </FeedbackBoard.List>
+      ) : loading ? (
+        <FeedbackBoard.State>
+          <Text style={{ color: theme.colors.mutedText }}>
+            {messages.board.loading}
+          </Text>
+        </FeedbackBoard.State>
+      ) : entries !== undefined && entries.length === 0 ? (
+        <FeedbackBoard.State>
+          {!isSearching && emptyState}
+          <Text style={{ color: theme.colors.mutedText, textAlign: "center" }}>
+            {isSearching
+              ? messages.board.noSearchResults
+              : messages.board.noEntries}
+          </Text>
+          {!isSearching && (
+            <Button
+              label={createEntryLabel(enabledKinds, messages)}
+              onPress={createEntry}
+              variant="primary"
+            />
+          )}
+        </FeedbackBoard.State>
+      ) : (
+        <FeedbackBoard.List style={{ padding: theme.spacing }}>
+          {(entries ?? []).map((entry) => (
             <EntryCard
               key={entry.id}
               entry={entry}
               hooks={hooks}
               onOpen={() => onEntryOpen(entry.id)}
             />
-          ))
-        )}
-      </FeedbackBoard.List>
+          ))}
+        </FeedbackBoard.List>
+      )}
 
       {!isSearching && list.status === "CanLoadMore" && (
         <Button

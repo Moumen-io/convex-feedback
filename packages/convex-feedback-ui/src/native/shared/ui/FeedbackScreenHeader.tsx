@@ -2,10 +2,12 @@ import { Pressable, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider";
+import { createEntryLabel } from "../../../shared/helpers";
 import { FeedbackBoard } from "./primitives";
 
 export function FeedbackScreenHeader() {
-  const { query, setShowForm, setQuery, enabledKinds } = useFeedbackBody();
+  const { query, setShowForm, setQuery, setIsSearching, enabledKinds } =
+    useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const { top } = useSafeAreaInsets();
 
@@ -33,10 +35,16 @@ export function FeedbackScreenHeader() {
         <Text
           style={{ color: theme.colors.primaryForeground, fontWeight: "700" }}
         >
-          {messages.board.createEntry}
+          {createEntryLabel(enabledKinds, messages)}
         </Text>
       </Pressable>
-      <FeedbackBoard.Search value={query} onValueChange={(q) => setQuery(q)} />
+      <FeedbackBoard.Search
+        value={query}
+        onValueChange={(q) => {
+          setQuery(q);
+          setIsSearching(q.trim().length > 0);
+        }}
+      />
     </FeedbackBoard.Header>
   );
 }

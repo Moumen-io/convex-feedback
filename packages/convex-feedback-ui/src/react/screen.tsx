@@ -11,6 +11,7 @@ import {
   FeedbackProvider,
   useFeedbackUi,
 } from "../shared/context/FeedbackProvider";
+import { createEntryLabel } from "../shared/helpers.js";
 import type {
   FeedbackScreenCommentBranchProps,
   FeedbackScreenContentProps,
@@ -52,6 +53,7 @@ export function FeedbackScreen({
   renderActor,
   debounceDuration = 300,
   collectMetadata,
+  emptyState,
   ...props
 }: FeedbackScreenProps) {
   return (
@@ -64,6 +66,7 @@ export function FeedbackScreen({
         maxCommentDepth={maxCommentDepth}
         debounceDuration={debounceDuration}
         collectMetadata={collectMetadata}
+        emptyState={emptyState}
         collectStandardMetadata={collectWebMetadata}
         transformComments={transformComments}
         renderActor={renderActor}
@@ -93,6 +96,7 @@ function FeedbackScreenInner({
     query,
     setQuery,
     debouncedQuery,
+    emptyState,
   } = useFeedbackBody();
   const { messages } = useFeedbackUi();
 
@@ -131,7 +135,9 @@ function FeedbackScreenInner({
           className="cf-button cf-button--primary"
           onClick={() => setShowForm((current) => !current)}
         >
-          {showForm ? messages.form.cancel : messages.board.createEntry}
+          {showForm
+            ? messages.form.cancel
+            : createEntryLabel(enabledKinds, messages)}
         </button>
       </FeedbackBoard.Header>
 
@@ -146,25 +152,40 @@ function FeedbackScreenInner({
 
       <FeedbackBoard.Search value={query} onValueChange={setQuery} />
 
-      {loading && <p className="cf-state">{messages.board.loading}</p>}
-      {!loading && entries !== undefined && entries.length === 0 && (
-        <p className="cf-state">
-          {searching
-            ? messages.board.noSearchResults
-            : messages.board.noEntries}
-        </p>
+      {loading ? (
+        <FeedbackBoard.State>
+          <span className="cf-state__message">{messages.board.loading}</span>
+        </FeedbackBoard.State>
+      ) : entries !== undefined && entries.length === 0 ? (
+        <FeedbackBoard.State>
+          {!searching && emptyState}
+          <span className="cf-state__message">
+            {searching
+              ? messages.board.noSearchResults
+              : messages.board.noEntries}
+          </span>
+          {!searching && (
+            <button
+              type="button"
+              className="cf-button cf-button--primary"
+              onClick={() => setShowForm(true)}
+            >
+              {createEntryLabel(enabledKinds, messages)}
+            </button>
+          )}
+        </FeedbackBoard.State>
+      ) : (
+        <FeedbackBoard.List>
+          {(entries ?? []).map((entry) => (
+            <EntryCard
+              key={entry.id}
+              entry={entry}
+              hooks={hooks}
+              onOpen={() => setSelectedEntryId(entry.id)}
+            />
+          ))}
+        </FeedbackBoard.List>
       )}
-
-      <FeedbackBoard.List>
-        {(entries ?? []).map((entry) => (
-          <EntryCard
-            key={entry.id}
-            entry={entry}
-            hooks={hooks}
-            onOpen={() => setSelectedEntryId(entry.id)}
-          />
-        ))}
-      </FeedbackBoard.List>
 
       {!searching && list.status === "CanLoadMore" && (
         <button

@@ -333,6 +333,10 @@ Web and native expose the same conceptual compounds:
 - `FeedbackForm.*`
 - `Comment.*`
 
+`FeedbackBoard.State` is the centered container used for loading and empty
+states. The prebuilt screen accepts an optional `emptyState` node and renders
+it above the default empty-state message.
+
 Example:
 
 ```tsx

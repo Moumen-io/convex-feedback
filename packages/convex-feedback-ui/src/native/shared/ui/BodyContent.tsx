@@ -9,6 +9,7 @@ export function FeedbackScreenContent({
   showHeader = true,
   hideBackButton = false,
   onEntryOpen,
+  onCreateEntry,
   ...colors
 }: FeedbackScreenContentProps) {
   const { showForm, setShowForm, setSelectedEntryId } = useFeedbackBody();
@@ -26,6 +27,7 @@ export function FeedbackScreenContent({
         <FeedbackScreenList
           hideBackButton={hideBackButton}
           onEntryOpen={handleEntryOpen}
+          onCreateEntry={onCreateEntry}
         />
       </FeedbackBoard.Root>
 

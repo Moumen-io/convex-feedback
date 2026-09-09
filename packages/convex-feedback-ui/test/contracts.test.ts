@@ -4,6 +4,7 @@ import {
   englishFeedbackMessages,
   mergeFeedbackMessages,
 } from "../src/shared/messages.js";
+import { createEntryLabel } from "../src/shared/helpers.js";
 import {
   defaultFeedbackTheme,
   mergeFeedbackTheme,
@@ -47,5 +48,15 @@ describe("UI contracts", () => {
     expect(theme.colors.primary).toBe("#000000");
     expect(theme.colors.border).toBe(defaultFeedbackTheme.colors.border);
     expect(theme.radius).toBe(defaultFeedbackTheme.radius);
+  });
+
+  test("create-entry labels follow the enabled kinds", () => {
+    const messages = mergeFeedbackMessages();
+    expect(createEntryLabel(["bug_report"], messages)).toBe(
+      messages.newFeedback.bug_report,
+    );
+    expect(createEntryLabel(["feedback", "bug_report"], messages)).toBe(
+      messages.board.createEntry,
+    );
   });
 });

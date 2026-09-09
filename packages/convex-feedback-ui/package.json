@@ -3,6 +3,10 @@
   "version": "0.1.6",
   "description": "Customizable React and React Native UI primitives for convex-feedback.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Moumen-io/convex-feedback.git"
+  },
   "type": "module",
   "sideEffects": [
     "./dist/react/styles.css"

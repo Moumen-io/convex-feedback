@@ -158,21 +158,19 @@ function FeedbackScreenInner({
         </FeedbackBoard.State>
       ) : entries !== undefined && entries.length === 0 ? (
         <FeedbackBoard.State>
-          {!searching && emptyState}
+          {emptyState}
           <span className="cf-state__message">
             {searching
               ? messages.board.noSearchResults
               : messages.board.noEntries}
           </span>
-          {!searching && (
-            <button
-              type="button"
-              className="cf-button cf-button--primary"
-              onClick={() => setShowForm(true)}
-            >
-              {createEntryLabel(enabledKinds, messages)}
-            </button>
-          )}
+          <button
+            type="button"
+            className="cf-button cf-button--primary"
+            onClick={() => setShowForm(true)}
+          >
+            {createEntryLabel(enabledKinds, messages)}
+          </button>
         </FeedbackBoard.State>
       ) : (
         <FeedbackBoard.List>

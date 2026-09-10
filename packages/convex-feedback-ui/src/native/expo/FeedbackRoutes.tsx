@@ -85,6 +85,7 @@ export function FeedbackBoardScreen() {
           }
           accessibilityLabel={messages.entry.back}
           onPress={() => router.back()}
+          tintColor={theme.colors.text}
         >
           {messages.entry.back}
         </Stack.Toolbar.Button>
@@ -102,6 +103,7 @@ export function FeedbackBoardScreen() {
       />
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.SearchBarSlot />
+        <Stack.Toolbar.Spacer />
         <Stack.Toolbar.Menu
           icon={
             process.env.EXPO_OS === "ios"
@@ -110,7 +112,7 @@ export function FeedbackBoardScreen() {
           }
           title={messages.board.statusFilter}
           accessibilityLabel={messages.board.statusFilter}
-          tintColor={theme.colors.primary}
+          tintColor={theme.colors.text}
         >
           {entryStatusChoices(messages).map(({ value, label }) => (
             <Stack.Toolbar.MenuAction
@@ -174,6 +176,7 @@ function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
             }
             accessibilityLabel={messages.form.cancel}
             onPress={modal.dismiss}
+            tintColor={theme.colors.text}
           >
             {messages.form.cancel}
           </Stack.Toolbar.Button>
@@ -229,6 +232,7 @@ export function CreateFeedbackScreen() {
           }
           accessibilityLabel={messages.form.cancel}
           onPress={() => (modal ? modal.dismiss() : router.dismiss())}
+          tintColor={theme.colors.text}
         >
           {messages.form.cancel}
         </Stack.Toolbar.Button>

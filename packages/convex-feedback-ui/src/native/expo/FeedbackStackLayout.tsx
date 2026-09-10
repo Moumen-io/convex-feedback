@@ -22,6 +22,7 @@ export function FeedbackStackLayout({
   debounceDuration = 300,
   collectMetadata,
   emptyState,
+  loading,
   transformComments,
   renderActor,
   routes: routeOverrides,
@@ -60,6 +61,7 @@ export function FeedbackStackLayout({
   const defaults: NativeStackNavigationOptions = {
     headerShown: true,
     headerBackButtonDisplayMode: "minimal",
+    headerTintColor: textColor ?? resolvedTheme.colors.text,
     contentStyle: { backgroundColor: background },
   };
 
@@ -74,6 +76,7 @@ export function FeedbackStackLayout({
         debounceDuration={debounceDuration}
         collectMetadata={collectMetadata}
         emptyState={emptyState}
+        loading={loading}
         collectStandardMetadata={collectExpoMetadata}
         transformComments={transformComments}
         renderActor={renderActor}

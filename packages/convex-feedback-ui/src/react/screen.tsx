@@ -55,6 +55,7 @@ export function FeedbackScreen({
   debounceDuration = 300,
   collectMetadata,
   emptyState,
+  loading,
   ...props
 }: FeedbackScreenProps) {
   return (
@@ -68,6 +69,7 @@ export function FeedbackScreen({
         debounceDuration={debounceDuration}
         collectMetadata={collectMetadata}
         emptyState={emptyState}
+        loading={loading}
         collectStandardMetadata={collectWebMetadata}
         transformComments={transformComments}
         renderActor={renderActor}
@@ -100,6 +102,7 @@ function FeedbackScreenInner({
     setQuery,
     debouncedQuery,
     emptyState,
+    loading: loadingIndicator,
   } = useFeedbackBody();
   const { messages } = useFeedbackUi();
 
@@ -127,7 +130,7 @@ function FeedbackScreenInner({
 
   const searching = query.trim().length > 0;
   const entries = searching ? searchResults : list.results;
-  const loading = searching
+  const isLoading = searching
     ? searchResults === undefined
     : list.status === "LoadingFirstPage";
 
@@ -166,9 +169,11 @@ function FeedbackScreenInner({
 
       <FeedbackBoard.Search value={query} onValueChange={setQuery} />
 
-      {loading ? (
+      {isLoading ? (
         <FeedbackBoard.State>
-          <span className="cf-state__message">{messages.board.loading}</span>
+          {loadingIndicator ?? (
+            <span className="cf-state__message">{messages.board.loading}</span>
+          )}
         </FeedbackBoard.State>
       ) : entries !== undefined && entries.length === 0 ? (
         <FeedbackBoard.State>

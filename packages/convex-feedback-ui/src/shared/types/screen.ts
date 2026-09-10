@@ -99,6 +99,9 @@ export interface FeedbackScreenBaseProps {
 
   /** Optional host-owned content rendered above the empty-state message. */
   emptyState?: ReactNode;
+
+  /** Optional host-owned loading indicator rendered during board loading. */
+  loading?: ReactNode;
 }
 
 export interface FeedbackScreenRootProps
@@ -110,10 +113,16 @@ export interface FeedbackScreenRootProps
 
 export interface FeedbackScreenProviderProps
   extends
-    Required<Omit<FeedbackScreenBaseProps, "collectMetadata" | "emptyState">>,
+    Required<
+      Omit<
+        FeedbackScreenBaseProps,
+        "collectMetadata" | "emptyState" | "loading"
+      >
+    >,
     FeedbackScreenTransformationProps {
   collectMetadata?: CollectMetadata;
   emptyState?: ReactNode;
+  loading?: ReactNode;
   collectStandardMetadata: StandardMetadataCollector;
 }
 

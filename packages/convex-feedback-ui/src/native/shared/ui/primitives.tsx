@@ -32,6 +32,7 @@ import {
 import type {
   BoardSearchBaseProps,
   BoardSearchState,
+  ChoiceChipsBaseProps,
   CommentActionBaseProps,
   CommentLikeBaseProps,
   CommentLikeState,
@@ -210,6 +211,74 @@ export const FeedbackBoard = {
   List: BoardList,
   State: BoardState,
 };
+
+/** Props for the reusable native `ChoiceChips` primitive. */
+export interface ChoiceChipsProps<Value extends string = string>
+  extends Omit<ViewProps, "children">, ChoiceChipsBaseProps<Value> {}
+
+export function ChoiceChips<Value extends string>({
+  options,
+  value,
+  onValueChange,
+  style,
+  ...props
+}: ChoiceChipsProps<Value>) {
+  const { theme, unstyled } = useFeedbackUi();
+
+  return (
+    <View
+      {...props}
+      style={combineStyle<ViewStyle>(
+        !unstyled,
+        { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+        style,
+      )}
+    >
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            onPress={() => onValueChange(option.value)}
+            style={
+              unstyled
+                ? undefined
+                : {
+                    paddingVertical: 6,
+                    paddingHorizontal: 9,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: selected
+                      ? theme.colors.primary
+                      : theme.colors.border,
+                    backgroundColor: selected
+                      ? theme.colors.primary
+                      : "transparent",
+                  }
+            }
+          >
+            <Text
+              style={
+                unstyled
+                  ? undefined
+                  : {
+                      color: selected
+                        ? theme.colors.primaryForeground
+                        : theme.colors.mutedText,
+                      fontWeight: "600",
+                    }
+              }
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 const EntryContext = createContext<FeedbackEntryData | null>(null);
 function useEntryContext(): FeedbackEntryData {

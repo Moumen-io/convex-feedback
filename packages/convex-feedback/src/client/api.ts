@@ -9,6 +9,7 @@ import type {
   EntryKind,
   EntrySort,
   EntryStatus,
+  EntryStatusFilter,
   FeedbackComment,
   FeedbackEntry,
   FeedbackMetadata,
@@ -39,6 +40,9 @@ export type ListEntriesArgs = {
 
   /** Restricts entries to this workflow status. */
   status?: EntryStatus;
+
+  /** Restricts entries to the indexed open or closed board bucket. */
+  statusFilter?: EntryStatusFilter;
 
   /**
    * Server-side ordering strategy.
@@ -73,6 +77,9 @@ export type SearchEntriesArgs = {
 
   /** Optional workflow-status restriction. */
   status?: EntryStatus;
+
+  /** Optional indexed open or closed board bucket. */
+  statusFilter?: EntryStatusFilter;
 
   /**
    * Maximum number of results to return.

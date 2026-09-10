@@ -20,6 +20,7 @@ export function FeedbackScreenList({
     entrySort,
     isSearching,
     enabledKinds,
+    statusFilter,
     selectedEntryId,
     debouncedQuery,
     setSelectedEntryId,
@@ -28,10 +29,15 @@ export function FeedbackScreenList({
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
 
-  const list = hooks.useEntries({ sort: entrySort, kinds: enabledKinds });
+  const list = hooks.useEntries({
+    sort: entrySort,
+    kinds: enabledKinds,
+    statusFilter,
+  });
   const search = hooks.useSearchEntries({
     searchQuery: debouncedQuery,
     kinds: enabledKinds,
+    statusFilter,
   });
 
   const entries = isSearching ? search : list.results;
@@ -59,19 +65,17 @@ export function FeedbackScreenList({
         </FeedbackBoard.State>
       ) : entries !== undefined && entries.length === 0 ? (
         <FeedbackBoard.State>
-          {!isSearching && emptyState}
+          {emptyState}
           <Text style={{ color: theme.colors.mutedText, textAlign: "center" }}>
             {isSearching
               ? messages.board.noSearchResults
               : messages.board.noEntries}
           </Text>
-          {!isSearching && (
-            <Button
-              label={createEntryLabel(enabledKinds, messages)}
-              onPress={createEntry}
-              variant="primary"
-            />
-          )}
+          <Button
+            label={createEntryLabel(enabledKinds, messages)}
+            onPress={createEntry}
+            variant="primary"
+          />
         </FeedbackBoard.State>
       ) : (
         <FeedbackBoard.List style={{ padding: theme.spacing }}>

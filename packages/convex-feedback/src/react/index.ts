@@ -9,6 +9,7 @@ import type {
   EntryKind,
   EntrySort,
   EntryStatus,
+  EntryStatusFilter,
   SimilarEntriesResult,
 } from "../component/model.js";
 
@@ -60,6 +61,9 @@ export interface UseEntriesArgs {
 
   /** Optional workflow-status filter. */
   status?: EntryStatus;
+
+  /** Optional indexed open or closed board bucket. */
+  statusFilter?: EntryStatusFilter;
 
   /**
    * Server-side entry ordering.
@@ -119,6 +123,9 @@ export interface SearchEntriesArgs {
 
   /** Optional workflow-status filter. */
   status?: EntryStatus;
+
+  /** Optional indexed open or closed board bucket. */
+  statusFilter?: EntryStatusFilter;
 
   /**
    * Maximum number of results requested.
@@ -212,6 +219,9 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       const queryArgs = {
         ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
         ...(args.status === undefined ? {} : { status: args.status }),
+        ...(args.statusFilter === undefined
+          ? {}
+          : { statusFilter: args.statusFilter }),
         ...(args.sort === undefined ? {} : { sort: args.sort }),
       };
 
@@ -244,6 +254,9 @@ function createFeedbackHooksImplementation<RateLimitResult>(
         searchQuery,
         ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
         ...(args.status === undefined ? {} : { status: args.status }),
+        ...(args.statusFilter === undefined
+          ? {}
+          : { statusFilter: args.statusFilter }),
         ...(args.limit === undefined ? {} : { limit: args.limit }),
       };
 

@@ -34,8 +34,8 @@ suggested entries retain the form behind them. Use
 
 Toolbar actions retain their package-provided SF Symbols on iOS. Pass
 `androidToolbarIcons` to `FeedbackScreen` or `FeedbackStackLayout` with Android
-`ImageSourcePropType` values for the create, back, and close actions. Missing
-Android images fall back to text labels.
+`ImageSourcePropType` values for the create, back, close, and filter actions.
+Missing Android images fall back to text labels.
 
 The existing `FeedbackScreen` remains the self-contained API for conditional
 in-screen navigation.

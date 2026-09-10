@@ -20,6 +20,8 @@ import {
   actorValidator,
   entryKindValidator,
   entrySortValidator,
+  entryStatusFilterForStatus,
+  entryStatusFilterValidator,
   entryStatusValidator,
   feedbackMetadataValidator,
   publicEntryValidator,
@@ -63,6 +65,7 @@ export const list = query({
     paginationOpts: paginationOptsValidator,
     kinds: v.optional(v.array(entryKindValidator)),
     status: v.optional(entryStatusValidator),
+    statusFilter: v.optional(entryStatusFilterValidator),
     sort: entrySortValidator,
     viewerActorId: v.optional(v.string()),
   },
@@ -70,11 +73,82 @@ export const list = query({
   handler: async (ctx, args) => {
     const db = paginator(ctx.db, schema);
     const kinds = normalizeKindFilter(args.kinds);
-    const { status } = args;
+    const { status, statusFilter } = args;
+
+    if (status !== undefined && statusFilter !== undefined) {
+      throw new ConvexError(
+        "`status` and `statusFilter` cannot be used together.",
+      );
+    }
 
     let result: PaginationResult<Doc<"entries">>;
 
-    if (kinds === undefined) {
+    if (statusFilter !== undefined) {
+      if (kinds === undefined) {
+        result =
+          args.sort === "top"
+            ? await db
+                .query("entries")
+                .withIndex("by_status_filter_upvotes", (q) =>
+                  q.eq("statusFilter", statusFilter),
+                )
+                .order("desc")
+                .paginate(args.paginationOpts)
+            : await db
+                .query("entries")
+                .withIndex("by_status_filter", (q) =>
+                  q.eq("statusFilter", statusFilter),
+                )
+                .order("desc")
+                .paginate(args.paginationOpts);
+      } else if (kinds.length === 1) {
+        const kind = kinds[0];
+
+        if (kind === undefined) {
+          throw new ConvexError("Invalid kind filter.");
+        }
+
+        result =
+          args.sort === "top"
+            ? await db
+                .query("entries")
+                .withIndex("by_kind_status_filter_upvotes", (q) =>
+                  q.eq("kind", kind).eq("statusFilter", statusFilter),
+                )
+                .order("desc")
+                .paginate(args.paginationOpts)
+            : await db
+                .query("entries")
+                .withIndex("by_kind_status_filter", (q) =>
+                  q.eq("kind", kind).eq("statusFilter", statusFilter),
+                )
+                .order("desc")
+                .paginate(args.paginationOpts);
+      } else {
+        const streams = kinds.map((kind) =>
+          args.sort === "top"
+            ? stream(ctx.db, schema)
+                .query("entries")
+                .withIndex("by_kind_status_filter_upvotes", (q) =>
+                  q.eq("kind", kind).eq("statusFilter", statusFilter),
+                )
+                .order("desc")
+            : stream(ctx.db, schema)
+                .query("entries")
+                .withIndex("by_kind_status_filter", (q) =>
+                  q.eq("kind", kind).eq("statusFilter", statusFilter),
+                )
+                .order("desc"),
+        );
+
+        result = await mergedStream(
+          streams,
+          args.sort === "top"
+            ? ["upvoteCount", "_creationTime"]
+            : ["_creationTime"],
+        ).paginate(args.paginationOpts);
+      }
+    } else if (kinds === undefined) {
       result =
         args.sort === "top"
           ? status === undefined
@@ -223,6 +297,7 @@ export const search = query({
     searchQuery: v.string(),
     kinds: v.optional(v.array(entryKindValidator)),
     status: v.optional(entryStatusValidator),
+    statusFilter: v.optional(entryStatusFilterValidator),
     limit: v.number(),
     viewerActorId: v.optional(v.string()),
   },
@@ -235,11 +310,67 @@ export const search = query({
     }
 
     const kinds = normalizeKindFilter(args.kinds);
-    const { status } = args;
+    const { status, statusFilter } = args;
+
+    if (status !== undefined && statusFilter !== undefined) {
+      throw new ConvexError(
+        "`status` and `statusFilter` cannot be used together.",
+      );
+    }
 
     let entries: Doc<"entries">[];
 
-    if (kinds === undefined) {
+    if (statusFilter !== undefined) {
+      if (kinds === undefined) {
+        entries = await ctx.db
+          .query("entries")
+          .withSearchIndex("search", (q) =>
+            q
+              .search("searchText", searchQuery)
+              .eq("statusFilter", statusFilter),
+          )
+          .take(args.limit);
+      } else if (kinds.length === 1) {
+        const kind = kinds[0];
+
+        if (kind === undefined) {
+          throw new ConvexError("Invalid kind filter.");
+        }
+
+        entries = await ctx.db
+          .query("entries")
+          .withSearchIndex("search", (q) =>
+            q
+              .search("searchText", searchQuery)
+              .eq("kind", kind)
+              .eq("statusFilter", statusFilter),
+          )
+          .take(args.limit);
+      } else {
+        const firstKind = kinds[0];
+        const secondKind = kinds[1];
+
+        if (firstKind === undefined || secondKind === undefined) {
+          throw new ConvexError("Invalid kind filter.");
+        }
+
+        entries = await ctx.db
+          .query("entries")
+          .withSearchIndex("search", (q) =>
+            q
+              .search("searchText", searchQuery)
+              .eq("statusFilter", statusFilter),
+          )
+          // eslint-disable-next-line @convex-dev/no-filter-in-query
+          .filter((q) =>
+            q.or(
+              q.eq(q.field("kind"), firstKind),
+              q.eq(q.field("kind"), secondKind),
+            ),
+          )
+          .take(args.limit);
+      }
+    } else if (kinds === undefined) {
       entries =
         status === undefined
           ? await ctx.db
@@ -453,6 +584,7 @@ export const create = mutation({
       actorId: args.actorId,
       kind: args.kind,
       status: args.defaultStatus,
+      statusFilter: entryStatusFilterForStatus(args.defaultStatus),
       title,
       body,
       normalizedTitle: normalizeTitle(title),
@@ -504,6 +636,7 @@ export const update = mutation({
       body,
       normalizedTitle: normalizeTitle(title),
       searchText: `${title}\n${body}`,
+      statusFilter: entryStatusFilterForStatus(entry.status),
       updatedAt: Date.now(),
     });
     return null;
@@ -526,6 +659,7 @@ export const setStatus = mutation({
     }
     await ctx.db.patch("entries", args.entryId, {
       status: args.status,
+      statusFilter: entryStatusFilterForStatus(args.status),
       updatedAt: Date.now(),
     });
     return null;
@@ -557,14 +691,20 @@ export const setUpvote = mutation({
         entryId: args.entryId,
       });
       const upvoteCount = entry.upvoteCount + 1;
-      await ctx.db.patch("entries", args.entryId, { upvoteCount });
+      await ctx.db.patch("entries", args.entryId, {
+        upvoteCount,
+        statusFilter: entryStatusFilterForStatus(entry.status),
+      });
       return { active: true, upvoteCount };
     }
 
     if (!args.desiredState && existing !== null) {
       await ctx.db.delete("reactions", existing._id);
       const upvoteCount = Math.max(0, entry.upvoteCount - 1);
-      await ctx.db.patch("entries", args.entryId, { upvoteCount });
+      await ctx.db.patch("entries", args.entryId, {
+        upvoteCount,
+        statusFilter: entryStatusFilterForStatus(entry.status),
+      });
       return { active: false, upvoteCount };
     }
 

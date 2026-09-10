@@ -1,7 +1,7 @@
 import { Stack, useRouter } from "expo-router";
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider";
-import { createEntryLabel } from "../../shared/helpers";
+import { createEntryLabel, entryStatusChoices } from "../../shared/helpers";
 import type { FeedbackStackProps } from "./types";
 
 export function FeedbackStack({
@@ -18,6 +18,8 @@ export function FeedbackStack({
     setShowForm,
     setIsSearching,
     setSelectedEntryId,
+    statusFilter,
+    setStatusFilter,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const router = useRouter();
@@ -106,6 +108,26 @@ export function FeedbackStack({
       />
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.SearchBarSlot />
+        <Stack.Toolbar.Menu
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "line.3.horizontal.decrease"
+              : androidToolbarIcons.filter
+          }
+          title={messages.board.statusFilter}
+          accessibilityLabel={messages.board.statusFilter}
+          tintColor={theme.colors.primary}
+        >
+          {entryStatusChoices(messages).map(({ value, label }) => (
+            <Stack.Toolbar.MenuAction
+              key={value}
+              isOn={statusFilter === value}
+              onPress={() => setStatusFilter(value)}
+            >
+              {label}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
       </Stack.Toolbar>
     </>
   );

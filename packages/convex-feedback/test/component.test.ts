@@ -1,8 +1,8 @@
 import { convexTest } from "convex-test";
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
-import { describe, expect, expectTypeOf, test } from "vitest";
+import { describe, expect, expectTypeOf, test, vi } from "vitest";
 
-import { api } from "../src/component/_generated/api.js";
+import { api, internal } from "../src/component/_generated/api.js";
 import type { Id } from "../src/component/_generated/dataModel.js";
 import schema from "../src/component/schema.js";
 
@@ -94,6 +94,101 @@ describe("convex-feedback component", () => {
 
     expect(entry?.upvoteCount).toBe(1);
     expect(entry?.viewerHasUpvoted).toBe(true);
+  });
+
+  test("open and closed status filters are materialized and queried on Convex", async () => {
+    const testInstance = setup();
+    const openId = await createEntry(testInstance, "Open filter target");
+    const plannedId = await createEntry(testInstance, "Planned filter target");
+    const closedId = await createEntry(testInstance, "Closed filter target");
+
+    await testInstance.mutation(api.entries.setStatus, {
+      actor: { id: "moderator-1", isModerator: true },
+      entryId: plannedId,
+      status: "planned",
+    });
+    await testInstance.mutation(api.entries.setStatus, {
+      actor: { id: "moderator-1", isModerator: true },
+      entryId: closedId,
+      status: "closed",
+    });
+
+    const storedFilters = await testInstance.run(async (ctx) => ({
+      open: (await ctx.db.get("entries", openId))?.statusFilter,
+      planned: (await ctx.db.get("entries", plannedId))?.statusFilter,
+      closed: (await ctx.db.get("entries", closedId))?.statusFilter,
+    }));
+    expect(storedFilters).toEqual({
+      open: "open",
+      planned: "open",
+      closed: "closed",
+    });
+
+    const openEntries = await testInstance.query(api.entries.list, {
+      paginationOpts: { numItems: 10, cursor: null },
+      statusFilter: "open",
+      sort: "newest",
+    });
+    expect(openEntries.page.map((entry) => entry.id).sort()).toEqual(
+      [openId, plannedId].sort(),
+    );
+
+    const closedSearch = await testInstance.query(api.entries.search, {
+      searchQuery: "filter target",
+      statusFilter: "closed",
+      limit: 10,
+    });
+    expect(closedSearch.map((entry) => entry.id)).toEqual([closedId]);
+  });
+
+  test("status-filter migration backfills batches and is safe to rerun", async () => {
+    const testInstance = setup();
+
+    await testInstance.run(async (ctx) => {
+      for (let index = 0; index < 101; index += 1) {
+        const status = index % 2 === 0 ? "closed" : "planned";
+        await ctx.db.insert("entries", {
+          actorId: `legacy-author-${index}`,
+          kind: "feedback",
+          status,
+          title: `Legacy entry ${index}`,
+          body: "Legacy body",
+          normalizedTitle: `legacy entry ${index}`,
+          searchText: `Legacy entry ${index}\nLegacy body`,
+          upvoteCount: 0,
+          commentCount: 0,
+        });
+      }
+    });
+
+    const firstBatch = await testInstance.mutation(
+      internal.migrations.backfillStatusFilter,
+      {},
+    );
+    expect(firstBatch).toEqual({ updated: 100, hasMore: true });
+
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const entries = await testInstance.run(async (ctx) =>
+      ctx.db.query("entries").take(200),
+    );
+    expect(entries).toHaveLength(101);
+    expect(
+      entries.every(
+        (entry) =>
+          entry.statusFilter ===
+          (entry.status === "closed" ? "closed" : "open"),
+      ),
+    ).toBe(true);
+
+    await expect(
+      testInstance.mutation(internal.migrations.backfillStatusFilter, {}),
+    ).resolves.toEqual({ updated: 0, hasMore: false });
   });
 
   test("entry metadata is returned only by moderator get queries", async () => {

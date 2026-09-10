@@ -60,6 +60,22 @@ Run Convex so the host application's component references are generated:
 npx convex dev
 ```
 
+### Automatic `statusFilter` upgrade migration
+
+The component stores an indexed `statusFilter` bucket for board filtering:
+`closed` entries map to `closed`, while every other workflow status maps to
+`open`. Existing entries may not have this field when upgrading from an older
+version.
+
+On the first deployment of this migration, a `crons.interval()` job runs
+immediately and backfills legacy entries in bounded batches. Each batch
+schedules the next one until no entry with an undefined `statusFilter` remains.
+The migration is idempotent and safe to retry.
+
+The same job repeats every 30 days for now as a temporary, low-frequency
+self-healing safeguard for missed or legacy records. It should be removed in a
+future release after supported installations have had enough time to upgrade.
+
 ## 2. Expose the component through your host API
 
 A Convex component cannot make authorization decisions using your host application's authentication state directly. `convex-feedback` therefore exposes a host wrapper: your app resolves the current actor, and the wrapper passes the stable actor identity into the component.
@@ -240,6 +256,7 @@ Then use the hooks directly or pass `feedbackHooks` to `convex-feedback-ui`.
 ```tsx
 const entries = feedbackHooks.useEntries({
   kinds: ["feature_request", "bug_report"],
+  statusFilter: "open",
   sort: "top",
 });
 

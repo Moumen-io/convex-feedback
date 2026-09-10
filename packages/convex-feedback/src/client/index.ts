@@ -26,6 +26,7 @@ import {
   commentSortValidator,
   entryKindValidator,
   entrySortValidator,
+  entryStatusFilterValidator,
   entryStatusValidator,
   feedbackMetadataValidator,
   publicCommentValidator,
@@ -44,6 +45,7 @@ export type {
   EntryKind,
   EntrySort,
   EntryStatus,
+  EntryStatusFilter,
   FeedbackActor,
   FeedbackComment,
   FeedbackEntry,
@@ -428,6 +430,7 @@ function buildFeedbackApi<
         paginationOpts: paginationOptsValidator,
         kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
+        statusFilter: v.optional(entryStatusFilterValidator),
         sort: v.optional(entrySortValidator),
       },
       returns: paginationResultValidator(publicEntryValidator),
@@ -441,6 +444,9 @@ function buildFeedbackApi<
           ),
           ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
           ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.statusFilter === undefined
+            ? {}
+            : { statusFilter: args.statusFilter }),
           sort: args.sort ?? config.entries.defaultSort,
           ...actorIdFields(actor),
         });
@@ -465,6 +471,7 @@ function buildFeedbackApi<
         searchQuery: v.string(),
         kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
+        statusFilter: v.optional(entryStatusFilterValidator),
         limit: v.optional(v.number()),
       },
       returns: v.array(publicEntryValidator),
@@ -475,6 +482,9 @@ function buildFeedbackApi<
           searchQuery: args.searchQuery,
           ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
           ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.statusFilter === undefined
+            ? {}
+            : { statusFilter: args.statusFilter }),
           limit: clampPositive(
             args.limit,
             config.search.defaultLimit,

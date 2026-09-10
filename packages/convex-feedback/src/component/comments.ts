@@ -15,6 +15,7 @@ import {
 import {
   actorValidator,
   commentSortValidator,
+  entryStatusFilterForStatus,
   publicCommentValidator,
 } from "./model.js";
 import schema from "./schema.js";
@@ -121,6 +122,7 @@ export const create = mutation({
 
     await ctx.db.patch("entries", args.entryId, {
       commentCount: entry.commentCount + 1,
+      statusFilter: entryStatusFilterForStatus(entry.status),
     });
 
     if (args.parentCommentId !== undefined) {

@@ -190,6 +190,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "in_progress"
             | "completed"
             | "closed";
+          statusFilter?: "open" | "closed";
           viewerActorId?: string;
         },
         {
@@ -237,6 +238,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "in_progress"
             | "completed"
             | "closed";
+          statusFilter?: "open" | "closed";
           viewerActorId?: string;
         },
         Array<{

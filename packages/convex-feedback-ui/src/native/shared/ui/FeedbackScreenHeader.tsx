@@ -12,8 +12,8 @@ export function FeedbackScreenHeader() {
     setQuery,
     setIsSearching,
     enabledKinds,
-    entryStatus,
-    setEntryStatus,
+    statusFilter,
+    setStatusFilter,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const { top } = useSafeAreaInsets();
@@ -32,8 +32,8 @@ export function FeedbackScreenHeader() {
       <ChoiceChips
         accessibilityLabel={messages.board.statusFilter}
         options={entryStatusChoices(messages)}
-        value={entryStatus}
-        onValueChange={setEntryStatus}
+        value={statusFilter}
+        onValueChange={setStatusFilter}
       />
       <Pressable
         onPress={() => setShowForm(true)}

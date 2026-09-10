@@ -21,8 +21,8 @@ export function FeedbackBoardScreen() {
     setQuery,
     setIsSearching,
     enabledKinds,
-    entryStatus,
-    setEntryStatus,
+    statusFilter,
+    setStatusFilter,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const { routes, colors, androidToolbarIcons } = useRoutedFeedback();
@@ -115,8 +115,8 @@ export function FeedbackBoardScreen() {
           {entryStatusChoices(messages).map(({ value, label }) => (
             <Stack.Toolbar.MenuAction
               key={value}
-              isOn={entryStatus === value}
-              onPress={() => setEntryStatus(value)}
+              isOn={statusFilter === value}
+              onPress={() => setStatusFilter(value)}
             >
               {label}
             </Stack.Toolbar.MenuAction>

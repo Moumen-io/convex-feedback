@@ -16,6 +16,11 @@ export const entryStatusValidator = v.union(
   v.literal("closed"),
 );
 
+export const entryStatusFilterValidator = v.union(
+  v.literal("open"),
+  v.literal("closed"),
+);
+
 export const entrySortValidator = v.union(
   v.literal("top"),
   v.literal("newest"),
@@ -99,6 +104,15 @@ export type EntryKind = Infer<typeof entryKindValidator>;
  * fully typed lifecycle. UI labels and presentation can be customized.
  */
 export type EntryStatus = Infer<typeof entryStatusValidator>;
+
+/** Coarse status bucket used by the indexed board and search filters. */
+export type EntryStatusFilter = Infer<typeof entryStatusFilterValidator>;
+
+export function entryStatusFilterForStatus(
+  status: EntryStatus,
+): EntryStatusFilter {
+  return status === "closed" ? "closed" : "open";
+}
 
 /**
  * Server-side ordering strategy for feedback entries.

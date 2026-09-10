@@ -1,4 +1,4 @@
-import type { EntryKind, EntryStatus } from "convex-feedback";
+import type { EntryKind, EntryStatusFilter } from "convex-feedback";
 import type { FeedbackMessages } from "./types/messages.js";
 import type { ChoiceChipOption } from "./types/choice.js";
 
@@ -19,7 +19,7 @@ export function createEntryLabel(
 
 export function entryStatusChoices(
   messages: FeedbackMessages,
-): readonly ChoiceChipOption<EntryStatus>[] {
+): readonly ChoiceChipOption<EntryStatusFilter>[] {
   return [
     { value: "open", label: messages.statuses.open },
     { value: "closed", label: messages.statuses.closed },

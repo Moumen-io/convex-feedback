@@ -3,6 +3,7 @@ import { v } from "convex/values";
 
 import {
   entryKindValidator,
+  entryStatusFilterValidator,
   entryStatusValidator,
   feedbackMetadataValidator,
 } from "./model.js";
@@ -12,6 +13,7 @@ const schema = defineSchema({
     actorId: v.string(),
     kind: entryKindValidator,
     status: entryStatusValidator,
+    statusFilter: v.optional(entryStatusFilterValidator),
     title: v.string(),
     body: v.string(),
     normalizedTitle: v.string(),
@@ -24,15 +26,23 @@ const schema = defineSchema({
     .index("by_kind", ["kind"])
     .index("by_status", ["status"])
     .index("by_kind_status", ["kind", "status"])
+    .index("by_status_filter", ["statusFilter"])
+    .index("by_kind_status_filter", ["kind", "statusFilter"])
     .index("by_upvotes", ["upvoteCount"])
     .index("by_kind_upvotes", ["kind", "upvoteCount"])
     .index("by_status_upvotes", ["status", "upvoteCount"])
     .index("by_kind_status_upvotes", ["kind", "status", "upvoteCount"])
+    .index("by_status_filter_upvotes", ["statusFilter", "upvoteCount"])
+    .index("by_kind_status_filter_upvotes", [
+      "kind",
+      "statusFilter",
+      "upvoteCount",
+    ])
     .index("by_normalized_title", ["normalizedTitle"])
     .index("by_kind_normalized_title", ["kind", "normalizedTitle"])
     .searchIndex("search", {
       searchField: "searchText",
-      filterFields: ["kind", "status"],
+      filterFields: ["kind", "status", "statusFilter"],
     }),
 
   comments: defineTable({

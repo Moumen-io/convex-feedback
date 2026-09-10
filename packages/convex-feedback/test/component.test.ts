@@ -96,6 +96,51 @@ describe("convex-feedback component", () => {
     expect(entry?.viewerHasUpvoted).toBe(true);
   });
 
+  test("open and closed status filters are materialized and queried on Convex", async () => {
+    const testInstance = setup();
+    const openId = await createEntry(testInstance, "Open filter target");
+    const plannedId = await createEntry(testInstance, "Planned filter target");
+    const closedId = await createEntry(testInstance, "Closed filter target");
+
+    await testInstance.mutation(api.entries.setStatus, {
+      actor: { id: "moderator-1", isModerator: true },
+      entryId: plannedId,
+      status: "planned",
+    });
+    await testInstance.mutation(api.entries.setStatus, {
+      actor: { id: "moderator-1", isModerator: true },
+      entryId: closedId,
+      status: "closed",
+    });
+
+    const storedFilters = await testInstance.run(async (ctx) => ({
+      open: (await ctx.db.get("entries", openId))?.statusFilter,
+      planned: (await ctx.db.get("entries", plannedId))?.statusFilter,
+      closed: (await ctx.db.get("entries", closedId))?.statusFilter,
+    }));
+    expect(storedFilters).toEqual({
+      open: "open",
+      planned: "open",
+      closed: "closed",
+    });
+
+    const openEntries = await testInstance.query(api.entries.list, {
+      paginationOpts: { numItems: 10, cursor: null },
+      statusFilter: "open",
+      sort: "newest",
+    });
+    expect(openEntries.page.map((entry) => entry.id).sort()).toEqual(
+      [openId, plannedId].sort(),
+    );
+
+    const closedSearch = await testInstance.query(api.entries.search, {
+      searchQuery: "filter target",
+      statusFilter: "closed",
+      limit: 10,
+    });
+    expect(closedSearch.map((entry) => entry.id)).toEqual([closedId]);
+  });
+
   test("entry metadata is returned only by moderator get queries", async () => {
     const testInstance = setup();
     const metadata = {

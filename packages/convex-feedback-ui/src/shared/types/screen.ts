@@ -2,7 +2,7 @@ import type {
   CommentSort,
   EntryKind,
   EntrySort,
-  EntryStatus,
+  EntryStatusFilter,
   FeedbackComment,
   FeedbackEntry,
 } from "convex-feedback";
@@ -124,13 +124,13 @@ export interface FeedbackScreenBodyContextValue
   showForm: boolean;
   isSearching: boolean;
   selectedEntryId: string | null;
-  entryStatus: EntryStatus;
+  statusFilter: EntryStatusFilter;
   setQuery: React.Dispatch<React.SetStateAction<string>>;
   setDebouncedQuery: React.Dispatch<React.SetStateAction<string>>;
   setShowForm: React.Dispatch<React.SetStateAction<boolean>>;
   setIsSearching: React.Dispatch<React.SetStateAction<boolean>>;
   setSelectedEntryId: React.Dispatch<React.SetStateAction<string | null>>;
-  setEntryStatus: React.Dispatch<React.SetStateAction<EntryStatus>>;
+  setStatusFilter: React.Dispatch<React.SetStateAction<EntryStatusFilter>>;
 }
 
 export type FeedbackScreenBodyProps = FeedbackColorProps;

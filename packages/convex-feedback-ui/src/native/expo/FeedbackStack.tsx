@@ -18,8 +18,8 @@ export function FeedbackStack({
     setShowForm,
     setIsSearching,
     setSelectedEntryId,
-    entryStatus,
-    setEntryStatus,
+    statusFilter,
+    setStatusFilter,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const router = useRouter();
@@ -121,8 +121,8 @@ export function FeedbackStack({
           {entryStatusChoices(messages).map(({ value, label }) => (
             <Stack.Toolbar.MenuAction
               key={value}
-              isOn={entryStatus === value}
-              onPress={() => setEntryStatus(value)}
+              isOn={statusFilter === value}
+              onPress={() => setStatusFilter(value)}
             >
               {label}
             </Stack.Toolbar.MenuAction>

@@ -94,8 +94,8 @@ function FeedbackScreenInner({
     setShowForm,
     setSelectedEntryId,
     selectedEntryId,
-    entryStatus,
-    setEntryStatus,
+    statusFilter,
+    setStatusFilter,
     query,
     setQuery,
     debouncedQuery,
@@ -106,12 +106,12 @@ function FeedbackScreenInner({
   const list = hooks.useEntries({
     sort: entrySort,
     kinds: enabledKinds,
-    status: entryStatus,
+    statusFilter,
   });
   const searchResults = hooks.useSearchEntries({
     searchQuery: debouncedQuery,
     kinds: enabledKinds,
-    status: entryStatus,
+    statusFilter,
   });
 
   if (selectedEntryId !== null) {
@@ -140,8 +140,8 @@ function FeedbackScreenInner({
           <ChoiceChips
             aria-label={messages.board.statusFilter}
             options={entryStatusChoices(messages)}
-            value={entryStatus}
-            onValueChange={setEntryStatus}
+            value={statusFilter}
+            onValueChange={setStatusFilter}
           />
         </div>
         <button

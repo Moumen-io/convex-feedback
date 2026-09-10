@@ -20,6 +20,7 @@ export function FeedbackScreenList({
     entrySort,
     isSearching,
     enabledKinds,
+    entryStatus,
     selectedEntryId,
     debouncedQuery,
     setSelectedEntryId,
@@ -28,10 +29,15 @@ export function FeedbackScreenList({
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
 
-  const list = hooks.useEntries({ sort: entrySort, kinds: enabledKinds });
+  const list = hooks.useEntries({
+    sort: entrySort,
+    kinds: enabledKinds,
+    status: entryStatus,
+  });
   const search = hooks.useSearchEntries({
     searchQuery: debouncedQuery,
     kinds: enabledKinds,
+    status: entryStatus,
   });
 
   const entries = isSearching ? search : list.results;

@@ -5,7 +5,7 @@ import type { EntryKind } from "convex-feedback";
 
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider.js";
-import { createEntryLabel } from "../../shared/helpers.js";
+import { createEntryLabel, entryStatusChoices } from "../../shared/helpers.js";
 import { EntryDetail } from "../shared/ui/EntryDetail.js";
 import { FeedbackScreenList } from "../shared/ui/FeedbackScreenList.js";
 import { CreateEntryForm } from "../shared/ui/NewEntry.js";
@@ -15,8 +15,15 @@ import { useRoutedFeedbackModal } from "./RoutedFeedbackModalContext.js";
 import { useRoutedFeedback } from "./RoutedFeedbackContext.js";
 
 export function FeedbackBoardScreen() {
-  const { query, isSearching, setQuery, setIsSearching, enabledKinds } =
-    useFeedbackBody();
+  const {
+    query,
+    isSearching,
+    setQuery,
+    setIsSearching,
+    enabledKinds,
+    entryStatus,
+    setEntryStatus,
+  } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const { routes, colors, androidToolbarIcons } = useRoutedFeedback();
   const router = useRouter();
@@ -95,6 +102,26 @@ export function FeedbackBoardScreen() {
       />
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.SearchBarSlot />
+        <Stack.Toolbar.Menu
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "line.3.horizontal.decrease"
+              : androidToolbarIcons.filter
+          }
+          title={messages.board.statusFilter}
+          accessibilityLabel={messages.board.statusFilter}
+          tintColor={theme.colors.primary}
+        >
+          {entryStatusChoices(messages).map(({ value, label }) => (
+            <Stack.Toolbar.MenuAction
+              key={value}
+              isOn={entryStatus === value}
+              onPress={() => setEntryStatus(value)}
+            >
+              {label}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
       </Stack.Toolbar>
     </>
   );

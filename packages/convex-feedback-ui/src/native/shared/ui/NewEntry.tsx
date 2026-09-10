@@ -15,7 +15,7 @@ import { useFeedbackUi } from "../../../shared/context/FeedbackProvider";
 import type { FeedbackScreenEntryModalProps } from "../../../shared/types";
 import { collectEntryMetadata } from "../../../shared/metadata";
 import { EntryDetail } from "./EntryDetail";
-import { FeedbackForm } from "./primitives";
+import { ChoiceChips, FeedbackForm } from "./primitives";
 
 export function CreateEntryModal({
   onRequestClose,
@@ -247,33 +247,15 @@ export function CreateEntryForm({
           <Text style={{ color: theme.colors.text, fontWeight: "600" }}>
             {messages.form.kind}
           </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-            {enabledKinds.map((value) => (
-              <Pressable
-                key={value}
-                onPress={() => onKindChange(value)}
-                style={{
-                  paddingVertical: 6,
-                  paddingHorizontal: 9,
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor:
-                    value === kind ? theme.colors.primary : theme.colors.border,
-                }}
-              >
-                <Text
-                  style={{
-                    color:
-                      value === kind
-                        ? theme.colors.primary
-                        : theme.colors.mutedText,
-                  }}
-                >
-                  {messages.kinds[value]}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <ChoiceChips
+            accessibilityLabel={messages.form.kind}
+            options={enabledKinds.map((value) => ({
+              value,
+              label: messages.kinds[value],
+            }))}
+            value={kind}
+            onValueChange={onKindChange}
+          />
         </>
       )}
       <FeedbackForm.Input

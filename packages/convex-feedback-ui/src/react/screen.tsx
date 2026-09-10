@@ -11,7 +11,7 @@ import {
   FeedbackProvider,
   useFeedbackUi,
 } from "../shared/context/FeedbackProvider";
-import { createEntryLabel } from "../shared/helpers.js";
+import { createEntryLabel, entryStatusChoices } from "../shared/helpers.js";
 import type {
   FeedbackScreenCommentBranchProps,
   FeedbackScreenContentProps,
@@ -23,6 +23,7 @@ import type {
 } from "../shared/types/";
 import {
   Comment,
+  ChoiceChips,
   FeedbackBoard,
   FeedbackEntry,
   FeedbackForm,
@@ -93,6 +94,8 @@ function FeedbackScreenInner({
     setShowForm,
     setSelectedEntryId,
     selectedEntryId,
+    entryStatus,
+    setEntryStatus,
     query,
     setQuery,
     debouncedQuery,
@@ -100,10 +103,15 @@ function FeedbackScreenInner({
   } = useFeedbackBody();
   const { messages } = useFeedbackUi();
 
-  const list = hooks.useEntries({ sort: entrySort, kinds: enabledKinds });
+  const list = hooks.useEntries({
+    sort: entrySort,
+    kinds: enabledKinds,
+    status: entryStatus,
+  });
   const searchResults = hooks.useSearchEntries({
     searchQuery: debouncedQuery,
     kinds: enabledKinds,
+    status: entryStatus,
   });
 
   if (selectedEntryId !== null) {
@@ -129,6 +137,12 @@ function FeedbackScreenInner({
         <div>
           <FeedbackBoard.Title />
           <p className="cf-board__subtitle">{messages.board.subtitle}</p>
+          <ChoiceChips
+            aria-label={messages.board.statusFilter}
+            options={entryStatusChoices(messages)}
+            value={entryStatus}
+            onValueChange={setEntryStatus}
+          />
         </div>
         <button
           type="button"
@@ -292,19 +306,20 @@ function CreateEntryForm({ onCreated }: FeedbackScreenEntryModalProps) {
 
   return (
     <FeedbackForm.Root onSubmit={submit}>
-      <label className="cf-field">
-        <span>{messages.form.kind}</span>
-        <FeedbackForm.Select
-          value={kind}
-          onChange={(event) => setKind(event.currentTarget.value as EntryKind)}
-        >
-          {enabledKinds.map((value) => (
-            <option key={value} value={value}>
-              {messages.kinds[value]}
-            </option>
-          ))}
-        </FeedbackForm.Select>
-      </label>
+      {enabledKinds.length > 1 && (
+        <label className="cf-field">
+          <span>{messages.form.kind}</span>
+          <ChoiceChips
+            aria-label={messages.form.kind}
+            options={enabledKinds.map((value) => ({
+              value,
+              label: messages.kinds[value],
+            }))}
+            value={kind}
+            onValueChange={setKind}
+          />
+        </label>
+      )}
       <label className="cf-field">
         <span>{messages.form.title}</span>
         <FeedbackForm.Input

@@ -335,7 +335,9 @@ Web and native expose the same conceptual compounds:
 
 `FeedbackBoard.State` is the centered container used for loading and empty
 states. The prebuilt screen accepts an optional `emptyState` node and renders
-it above the default empty-state message.
+it above the default empty-state message. `ChoiceChips` is the shared
+single-selection primitive used for entry kinds and the web/native board's
+Open/Closed filter.
 
 Example:
 
@@ -360,6 +362,14 @@ Native primitives can also be composed directly:
 <FeedbackBoard.Root>
   <FeedbackBoard.Header>
     <FeedbackBoard.Title />
+    <ChoiceChips
+      options={[
+        { value: "open", label: "Open" },
+        { value: "closed", label: "Closed" },
+      ]}
+      value={status}
+      onValueChange={setStatus}
+    />
   </FeedbackBoard.Header>
 
   <FeedbackBoard.Search value={query} onValueChange={setQuery} />
@@ -405,6 +415,7 @@ Override only what you need:
     board: {
       title: "Produktfeedback",
       searchPlaceholder: "Feedback durchsuchen…",
+      statusFilter: "Status filtern",
     },
     comments: {
       viewReplies: (count) => `${count} Antworten anzeigen`,
@@ -414,6 +425,10 @@ Override only what you need:
 ```
 
 This is compatible with i18next, react-intl, Lingui, custom dictionaries, or plain static objects. Call your application's translation function when building the `messages` object.
+
+The board status filter uses `messages.statuses.open` and
+`messages.statuses.closed` for its two options, and
+`messages.board.statusFilter` for its accessible label.
 
 Precedence for copy is:
 

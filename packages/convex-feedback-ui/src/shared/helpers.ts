@@ -1,5 +1,6 @@
-import type { EntryKind } from "convex-feedback";
+import type { EntryKind, EntryStatus } from "convex-feedback";
 import type { FeedbackMessages } from "./types/messages.js";
+import type { ChoiceChipOption } from "./types/choice.js";
 
 export const kinds: readonly EntryKind[] = [
   "feedback",
@@ -14,6 +15,15 @@ export function createEntryLabel(
   return enabledKinds.length === 1
     ? messages.newFeedback[enabledKinds[0]!]
     : messages.board.createEntry;
+}
+
+export function entryStatusChoices(
+  messages: FeedbackMessages,
+): readonly ChoiceChipOption<EntryStatus>[] {
+  return [
+    { value: "open", label: messages.statuses.open },
+    { value: "closed", label: messages.statuses.closed },
+  ];
 }
 
 export function debounce<TArgs extends unknown[]>(

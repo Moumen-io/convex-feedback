@@ -18,6 +18,9 @@ export interface FeedbackMessages {
     /** Search input placeholder. */
     searchPlaceholder: string;
 
+    /** Accessible label for the open/closed entry status filter. */
+    statusFilter: string;
+
     /** CTA for opening the create-entry flow.
      * This is shown when enabled kinds are two or more.
      * Use messages.newFeedback for a single-kind entry.

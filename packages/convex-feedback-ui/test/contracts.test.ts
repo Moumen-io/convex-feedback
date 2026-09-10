@@ -4,7 +4,7 @@ import {
   englishFeedbackMessages,
   mergeFeedbackMessages,
 } from "../src/shared/messages.js";
-import { createEntryLabel } from "../src/shared/helpers.js";
+import { createEntryLabel, entryStatusChoices } from "../src/shared/helpers.js";
 import {
   defaultFeedbackTheme,
   mergeFeedbackTheme,
@@ -58,5 +58,17 @@ describe("UI contracts", () => {
     expect(createEntryLabel(["feedback", "bug_report"], messages)).toBe(
       messages.board.createEntry,
     );
+  });
+
+  test("status filter choices use localized messages", () => {
+    const messages = mergeFeedbackMessages({
+      board: { statusFilter: "Status" },
+      statuses: { open: "Ouvert", closed: "Fermé" },
+    });
+
+    expect(entryStatusChoices(messages)).toEqual([
+      { value: "open", label: "Ouvert" },
+      { value: "closed", label: "Fermé" },
+    ]);
   });
 });

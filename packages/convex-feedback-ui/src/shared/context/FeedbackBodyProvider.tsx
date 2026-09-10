@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import type { EntryStatus } from "convex-feedback";
 import { debounce } from "../helpers";
 import type {
   FeedbackScreenBodyContextValue,
@@ -34,6 +35,7 @@ export function FeedbackBodyProvider({
   const [isSearching, setIsSearching] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [entryStatus, setEntryStatus] = useState<EntryStatus>("open");
 
   const updateDebouncedQuery = useMemo(
     () => debounce(setDebouncedQuery, debounceDuration),
@@ -52,12 +54,14 @@ export function FeedbackBodyProvider({
     showForm,
     isSearching,
     selectedEntryId,
+    entryStatus,
 
     setQuery,
     setDebouncedQuery,
     setShowForm,
     setIsSearching,
     setSelectedEntryId,
+    setEntryStatus,
 
     hooks,
     entrySort,

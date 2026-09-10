@@ -2,12 +2,19 @@ import { Pressable, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider";
-import { createEntryLabel } from "../../../shared/helpers";
-import { FeedbackBoard } from "./primitives";
+import { createEntryLabel, entryStatusChoices } from "../../../shared/helpers";
+import { ChoiceChips, FeedbackBoard } from "./primitives";
 
 export function FeedbackScreenHeader() {
-  const { query, setShowForm, setQuery, setIsSearching, enabledKinds } =
-    useFeedbackBody();
+  const {
+    query,
+    setShowForm,
+    setQuery,
+    setIsSearching,
+    enabledKinds,
+    entryStatus,
+    setEntryStatus,
+  } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const { top } = useSafeAreaInsets();
 
@@ -22,6 +29,12 @@ export function FeedbackScreenHeader() {
       <Text style={{ color: theme.colors.mutedText }}>
         {messages.board.subtitle}
       </Text>
+      <ChoiceChips
+        accessibilityLabel={messages.board.statusFilter}
+        options={entryStatusChoices(messages)}
+        value={entryStatus}
+        onValueChange={setEntryStatus}
+      />
       <Pressable
         onPress={() => setShowForm(true)}
         style={{

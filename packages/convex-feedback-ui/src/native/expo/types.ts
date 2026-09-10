@@ -52,6 +52,8 @@ export interface FeedbackAndroidToolbarIcons {
   back?: ImageSourcePropType;
   /** Android image source for modal close actions. */
   close?: ImageSourcePropType;
+  /** Android image source for the open/closed status filter. */
+  filter?: ImageSourcePropType;
 }
 
 export interface FeedbackStackLayoutProps extends FeedbackScreenRootProps {

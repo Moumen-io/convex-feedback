@@ -5,6 +5,7 @@ export const englishFeedbackMessages: FeedbackMessages = {
     title: "Feedback",
     subtitle: "Share ideas, report problems, and help shape what comes next.",
     searchPlaceholder: "Search feedback…",
+    statusFilter: "Filter by status",
     createEntry: "Create feedback",
     noEntries: "No feedback yet.",
     noSearchResults: "No matching feedback found.",

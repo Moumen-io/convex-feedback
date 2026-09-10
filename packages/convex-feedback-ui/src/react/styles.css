@@ -30,6 +30,33 @@
   margin: 0.4rem 0 0;
   color: var(--cf-muted);
 }
+:where(.cf-board) :where(.cf-choice-chips) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 0.75rem;
+}
+:where(.cf-board) :where(.cf-choice-chip) {
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--cf-surface);
+  color: var(--cf-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+:where(.cf-board) :where(.cf-choice-chip[data-selected="true"]) {
+  border-color: var(--cf-primary);
+  background: color-mix(in srgb, var(--cf-primary) 10%, var(--cf-surface));
+  color: var(--cf-primary);
+}
+:where(.cf-board) :where(.cf-choice-chip:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--cf-primary) 25%, transparent);
+  outline-offset: 2px;
+}
 :where(.cf-board) :where(.cf-board__list),
 :where(.cf-board) :where(.cf-comments) {
   display: grid;

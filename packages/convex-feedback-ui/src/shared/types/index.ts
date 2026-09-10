@@ -1,5 +1,6 @@
 export type * from "./board.js";
 export type * from "./comment.js";
+export type * from "./choice.js";
 export type * from "./context.js";
 export type * from "./entry.js";
 export type * from "./form.js";

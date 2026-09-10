@@ -25,6 +25,7 @@ import type {
   CommentLikeBaseProps,
   CommentLikeState,
   CommentRootBaseProps,
+  ChoiceChipsBaseProps,
   EntryRootBaseProps,
   EntryUpvoteBaseProps,
   EntryUpvoteState,
@@ -165,6 +166,49 @@ export const FeedbackBoard = {
   List: BoardList,
   State: BoardState,
 };
+
+/**
+ * Props for the reusable web `ChoiceChips` primitive.
+ */
+export interface ChoiceChipsProps<Value extends string = string>
+  extends
+    Omit<HTMLAttributes<HTMLDivElement>, "children">,
+    ChoiceChipsBaseProps<Value> {}
+
+export function ChoiceChips<Value extends string>({
+  options,
+  value,
+  onValueChange,
+  className,
+  role,
+  ...props
+}: ChoiceChipsProps<Value>) {
+  const { unstyled } = useFeedbackUi();
+
+  return (
+    <div
+      {...props}
+      role={role ?? "group"}
+      className={classes(unstyled, "cf-choice-chips", className)}
+    >
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            className={classes(unstyled, "cf-choice-chip")}
+            data-selected={selected ? "true" : "false"}
+            aria-pressed={selected}
+            onClick={() => onValueChange(option.value)}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const EntryContext = createContext<FeedbackEntryData | null>(null);
 

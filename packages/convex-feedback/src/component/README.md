@@ -6,7 +6,7 @@ This directory is the isolated Convex component backend.
 - `entries.ts`: entry CRUD, full-text search, duplicate suggestions, entry voting, indexed pagination.
 - `comments.ts`: direct-child pagination, recursive write validation, soft deletion, comment likes.
 - `migrations.ts`: bounded, idempotent legacy-entry backfills.
-- `crons.ts`: immediate upgrade bootstrap and temporary monthly self-healing jobs.
+- `crons.ts`: immediate upgrade migration and temporary 30-day self-healing schedule.
 - `model.ts`: reusable validators and public model types.
 - `helpers.ts`: normalization, validation, and serializers.
 - `convex.config.ts`: packaged component definition.

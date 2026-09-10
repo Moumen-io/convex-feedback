@@ -17,6 +17,7 @@ export function FeedbackScreen({
   debounceDuration = 300,
   collectMetadata,
   emptyState,
+  loading,
   transformComments,
   renderActor,
   ...props
@@ -32,6 +33,7 @@ export function FeedbackScreen({
         debounceDuration={debounceDuration}
         collectMetadata={collectMetadata}
         emptyState={emptyState}
+        loading={loading}
         collectStandardMetadata={collectNativeMetadata}
         transformComments={transformComments}
         renderActor={renderActor}

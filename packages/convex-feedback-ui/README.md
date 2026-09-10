@@ -334,8 +334,10 @@ Web and native expose the same conceptual compounds:
 - `Comment.*`
 
 `FeedbackBoard.State` is the centered container used for loading and empty
-states. The prebuilt screen accepts an optional `emptyState` node and renders
-it above the default empty-state message. `ChoiceChips` is the shared
+states. The prebuilt screen accepts optional `loading` and `emptyState` nodes.
+The loading node replaces the default loading indicator/copy; the empty-state
+node renders above the default empty-state message. Native implementations use
+`ActivityIndicator` by default when no loading node is supplied. `ChoiceChips` is the shared
 single-selection primitive used for entry kinds and the web/native board's
 Open/Closed filter.
 

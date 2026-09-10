@@ -52,6 +52,7 @@ export function FeedbackStack({
           headerTransparent: true,
           headerShadowVisible: true,
           headerBackVisible: false,
+          headerTintColor: theme.colors.text,
           contentStyle: { backgroundColor: theme.colors.background },
           ...stackOptions,
         }}
@@ -79,6 +80,7 @@ export function FeedbackStack({
           }
           accessibilityLabel={messages.entry.back}
           onPress={handleBackPress}
+          tintColor={theme.colors.text}
         >
           {messages.entry.back}
         </Stack.Toolbar.Button>
@@ -91,10 +93,6 @@ export function FeedbackStack({
           if (selectedEntryId) setSelectedEntryId(null);
           setQuery(q.nativeEvent.text);
         }}
-        onOpen={() => console.log("opened")}
-        onClose={() => console.log("closed")}
-        onSearchButtonPress={() => console.log("search button pressed")}
-        onCancelButtonPress={() => console.log("cancel button pressed")}
         onFocus={() => {
           if (selectedEntryId) setSelectedEntryId(null);
           setIsSearching(true);
@@ -108,6 +106,7 @@ export function FeedbackStack({
       />
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.SearchBarSlot />
+        <Stack.Toolbar.Spacer />
         <Stack.Toolbar.Menu
           icon={
             process.env.EXPO_OS === "ios"
@@ -116,7 +115,7 @@ export function FeedbackStack({
           }
           title={messages.board.statusFilter}
           accessibilityLabel={messages.board.statusFilter}
-          tintColor={theme.colors.primary}
+          tintColor={theme.colors.text}
         >
           {entryStatusChoices(messages).map(({ value, label }) => (
             <Stack.Toolbar.MenuAction

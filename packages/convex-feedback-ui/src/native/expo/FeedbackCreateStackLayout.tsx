@@ -32,6 +32,7 @@ export function FeedbackCreateStackLayout({
   const defaults: NativeStackNavigationOptions = {
     headerShown: true,
     headerBackButtonDisplayMode: "minimal",
+    headerTintColor: theme.colors.text,
     contentStyle: { backgroundColor: theme.colors.background },
   };
 

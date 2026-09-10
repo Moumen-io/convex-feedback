@@ -1,4 +1,4 @@
-import { Text } from "react-native";
+import { ActivityIndicator, Text } from "react-native";
 
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider.js";
@@ -26,6 +26,7 @@ export function FeedbackScreenList({
     setSelectedEntryId,
     setShowForm,
     emptyState,
+    loading: loadingIndicator,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
 
@@ -59,9 +60,9 @@ export function FeedbackScreenList({
         </FeedbackBoard.List>
       ) : loading ? (
         <FeedbackBoard.State>
-          <Text style={{ color: theme.colors.mutedText }}>
-            {messages.board.loading}
-          </Text>
+          {loadingIndicator ?? (
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          )}
         </FeedbackBoard.State>
       ) : entries !== undefined && entries.length === 0 ? (
         <FeedbackBoard.State>

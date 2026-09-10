@@ -12,6 +12,7 @@ export function ExpoFeedbackBody({
   useStack = true,
   StackOptions,
   androidToolbarIcons,
+  BottomToolbarWrapper,
   ...props
 }: FeedbackScreenBodyProps & FeedbackScreenStackProps) {
   const { query, isSearching, setIsSearching, setSelectedEntryId } =
@@ -41,6 +42,7 @@ export function ExpoFeedbackBody({
       stackOptions={StackOptions}
       searchRef={searchRef}
       androidToolbarIcons={androidToolbarIcons}
+      BottomToolbarWrapper={BottomToolbarWrapper}
     >
       <FeedbackScreenContent
         hideBackButton

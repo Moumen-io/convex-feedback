@@ -37,5 +37,16 @@ Toolbar actions retain their package-provided SF Symbols on iOS. Pass
 `ImageSourcePropType` values for the create, back, close, and filter actions.
 Missing Android images fall back to text labels.
 
+> [!WARNING]
+> If the filter toolbar button is intermittently broken, especially on iOS 26+, pass `Host` from `@expo/ui/swift-ui` to `BottomToolbarWrapper`. This wraps every bottom toolbar:
+>
+> ```tsx
+> import { Host } from "@expo/ui/swift-ui";
+>
+> <FeedbackScreen hooks={feedbackHooks} BottomToolbarWrapper={Host} />;
+> ```
+
+Use the same prop on `FeedbackStackLayout` for routed navigation.
+
 The existing `FeedbackScreen` remains the self-contained API for conditional
 in-screen navigation.

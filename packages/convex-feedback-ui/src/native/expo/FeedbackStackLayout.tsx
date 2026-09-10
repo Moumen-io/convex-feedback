@@ -31,6 +31,7 @@ export function FeedbackStackLayout({
   entryOptions,
   createOptions,
   androidToolbarIcons = {},
+  BottomToolbarWrapper,
   primaryColor,
   primaryForeground,
   backgroundColor,
@@ -81,7 +82,14 @@ export function FeedbackStackLayout({
         transformComments={transformComments}
         renderActor={renderActor}
       >
-        <RoutedFeedbackProvider value={{ routes, colors, androidToolbarIcons }}>
+        <RoutedFeedbackProvider
+          value={{
+            routes,
+            colors,
+            androidToolbarIcons,
+            bottomToolbarWrapper: BottomToolbarWrapper,
+          }}
+        >
           <Stack>
             <Stack.Screen
               name={routes.board}

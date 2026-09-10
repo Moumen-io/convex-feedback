@@ -1,4 +1,5 @@
 import { Stack, useRouter } from "expo-router";
+import { Fragment } from "react";
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider";
 import { createEntryLabel, entryStatusChoices } from "../../shared/helpers";
@@ -8,6 +9,7 @@ export function FeedbackStack({
   searchRef,
   stackOptions,
   androidToolbarIcons = {},
+  BottomToolbarWrapper,
   children,
 }: FeedbackStackProps) {
   const {
@@ -23,6 +25,7 @@ export function FeedbackStack({
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const router = useRouter();
+  const ToolbarWrapper = BottomToolbarWrapper ?? Fragment;
 
   const canGoBack = !!selectedEntryId || router.canGoBack();
 
@@ -104,30 +107,32 @@ export function FeedbackStack({
         ref={searchRef}
         textColor={theme.colors.text}
       />
-      <Stack.Toolbar placement="bottom">
-        <Stack.Toolbar.SearchBarSlot />
-        <Stack.Toolbar.Spacer />
-        <Stack.Toolbar.Menu
-          icon={
-            process.env.EXPO_OS === "ios"
-              ? "line.3.horizontal.decrease"
-              : androidToolbarIcons.filter
-          }
-          title={messages.board.statusFilter}
-          accessibilityLabel={messages.board.statusFilter}
-          tintColor={theme.colors.text}
-        >
-          {entryStatusChoices(messages).map(({ value, label }) => (
-            <Stack.Toolbar.MenuAction
-              key={value}
-              isOn={statusFilter === value}
-              onPress={() => setStatusFilter(value)}
-            >
-              {label}
-            </Stack.Toolbar.MenuAction>
-          ))}
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+      <ToolbarWrapper>
+        <Stack.Toolbar placement="bottom">
+          <Stack.Toolbar.SearchBarSlot />
+          <Stack.Toolbar.Spacer />
+          <Stack.Toolbar.Menu
+            icon={
+              process.env.EXPO_OS === "ios"
+                ? "line.3.horizontal.decrease"
+                : androidToolbarIcons.filter
+            }
+            title={messages.board.statusFilter}
+            accessibilityLabel={messages.board.statusFilter}
+            tintColor={theme.colors.text}
+          >
+            {entryStatusChoices(messages).map(({ value, label }) => (
+              <Stack.Toolbar.MenuAction
+                key={value}
+                isOn={statusFilter === value}
+                onPress={() => setStatusFilter(value)}
+              >
+                {label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      </ToolbarWrapper>
     </>
   );
 }

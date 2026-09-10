@@ -1,4 +1,5 @@
 import type { StackScreenProps } from "expo-router";
+import type { ComponentType, ReactNode } from "react";
 import type { ImageSourcePropType } from "react-native";
 import type { SearchBarCommands } from "react-native-screens";
 import type {
@@ -6,16 +7,22 @@ import type {
   FeedbackScreenRootProps,
 } from "../../shared/types";
 
+/** Optional wrapper used around Expo Router bottom toolbars. */
+export type BottomToolbarWrapper = ComponentType<{ children: ReactNode }>;
+
 interface FeedbackScreenWithStack {
   useStack?: true;
   StackOptions?: StackScreenProps["options"];
   /** Android image sources for toolbar actions. iOS continues to use SF Symbols. */
   androidToolbarIcons?: FeedbackAndroidToolbarIcons;
+  /** Optional component wrapping the bottom search/filter toolbar. */
+  BottomToolbarWrapper?: BottomToolbarWrapper;
 }
 interface FeedbackScreenWithoutStack {
   useStack?: false;
   StackOptions?: never;
   androidToolbarIcons?: never;
+  BottomToolbarWrapper?: never;
 }
 export type FeedbackScreenStackProps =
   FeedbackScreenWithStack | FeedbackScreenWithoutStack;
@@ -27,6 +34,8 @@ export interface FeedbackStackProps {
   searchRef: React.RefObject<SearchBarCommands | null>;
   stackOptions?: StackScreenProps["options"];
   androidToolbarIcons?: FeedbackAndroidToolbarIcons;
+  /** Optional component wrapping the bottom search/filter toolbar. */
+  BottomToolbarWrapper?: BottomToolbarWrapper;
   children: React.ReactNode;
 }
 
@@ -69,6 +78,8 @@ export interface FeedbackStackLayoutProps extends FeedbackScreenRootProps {
   createOptions?: FeedbackStackScreenOptions;
   /** Android image sources for toolbar actions. iOS continues to use SF Symbols. */
   androidToolbarIcons?: FeedbackAndroidToolbarIcons;
+  /** Optional component wrapping the bottom search/filter toolbar. */
+  BottomToolbarWrapper?: BottomToolbarWrapper;
 }
 
 export interface FeedbackCreateStackLayoutProps {
@@ -84,4 +95,5 @@ export interface RoutedFeedbackContextValue {
   routes: FeedbackRouteNames;
   colors: FeedbackColorProps;
   androidToolbarIcons: FeedbackAndroidToolbarIcons;
+  bottomToolbarWrapper?: BottomToolbarWrapper;
 }

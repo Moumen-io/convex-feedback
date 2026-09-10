@@ -109,6 +109,17 @@ By default, `useStack` is enabled:
 
 When enabled, the prebuilt screen can integrate with the current Expo Router stack, including native stack configuration, toolbar actions, back behavior, and native search UI.
 
+> [!WARNING]
+> If the filter toolbar button is intermittently broken, especially on iOS 26+, pass `Host` from `@expo/ui/swift-ui` to `BottomToolbarWrapper`:
+>
+> ```tsx
+> import { Host } from "@expo/ui/swift-ui";
+>
+> <FeedbackScreen hooks={feedbackHooks} BottomToolbarWrapper={Host} />;
+> ```
+>
+> The same `BottomToolbarWrapper={Host}` prop is available on `FeedbackStackLayout` for routed Expo navigation.
+
 Stack options can be customized through `StackOptions`:
 
 ```tsx

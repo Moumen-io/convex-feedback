@@ -1,4 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Fragment } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { SearchBarCommands } from "react-native-screens";
 import type { EntryKind } from "convex-feedback";
@@ -25,9 +26,15 @@ export function FeedbackBoardScreen() {
     setStatusFilter,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
-  const { routes, colors, androidToolbarIcons } = useRoutedFeedback();
+  const {
+    routes,
+    colors,
+    androidToolbarIcons,
+    bottomToolbarWrapper: BottomToolbarWrapper,
+  } = useRoutedFeedback();
   const router = useRouter();
   const searchRef = useRef<SearchBarCommands>(null);
+  const BottomToolbarWrapperComponent = BottomToolbarWrapper ?? Fragment;
 
   useEffect(() => {
     const searching = query.trim().length > 0;
@@ -101,30 +108,32 @@ export function FeedbackBoardScreen() {
         hideNavigationBar={false}
         textColor={theme.colors.text}
       />
-      <Stack.Toolbar placement="bottom">
-        <Stack.Toolbar.SearchBarSlot />
-        <Stack.Toolbar.Spacer />
-        <Stack.Toolbar.Menu
-          icon={
-            process.env.EXPO_OS === "ios"
-              ? "line.3.horizontal.decrease"
-              : androidToolbarIcons.filter
-          }
-          title={messages.board.statusFilter}
-          accessibilityLabel={messages.board.statusFilter}
-          tintColor={theme.colors.text}
-        >
-          {entryStatusChoices(messages).map(({ value, label }) => (
-            <Stack.Toolbar.MenuAction
-              key={value}
-              isOn={statusFilter === value}
-              onPress={() => setStatusFilter(value)}
-            >
-              {label}
-            </Stack.Toolbar.MenuAction>
-          ))}
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+      <BottomToolbarWrapperComponent>
+        <Stack.Toolbar placement="bottom">
+          <Stack.Toolbar.SearchBarSlot />
+          <Stack.Toolbar.Spacer />
+          <Stack.Toolbar.Menu
+            icon={
+              process.env.EXPO_OS === "ios"
+                ? "line.3.horizontal.decrease"
+                : androidToolbarIcons.filter
+            }
+            title={messages.board.statusFilter}
+            accessibilityLabel={messages.board.statusFilter}
+            tintColor={theme.colors.text}
+          >
+            {entryStatusChoices(messages).map(({ value, label }) => (
+              <Stack.Toolbar.MenuAction
+                key={value}
+                isOn={statusFilter === value}
+                onPress={() => setStatusFilter(value)}
+              >
+                {label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      </BottomToolbarWrapperComponent>
     </>
   );
 }

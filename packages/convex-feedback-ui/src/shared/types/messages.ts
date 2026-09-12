@@ -70,7 +70,7 @@ export interface FeedbackMessages {
     back: string;
   };
 
-  /** Moderator-only diagnostic metadata copy. */
+  /** Admin-only diagnostic metadata copy. */
   metadata: {
     /** Action that opens the metadata viewer. */
     view: string;

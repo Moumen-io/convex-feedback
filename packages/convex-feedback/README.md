@@ -4,9 +4,9 @@
 
 # convex-feedback
 
-A headless, fully typed Convex component for product feedback, feature requests, bug reports, entry upvotes, lazy nested comments, comment likes, full-text search, and duplicate suggestions.
+A headless, fully typed Convex component for product feedback, feature requests, bug reports, entry upvotes, lazy nested comments, comment likes, full-text search, duplicate suggestions, and admin workflows.
 
-> Looking for a ready-made interface? `[convex-feedback-ui](../convex-feedback-ui/README.md)` provides optional React DOM and React Native screens and compound primitives on top of this package.
+> Looking for a ready-made public interface? [`convex-feedback-ui`](../convex-feedback-ui/README.md) provides optional React DOM and React Native screens and compound primitives. For internal triage, fork the [Clerk admin panel](../../apps/admin/withClerk/README.md).
 
 ## Features
 
@@ -18,13 +18,14 @@ A headless, fully typed Convex component for product feedback, feature requests,
 - Indexed `top` / `newest` / `oldest` comment ordering.
 - Convex full-text search.
 - Exact-title + full-text duplicate suggestions.
-- Host-controlled authentication and moderator permissions.
+- Host-controlled authentication and admin permissions.
+- Admin priority, primary/secondary tags, and roadmap workflows.
 - Optional host-defined mutation rate limiting.
 - Configurable limits and behavior
 - Typed React hooks.
 - `convex-test` helper entry point.
 
-The component owns only three tables: `entries`, `comments`, and `reactions`.
+The component owns five tables: `entries`, `comments`, `reactions`, `tags`, and `roadmap`.
 
 ## Requirements
 
@@ -95,12 +96,32 @@ export const {
   createEntry,
   updateEntry,
   setEntryStatus,
+  isAdmin,
+  adminListEntries,
+  adminGetEntry,
+  adminSearchEntries,
+  setEntryPriority,
   setEntryUpvote,
   listComments,
   createComment,
   updateComment,
   deleteComment,
   setCommentLike,
+  listTags,
+  createTag,
+  updateTag,
+  deleteTag,
+  attachTag,
+  detachTag,
+  listRoadmap,
+  searchRoadmap,
+  createRoadmap,
+  updateRoadmap,
+  deleteRoadmap,
+  moveRoadmapItem,
+  attachFeedbackToRoadmap,
+  detachFeedbackFromRoadmap,
+  listRoadmapFeedback,
 } = exposeFeedbackApi(components.feedback, {
   actor: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -109,7 +130,7 @@ export const {
 
     return {
       id: identity.tokenIdentifier,
-      isModerator: false,
+      isAdmin: false,
     };
   },
 });
@@ -121,14 +142,14 @@ export const {
 
 The component does not store a user/profile table. Keep display names, avatars, roles, and profile data in your application.
 
-### Moderators
+### Admins
 
-Return `isModerator: true` for actors that may perform moderator-only operations such as status changes.
+Return `isAdmin: true` for actors that may perform admin-only operations such as status changes.
 
 ```ts
 return {
   id: identity.tokenIdentifier,
-  isModerator: await isFeedbackModerator(ctx, identity.tokenIdentifier),
+  isAdmin: await isFeedbackAdmin(ctx, identity.tokenIdentifier),
 };
 ```
 
@@ -194,7 +215,7 @@ The groups cover:
 - `editContent`: entry edits, status changes, comment edits, and comment deletion;
 - `reactions`: entry upvotes and comment likes.
 
-Moderators bypass all limiters by default. Set `limitModerators: true` to apply them to moderators as well. `setEntryStatus` always requires a moderator, regardless of rate-limit configuration.
+Admins bypass all limiters by default. Set `limitAdmins: true` to apply them to admins as well. Admin mutations always require an admin, regardless of rate-limit configuration.
 
 To return a value to the client instead of throwing, use `"return"` behavior and provide its Convex validator. In this mode, `undefined` means the request is allowed; any defined value is returned immediately and the feedback mutation does not run. The validator is required by TypeScript and its inferred type is added to every mutation's result type.
 
@@ -228,7 +249,7 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
     rateLimiting: {
       behavior: "return",
       returns: rateLimitRejection,
-      limitModerators: false,
+      limitAdmins: false,
     },
   },
 });
@@ -236,7 +257,7 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
 
 ## 4. Create typed React hooks
 
-If your client uses React or React Native, bind the generated host API once:
+If your client uses React or React Native, bind the generated host API once. Calling `createFeedbackHooks()` without an API argument defaults to `anyApi.feedback`; pass the generated namespace explicitly when the component is exposed elsewhere:
 
 ```ts
 // src/feedback.ts
@@ -277,7 +298,29 @@ Entry metadata is optional, creation-only, and contains flat string, number, or 
 
 Reserved keys are rejected with a field-specific error.
 
-Metadata is intentionally absent from entry lists, searches, and duplicate suggestions. `getEntry` includes it only when the host's server-side actor resolver returns `isModerator: true`; ordinary and anonymous callers receive no `metadata` property.
+Metadata is intentionally absent from entry lists, searches, and duplicate suggestions. `getEntry` includes it only when the host's server-side actor resolver returns `isAdmin: true`; ordinary and anonymous callers receive no `metadata` property.
+
+## Admin panel
+
+The standalone [Vite and Expo Clerk admin apps](../../apps/admin/withClerk/README.md) provide an inbox, entry detail workflow, tag management, and a stage-based roadmap. They are reference applications to fork and deploy, not reusable UI exports.
+
+The host actor is the authorization boundary. With Clerk, expose a trusted session claim (for example, one derived from Clerk public metadata) and map it in the host only:
+
+```ts
+actor: async (ctx) => {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) return null;
+
+  return {
+    id: identity.tokenIdentifier,
+    isAdmin: identity.isAdmin === true,
+  };
+},
+```
+
+Set the claim and Convex Clerk provider using Clerk's current integration instructions, then export the complete wrapper API shown above as `convex/feedback.ts`. Both reference apps use `anyApi.feedback` by default and perform a one-shot `isAdmin` check at their root; every admin query and mutation still rechecks the actor on the server.
+
+Admin entries may have an optional `low`, `medium`, or `high` priority; at most one primary and one secondary tag; and one roadmap relation. Deleting a tag clears either tag slot from related entries. Deleting a roadmap item detaches all related feedback. Public entry queries and the existing public UI do not expose this internal metadata.
 
 ## Entry kinds and statuses
 
@@ -396,14 +439,16 @@ The wrapper exposes:
 | `searchEntries`      | query    | Full-text search                                   |
 | `findSimilarEntries` | query    | Exact + similar duplicate suggestions              |
 | `createEntry`        | mutation | Create feedback                                    |
-| `updateEntry`        | mutation | Edit author-owned/moderated feedback               |
-| `setEntryStatus`     | mutation | Moderator workflow status change                   |
+| `updateEntry`        | mutation | Edit author-owned or admin-managed feedback        |
+| `setEntryStatus`     | mutation | Admin workflow status change                       |
 | `setEntryUpvote`     | mutation | Idempotently set entry upvote state                |
 | `listComments`       | query    | One paginated direct-child comment level           |
 | `createComment`      | mutation | Create comment or reply                            |
 | `updateComment`      | mutation | Edit a comment                                     |
 | `deleteComment`      | mutation | Soft-delete a comment                              |
 | `setCommentLike`     | mutation | Idempotently set comment like state                |
+
+The same wrapper exposes `isAdmin`, admin list/detail/search queries, priority updates, tag CRUD and attachment functions, roadmap CRUD/search/reordering functions, and feedback-to-roadmap attachment functions. All of those operations resolve the host actor; only `isAdmin` itself returns a boolean instead of rejecting a non-admin caller.
 
 Every public argument/result type is exported and documented for editor IntelliSense.
 

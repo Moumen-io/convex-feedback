@@ -10,6 +10,8 @@
 
 Optional React DOM, React Native, and Expo Router UI for `convex-feedback`.
 
+This package keeps the public feedback experience unchanged. Internal priority, tags, and roadmap workflows live in the forkable [Clerk admin panel](../../apps/admin/withClerk/README.md), which uses the headless hooks directly.
+
 The package is intentionally layered:
 
 ```text
@@ -315,7 +317,7 @@ Or combine global defaults with per-kind behavior:
 - The Expo entry point additionally uses `expo-constants` for app `version`, `build` number, `application ID`, `Expo runtime version`, and execution `environment` when available.
 - Generic React Native apps can provide app `version` and `build` values through `additional`.
 
-Metadata is stored in separate `standard` and `additional` sections. It is omitted from list and search results and from non-moderator reads. When the host's server-side actor resolver identifies a moderator, `getEntry` includes the metadata and the entry detail screen shows a metadata viewer.
+Metadata is stored in separate `standard` and `additional` sections. It is omitted from list and search results and from non-admin reads. When the host's server-side actor resolver identifies an admin, `getEntry` includes the metadata and the entry detail screen shows a metadata viewer.
 
 The platform collectors and `formatMetadataKey` helper are exported from their respective package entry points for custom integrations.
 

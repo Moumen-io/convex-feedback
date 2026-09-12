@@ -1,0 +1,62 @@
+name: Apply admin slice 3
+
+on:
+  push:
+    branches:
+      - feat/admin-panel
+    paths:
+      - .github/workflows/apply-admin-slice3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/admin-panel
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Apply slice 3 tests
+        run: node .github/scripts/apply-admin-slice3.mjs
+
+      - name: Format repository
+        run: npm run format
+
+      - name: Run repository checks
+        run: npm run test:all
+
+      - name: Validate web admin
+        working-directory: apps/admin/withClerk/web
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+
+      - name: Validate native admin
+        working-directory: apps/admin/withClerk/native
+        run: |
+          npm ci
+          npm run typecheck
+
+      - name: Commit implementation
+        run: |
+          rm .github/scripts/apply-admin-slice3.mjs
+          rm .github/workflows/apply-admin-slice3.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix bounded admin deletion flows"
+          git push origin HEAD:feat/admin-panel

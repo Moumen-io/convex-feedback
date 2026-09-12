@@ -6,7 +6,11 @@ import type { EntryKind } from "convex-feedback";
 
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider.js";
-import { createEntryLabel, entryStatusChoices } from "../../shared/helpers.js";
+import {
+  allowAuthenticatedAction,
+  createEntryLabel,
+  entryStatusChoices,
+} from "../../shared/helpers.js";
 import { EntryDetail } from "../shared/ui/EntryDetail.js";
 import { FeedbackScreenList } from "../shared/ui/FeedbackScreenList.js";
 import { CreateEntryForm } from "../shared/ui/NewEntry.js";
@@ -24,6 +28,8 @@ export function FeedbackBoardScreen() {
     enabledKinds,
     statusFilter,
     setStatusFilter,
+    isAuthenticated,
+    onUnauthenticated,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const {
@@ -72,11 +78,15 @@ export function FeedbackBoardScreen() {
           }
           variant="prominent"
           accessibilityLabel={createEntryLabel(enabledKinds, messages)}
-          onPress={() =>
+          disabled={isAuthenticated === undefined}
+          onPress={() => {
+            if (!allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) {
+              return;
+            }
             router.push(feedbackRouteHref(routes.create), {
               relativeToDirectory: true,
-            })
-          }
+            });
+          }}
           tintColor={theme.colors.primary}
         >
           {createEntryLabel(enabledKinds, messages)}

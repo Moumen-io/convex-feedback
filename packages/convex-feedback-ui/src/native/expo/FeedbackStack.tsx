@@ -2,7 +2,11 @@ import { Stack, useRouter } from "expo-router";
 import { Fragment } from "react";
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider";
-import { createEntryLabel, entryStatusChoices } from "../../shared/helpers";
+import {
+  allowAuthenticatedAction,
+  createEntryLabel,
+  entryStatusChoices,
+} from "../../shared/helpers";
 import type { FeedbackStackProps } from "./types";
 
 export function FeedbackStack({
@@ -22,6 +26,8 @@ export function FeedbackStack({
     setSelectedEntryId,
     statusFilter,
     setStatusFilter,
+    isAuthenticated,
+    onUnauthenticated,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const router = useRouter();
@@ -67,7 +73,12 @@ export function FeedbackStack({
           }
           variant="prominent"
           accessibilityLabel={createEntryLabel(enabledKinds, messages)}
-          onPress={() => setShowForm(true)}
+          disabled={isAuthenticated === undefined}
+          onPress={() => {
+            if (allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) {
+              setShowForm(true);
+            }
+          }}
           tintColor={theme.colors.primary}
         >
           {createEntryLabel(enabledKinds, messages)}

@@ -20,6 +20,7 @@ export function FeedbackScreen({
   loading,
   transformComments,
   renderActor,
+  onUnauthenticated,
   ...props
 }: FeedbackScreenRootProps) {
   return (
@@ -37,6 +38,7 @@ export function FeedbackScreen({
         collectStandardMetadata={collectNativeMetadata}
         transformComments={transformComments}
         renderActor={renderActor}
+        onUnauthenticated={onUnauthenticated}
       >
         <FeedbackScreenContent {...props} />
       </FeedbackBodyProvider>

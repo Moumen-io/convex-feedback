@@ -2,7 +2,10 @@ import { ActivityIndicator, Text } from "react-native";
 
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider.js";
-import { createEntryLabel } from "../../../shared/helpers.js";
+import {
+  allowAuthenticatedAction,
+  createEntryLabel,
+} from "../../../shared/helpers.js";
 import type { FeedbackScreenListProps } from "../../../shared/types/index.js";
 import { Button } from "./Button.js";
 import { EntryCard } from "./EntryCard.js";
@@ -27,6 +30,8 @@ export function FeedbackScreenList({
     setShowForm,
     emptyState,
     loading: loadingIndicator,
+    isAuthenticated,
+    onUnauthenticated,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
 
@@ -42,7 +47,11 @@ export function FeedbackScreenList({
   });
 
   const entries = isSearching ? search : list.results;
-  const createEntry = onCreateEntry ?? (() => setShowForm(true));
+  const createEntry = () => {
+    if (allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) {
+      (onCreateEntry ?? (() => setShowForm(true)))();
+    }
+  };
 
   const loading = isSearching
     ? search === undefined
@@ -76,6 +85,7 @@ export function FeedbackScreenList({
             label={createEntryLabel(enabledKinds, messages)}
             onPress={createEntry}
             variant="primary"
+            disabled={isAuthenticated === undefined}
           />
         </FeedbackBoard.State>
       ) : (

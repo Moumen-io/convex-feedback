@@ -31,6 +31,9 @@ export type FeedbackCommentTransform = (
  */
 export type FeedbackActorRenderer = (actorId: string) => ReactNode;
 
+/** Called when an authenticated-only UI action is requested anonymously. */
+export type FeedbackUnauthenticatedHandler = () => void;
+
 export interface FeedbackScreenTransformationProps {
   /**
    * Optional presentation-only transform applied to each loaded page of
@@ -48,6 +51,12 @@ export interface FeedbackScreenTransformationProps {
 export interface FeedbackScreenBaseProps {
   /** Hooks created with `createFeedbackHooks`. */
   hooks: FeedbackHooks;
+
+  /**
+   * Called when an unauthenticated visitor tries to create, vote, like, or
+   * comment. The host decides how to present authentication.
+   */
+  onUnauthenticated?: FeedbackUnauthenticatedHandler;
 
   /**
    * Server-side ordering used by the feedback board.
@@ -116,10 +125,11 @@ export interface FeedbackScreenProviderProps
     Required<
       Omit<
         FeedbackScreenBaseProps,
-        "collectMetadata" | "emptyState" | "loading"
+        "collectMetadata" | "emptyState" | "loading" | "onUnauthenticated"
       >
     >,
     FeedbackScreenTransformationProps {
+  onUnauthenticated?: FeedbackUnauthenticatedHandler;
   collectMetadata?: CollectMetadata;
   emptyState?: ReactNode;
   loading?: ReactNode;
@@ -128,6 +138,7 @@ export interface FeedbackScreenProviderProps
 
 export interface FeedbackScreenBodyContextValue
   extends FeedbackScreenTransformationProps, FeedbackScreenProviderProps {
+  isAuthenticated: boolean | undefined;
   query: string;
   debouncedQuery: string;
   showForm: boolean;

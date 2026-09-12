@@ -25,6 +25,7 @@ export function FeedbackStackLayout({
   loading,
   transformComments,
   renderActor,
+  onUnauthenticated,
   routes: routeOverrides,
   screenOptions,
   boardOptions,
@@ -81,6 +82,7 @@ export function FeedbackStackLayout({
         collectStandardMetadata={collectExpoMetadata}
         transformComments={transformComments}
         renderActor={renderActor}
+        onUnauthenticated={onUnauthenticated}
       >
         <RoutedFeedbackProvider
           value={{

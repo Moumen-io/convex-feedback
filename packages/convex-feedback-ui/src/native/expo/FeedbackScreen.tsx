@@ -20,6 +20,7 @@ export function FeedbackScreen({
   loading,
   transformComments,
   renderActor,
+  onUnauthenticated,
   ...props
 }: ExpoFeedbackScreenProps) {
   return (
@@ -37,6 +38,7 @@ export function FeedbackScreen({
         collectStandardMetadata={collectExpoMetadata}
         transformComments={transformComments}
         renderActor={renderActor}
+        onUnauthenticated={onUnauthenticated}
       >
         <ExpoFeedbackBody {...props} />
       </FeedbackBodyProvider>

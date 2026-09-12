@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 function read(path) {
@@ -69,6 +70,15 @@ if (!component.includes(oldDetach)) {
 component = component.replace(oldDetach, newDetach);
 
 write(componentPath, component);
+
+// The native admin's package.json already declares TypeScript but the lockfile
+// on the base branch predates that devDependency. Keep the lockfile in sync so
+// its documented clean-install/typecheck path is reproducible.
+execSync("npm install --package-lock-only --ignore-scripts", {
+  cwd: "apps/admin/withClerk/native",
+  stdio: "inherit",
+});
+
 console.log(
   `Patched ${primaryCount} generated admin-entry tag shapes and tag mutation signatures.`,
 );

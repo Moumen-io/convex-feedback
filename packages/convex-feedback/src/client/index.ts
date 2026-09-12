@@ -921,7 +921,6 @@ function buildFeedbackApi<
       args: {
         entryId: v.string(),
         tagId: v.string(),
-        placement: v.union(v.literal("primary"), v.literal("secondary")),
       },
       returns: nullReturns,
       handler: async (ctx, args) => {
@@ -938,7 +937,7 @@ function buildFeedbackApi<
     detachTag: mutationGeneric({
       args: {
         entryId: v.string(),
-        placement: v.union(v.literal("primary"), v.literal("secondary")),
+        tagId: v.string(),
       },
       returns: nullReturns,
       handler: async (ctx, args) => {

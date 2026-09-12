@@ -106,11 +106,13 @@ function EntryRow({
         </span>
         <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="outline">{entry.status.replaceAll("_", " ")}</Badge>
-          {entry.primaryTag && (
-            <Badge variant="secondary">{entry.primaryTag.name}</Badge>
-          )}
-          {entry.secondaryTag && (
-            <Badge variant="outline">{entry.secondaryTag.name}</Badge>
+          {entry.tags.slice(0, 3).map((tag) => (
+            <Badge key={tag.id} variant="secondary">
+              {tag.name}
+            </Badge>
+          ))}
+          {entry.tags.length > 3 && (
+            <Badge variant="outline">+{entry.tags.length - 3}</Badge>
           )}
           <span className="inline-flex items-center gap-1">
             <ThumbsUpIcon className="size-3" /> {entry.upvoteCount}

@@ -176,14 +176,9 @@ export async function serializeAdminEntry(
   entry: DataModel["entries"]["document"],
   viewerActorId: string,
 ): Promise<AdminFeedbackEntry> {
-  const [base, primaryTag, secondaryTag, roadmap] = await Promise.all([
+  const [base, tagDocuments, roadmap] = await Promise.all([
     serializeEntry(ctx, entry, viewerActorId, true),
-    entry.primaryTagId === undefined
-      ? null
-      : ctx.db.get("tags", entry.primaryTagId),
-    entry.secondaryTagId === undefined
-      ? null
-      : ctx.db.get("tags", entry.secondaryTagId),
+    Promise.all((entry.tagIds ?? []).map((tagId) => ctx.db.get("tags", tagId))),
     entry.roadmapId === undefined
       ? null
       : ctx.db.get("roadmap", entry.roadmapId),
@@ -192,10 +187,9 @@ export async function serializeAdminEntry(
   return {
     ...base,
     ...(entry.priority === undefined ? {} : { priority: entry.priority }),
-    ...(primaryTag === null ? {} : { primaryTag: serializeTag(primaryTag) }),
-    ...(secondaryTag === null
-      ? {}
-      : { secondaryTag: serializeTag(secondaryTag) }),
+    tags: tagDocuments.flatMap((tag) =>
+      tag === null ? [] : [serializeTag(tag)],
+    ),
     ...(roadmap === null ? {} : { roadmap: serializeRoadmapItem(roadmap) }),
   };
 }

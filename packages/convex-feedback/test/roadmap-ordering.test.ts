@@ -107,10 +107,7 @@ describe("roadmap ordering", () => {
       thirdId,
     ]);
     expect(ordered.map((item) => item.position)).toEqual([
-      1_000_000,
-      1_500_000,
-      2_000_000,
-      3_000_000,
+      1_000_000, 1_500_000, 2_000_000, 3_000_000,
     ]);
   });
 });

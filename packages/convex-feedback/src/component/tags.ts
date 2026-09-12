@@ -4,11 +4,6 @@ import { mutation, query } from "./_generated/server.js";
 import { normalizeRequiredText, serializeTag } from "./helpers.js";
 import { actorValidator, tagValidator } from "./model.js";
 
-const placementValidator = v.union(
-  v.literal("primary"),
-  v.literal("secondary"),
-);
-
 function assertAdmin(actor: { id: string; isAdmin: boolean }): void {
   if (!actor.isAdmin) throw new ConvexError("Admin access is required.");
 }
@@ -109,24 +104,20 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     assertAdmin(args.actor);
     if ((await ctx.db.get("tags", args.tagId)) === null) return null;
-    const [primaryEntries, secondaryEntries] = await Promise.all([
-      ctx.db
-        .query("entries")
-        .withIndex("by_primary_tag_id", (q) => q.eq("primaryTagId", args.tagId))
-        .collect(),
-      ctx.db
-        .query("entries")
-        .withIndex("by_secondary_tag_id", (q) =>
-          q.eq("secondaryTagId", args.tagId),
-        )
-        .collect(),
-    ]);
-    for (const entry of primaryEntries) {
-      await ctx.db.patch("entries", entry._id, { primaryTagId: undefined });
+
+    // Slice 3 will move this cleanup to bounded batches. For now, preserve
+    // existing deletion semantics while tags live directly on each entry.
+    const entries = await ctx.db.query("entries").collect();
+    for (const entry of entries) {
+      const current = entry.tagIds ?? [];
+      if (!current.includes(args.tagId)) continue;
+      const remaining = current.filter((tagId) => tagId !== args.tagId);
+      await ctx.db.patch("entries", entry._id, {
+        tagIds: remaining.length === 0 ? undefined : remaining,
+        updatedAt: Date.now(),
+      });
     }
-    for (const entry of secondaryEntries) {
-      await ctx.db.patch("entries", entry._id, { secondaryTagId: undefined });
-    }
+
     await ctx.db.delete("tags", args.tagId);
     return null;
   },
@@ -137,7 +128,6 @@ export const attach = mutation({
     actor: actorValidator,
     entryId: v.id("entries"),
     tagId: v.id("tags"),
-    placement: placementValidator,
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -148,15 +138,12 @@ export const attach = mutation({
     ]);
     if (entry === null) throw new ConvexError("Entry not found.");
     if (tag === null) throw new ConvexError("Tag not found.");
-    if (
-      (args.placement === "primary" && entry.secondaryTagId === args.tagId) ||
-      (args.placement === "secondary" && entry.primaryTagId === args.tagId)
-    ) {
-      throw new ConvexError("Primary and secondary tags must be different.");
-    }
+
+    const tagIds = entry.tagIds ?? [];
+    if (tagIds.includes(args.tagId)) return null;
+
     await ctx.db.patch("entries", args.entryId, {
-      [args.placement === "primary" ? "primaryTagId" : "secondaryTagId"]:
-        args.tagId,
+      tagIds: [...tagIds, args.tagId],
       updatedAt: Date.now(),
     });
     return null;
@@ -167,17 +154,19 @@ export const detach = mutation({
   args: {
     actor: actorValidator,
     entryId: v.id("entries"),
-    placement: placementValidator,
+    tagId: v.id("tags"),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     assertAdmin(args.actor);
-    if ((await ctx.db.get("entries", args.entryId)) === null) {
-      throw new ConvexError("Entry not found.");
-    }
+    const entry = await ctx.db.get("entries", args.entryId);
+    if (entry === null) throw new ConvexError("Entry not found.");
+
+    const current = entry.tagIds ?? [];
+    if (!current.includes(args.tagId)) return null;
+    const remaining = current.filter((tagId) => tagId !== args.tagId);
     await ctx.db.patch("entries", args.entryId, {
-      [args.placement === "primary" ? "primaryTagId" : "secondaryTagId"]:
-        undefined,
+      tagIds: remaining.length === 0 ? undefined : remaining,
       updatedAt: Date.now(),
     });
     return null;

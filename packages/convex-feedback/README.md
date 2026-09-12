@@ -19,7 +19,7 @@ A headless, fully typed Convex component for product feedback, feature requests,
 - Convex full-text search.
 - Exact-title + full-text duplicate suggestions.
 - Host-controlled authentication and admin permissions.
-- Admin priority, primary/secondary tags, and roadmap workflows.
+- Admin priority, arbitrary tags, and roadmap workflows.
 - Optional host-defined mutation rate limiting.
 - Configurable limits and behavior
 - Typed React hooks.
@@ -320,7 +320,7 @@ actor: async (ctx) => {
 
 Set the claim and Convex Clerk provider using Clerk's current integration instructions, then export the complete wrapper API shown above as `convex/feedback.ts`. Both reference apps use `anyApi.feedback` by default and perform a one-shot `isAdmin` check at their root; every admin query and mutation still rechecks the actor on the server.
 
-Admin entries may have an optional `low`, `medium`, or `high` priority; at most one primary and one secondary tag; and one roadmap relation. Deleting a tag clears either tag slot from related entries. Deleting a roadmap item detaches all related feedback. Public entry queries and the existing public UI do not expose this internal metadata.
+Admin entries may have an optional `low`, `medium`, or `high` priority; any number of admin-managed tags; and one roadmap relation. Tag IDs are stored directly on each feedback entry rather than in a relation table. Deleting a tag removes its ID from related entries. Deleting a roadmap item detaches all related feedback. Public entry queries and the existing public UI do not expose this internal metadata.
 
 ## Entry kinds and statuses
 

@@ -122,8 +122,7 @@ export const similarEntriesValidator = v.object({
 
 export const adminEntryValidator = publicEntryValidator.extend({
   priority: v.optional(entryPriorityValidator),
-  primaryTag: v.optional(tagValidator),
-  secondaryTag: v.optional(tagValidator),
+  tags: v.array(tagValidator),
   roadmap: v.optional(roadmapItemValidator),
   metadata: v.optional(feedbackMetadataValidator),
 });
@@ -169,7 +168,7 @@ export type EntryPriority = Infer<typeof entryPriorityValidator>;
 /** Workflow stage for an admin roadmap item. */
 export type RoadmapStatus = Infer<typeof roadmapStatusValidator>;
 
-/** Admin-managed tag attached to an entry as primary or secondary metadata. */
+/** Admin-managed tag attached to an entry as private triage metadata. */
 export type FeedbackTag = Infer<typeof tagValidator>;
 
 /** Admin-managed roadmap item and its current attached-feedback count. */

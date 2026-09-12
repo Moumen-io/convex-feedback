@@ -97,6 +97,7 @@ export const {
   updateEntry,
   setEntryStatus,
   isAdmin,
+  isAuthenticated,
   adminListEntries,
   adminGetEntry,
   adminSearchEntries,
@@ -110,6 +111,7 @@ export const {
   listRoadmap,
   searchRoadmap,
   createRoadmap,
+  createRoadmapForEntry,
   updateRoadmap,
   deleteRoadmap,
   moveRoadmapItem,
@@ -426,23 +428,25 @@ The mutation result uses `active` to report the authoritative final state return
 
 The wrapper exposes:
 
-| Function             | Type     | Purpose                                            |
-| -------------------- | -------- | -------------------------------------------------- |
-| `listEntries`        | query    | Paginated entry list with server-side filters/sort |
-| `getEntry`           | query    | Fetch one entry                                    |
-| `searchEntries`      | query    | Full-text search                                   |
-| `findSimilarEntries` | query    | Exact + similar duplicate suggestions              |
-| `createEntry`        | mutation | Create feedback                                    |
-| `updateEntry`        | mutation | Edit author-owned or admin-managed feedback        |
-| `setEntryStatus`     | mutation | Admin workflow status change                       |
-| `setEntryUpvote`     | mutation | Idempotently set entry upvote state                |
-| `listComments`       | query    | One paginated direct-child comment level           |
-| `createComment`      | mutation | Create comment or reply                            |
-| `updateComment`      | mutation | Edit a comment                                     |
-| `deleteComment`      | mutation | Soft-delete a comment                              |
-| `setCommentLike`     | mutation | Idempotently set comment like state                |
+| Function                | Type     | Purpose                                              |
+| ----------------------- | -------- | ---------------------------------------------------- |
+| `listEntries`           | query    | Paginated entry list with server-side filters/sort   |
+| `getEntry`              | query    | Fetch one entry                                      |
+| `searchEntries`         | query    | Full-text search                                     |
+| `findSimilarEntries`    | query    | Exact + similar duplicate suggestions                |
+| `isAuthenticated`       | query    | Whether the current request has an actor             |
+| `createEntry`           | mutation | Create feedback                                      |
+| `updateEntry`           | mutation | Edit author-owned or admin-managed feedback          |
+| `setEntryStatus`        | mutation | Admin workflow status change                         |
+| `setEntryUpvote`        | mutation | Idempotently set entry upvote state                  |
+| `listComments`          | query    | One paginated direct-child comment level             |
+| `createComment`         | mutation | Create comment or reply                              |
+| `updateComment`         | mutation | Edit a comment                                       |
+| `deleteComment`         | mutation | Soft-delete a comment                                |
+| `setCommentLike`        | mutation | Idempotently set comment like state                  |
+| `createRoadmapForEntry` | mutation | Create a roadmap item and attach an entry atomically |
 
-The same wrapper exposes `isAdmin`, cursor-paginated admin list/search queries, admin detail, priority updates, cursor-paginated public roadmap lists, roadmap search/reordering functions, and feedback-to-roadmap attachment functions. Roadmap reads and attached public entries are unauthenticated; roadmap mutations and admin operations resolve the host actor. Only `isAdmin` itself returns a boolean instead of rejecting a non-admin caller. Bounded limits remain on suggestion-style full-text searches such as the roadmap selector.
+The same wrapper exposes `isAdmin`, cursor-paginated admin list/search queries, admin detail, priority updates, cursor-paginated public roadmap lists, roadmap search/reordering functions, and feedback-to-roadmap attachment functions. Roadmap reads and attached public entries are unauthenticated; roadmap mutations and admin operations resolve the host actor. `isAdmin` and `isAuthenticated` return booleans instead of rejecting a caller. Bounded limits remain on suggestion-style full-text searches such as the roadmap selector.
 
 Every public argument/result type is exported and documented for editor IntelliSense.
 

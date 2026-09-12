@@ -18,6 +18,7 @@ import {
 } from "./model.js";
 
 const POSITION_STEP = 1_000_000;
+const MIN_POSITION_GAP = 1;
 
 function assertAdmin(actor: { id: string; isAdmin: boolean }): void {
   if (!actor.isAdmin) throw new ConvexError("Admin access is required.");
@@ -155,13 +156,45 @@ export const move = mutation({
       throw new ConvexError("Roadmap neighbors are out of order.");
     }
 
+    let previousPosition = previous?.position;
+    let nextPosition = next?.position;
+
+    if (
+      previous !== null &&
+      next !== null &&
+      next.position - previous.position <= MIN_POSITION_GAP
+    ) {
+      const stageItems = await ctx.db
+        .query("roadmap")
+        .withIndex("by_status_and_position", (q) => q.eq("status", args.status))
+        .order("asc")
+        .collect();
+      const rebalancedPositions = new Map<string, number>();
+
+      for (const [index, stageItem] of stageItems.entries()) {
+        const rebalancedPosition = (index + 1) * POSITION_STEP;
+        rebalancedPositions.set(stageItem._id, rebalancedPosition);
+        if (stageItem.position !== rebalancedPosition) {
+          await ctx.db.patch("roadmap", stageItem._id, {
+            position: rebalancedPosition,
+          });
+        }
+      }
+
+      previousPosition = rebalancedPositions.get(previous._id);
+      nextPosition = rebalancedPositions.get(next._id);
+      if (previousPosition === undefined || nextPosition === undefined) {
+        throw new ConvexError("Unable to rebalance roadmap stage.");
+      }
+    }
+
     let position: number;
-    if (previous !== null && next !== null) {
-      position = previous.position + (next.position - previous.position) / 2;
-    } else if (previous !== null) {
-      position = previous.position + POSITION_STEP;
-    } else if (next !== null) {
-      position = next.position - POSITION_STEP;
+    if (previousPosition !== undefined && nextPosition !== undefined) {
+      position = previousPosition + (nextPosition - previousPosition) / 2;
+    } else if (previousPosition !== undefined) {
+      position = previousPosition + POSITION_STEP;
+    } else if (nextPosition !== undefined) {
+      position = nextPosition - POSITION_STEP;
     } else {
       const last = await ctx.db
         .query("roadmap")

@@ -1,5 +1,5 @@
 import type { RoadmapItem, RoadmapStatus } from "convex-feedback";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
 } from "react-native";
 
 import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminAction } from "@/lib/action";
 import { feedbackHooks } from "@/lib/feedback";
 
 const stages: { value: RoadmapStatus; label: string }[] = [
@@ -26,8 +27,10 @@ export default function RoadmapScreen() {
   const roadmap = feedbackHooks.useRoadmap();
   const items = roadmap.results;
   const move = feedbackHooks.useMoveRoadmapItem();
+  const moveAction = useAdminAction();
   const [createOpen, setCreateOpen] = useState(false);
-  const [selected, setSelected] = useState<RoadmapItem>();
+  const [selectedId, setSelectedId] = useState<string>();
+  const selected = items?.find((item) => item.id === selectedId);
 
   return (
     <View style={styles.screen}>
@@ -37,12 +40,21 @@ export default function RoadmapScreen() {
           <Text style={styles.subtitle}>Move feedback into delivery</Text>
         </View>
         <View style={styles.headerActions}>
-          {roadmap.status === "CanLoadMore" && (
+          {(roadmap.status === "CanLoadMore" ||
+            roadmap.status === "LoadingMore") && (
             <Pressable
-              style={styles.secondaryButton}
+              disabled={roadmap.status === "LoadingMore"}
+              style={[
+                styles.secondaryButton,
+                roadmap.status === "LoadingMore" && styles.disabled,
+              ]}
               onPress={() => roadmap.loadMore(feedbackHooks.pageSizes.roadmap)}
             >
-              <Text>More</Text>
+              {roadmap.status === "LoadingMore" ? (
+                <ActivityIndicator color={adminTheme.primary} />
+              ) : (
+                <Text>More</Text>
+              )}
             </Pressable>
           )}
           {roadmap.status === "LoadingMore" && (
@@ -85,7 +97,7 @@ export default function RoadmapScreen() {
                   renderItem={({ item }) => (
                     <Pressable
                       style={styles.card}
-                      onPress={() => setSelected(item)}
+                      onPress={() => setSelectedId(item.id)}
                     >
                       <Text style={styles.cardTitle}>{item.title}</Text>
                       {!!item.description && (
@@ -101,22 +113,32 @@ export default function RoadmapScreen() {
                           {stageIndex > 0 && (
                             <MoveButton
                               label="←"
+                              disabled={moveAction.pending}
                               onPress={() =>
-                                void move({
-                                  roadmapId: item.id,
-                                  status: stages[stageIndex - 1]!.value,
-                                })
+                                void moveAction.run(
+                                  () =>
+                                    move({
+                                      roadmapId: item.id,
+                                      status: stages[stageIndex - 1]!.value,
+                                    }),
+                                  "Could not move roadmap item",
+                                )
                               }
                             />
                           )}
                           {stageIndex < stages.length - 1 && (
                             <MoveButton
                               label="→"
+                              disabled={moveAction.pending}
                               onPress={() =>
-                                void move({
-                                  roadmapId: item.id,
-                                  status: stages[stageIndex + 1]!.value,
-                                })
+                                void moveAction.run(
+                                  () =>
+                                    move({
+                                      roadmapId: item.id,
+                                      status: stages[stageIndex + 1]!.value,
+                                    }),
+                                  "Could not move roadmap item",
+                                )
                               }
                             />
                           )}
@@ -131,20 +153,26 @@ export default function RoadmapScreen() {
         </ScrollView>
       )}
       <RoadmapForm visible={createOpen} onClose={() => setCreateOpen(false)} />
-      <RoadmapDetail item={selected} onClose={() => setSelected(undefined)} />
+      <RoadmapDetail item={selected} onClose={() => setSelectedId(undefined)} />
     </View>
   );
 }
 
 function MoveButton({
   label,
+  disabled,
   onPress,
 }: {
   label: string;
+  disabled?: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.moveButton}>
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.moveButton, disabled && styles.disabled]}
+    >
       <Text style={styles.moveText}>{label}</Text>
     </Pressable>
   );
@@ -163,26 +191,31 @@ function RoadmapForm({
   const [description, setDescription] = useState(item?.description ?? "");
   const create = feedbackHooks.useCreateRoadmap();
   const update = feedbackHooks.useUpdateRoadmap();
+  const action = useAdminAction();
+
+  useEffect(() => {
+    setTitle(item?.title ?? "");
+    setDescription(item?.description ?? "");
+  }, [item?.description, item?.id, item?.title, visible]);
+
   const save = async () => {
-    try {
-      if (item)
-        await update({
-          roadmapId: item.id,
-          title,
-          description: description || undefined,
-        });
-      else
-        await create({
-          title,
-          description: description || undefined,
-          status: "planned",
-        });
+    const succeeded = await action.run(
+      () =>
+        item
+          ? update({
+              roadmapId: item.id,
+              title,
+              description: description || undefined,
+            })
+          : create({
+              title,
+              description: description || undefined,
+              status: "planned",
+            }),
+      "Could not save roadmap item",
+    );
+    if (succeeded) {
       onClose();
-    } catch (error) {
-      Alert.alert(
-        "Could not save",
-        error instanceof Error ? error.message : "Try again.",
-      );
     }
   };
   return (
@@ -190,7 +223,7 @@ function RoadmapForm({
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onRequestClose={() => !action.pending && onClose()}
     >
       <View style={styles.modal}>
         <Text style={styles.modalTitle}>
@@ -212,12 +245,16 @@ function RoadmapForm({
           multiline
         />
         <View style={styles.modalActions}>
-          <Pressable style={styles.secondaryButton} onPress={onClose}>
+          <Pressable
+            disabled={action.pending}
+            style={[styles.secondaryButton, action.pending && styles.disabled]}
+            onPress={onClose}
+          >
             <Text>Cancel</Text>
           </Pressable>
           <Pressable
-            disabled={!title.trim()}
-            style={styles.primaryButton}
+            disabled={!title.trim() || action.pending}
+            style={[styles.primaryButton, action.pending && styles.disabled]}
             onPress={() => void save()}
           >
             <Text style={styles.primaryButtonText}>Save</Text>
@@ -238,27 +275,23 @@ function RoadmapDetail({
   const feedback = feedbackHooks.useRoadmapFeedback(item?.id);
   const detach = feedbackHooks.useDetachFeedbackFromRoadmap();
   const remove = feedbackHooks.useDeleteRoadmap();
+  const detachAction = useAdminAction();
+  const deleteAction = useAdminAction();
   const [editing, setEditing] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   if (!item) return null;
 
   const deleteItem = async () => {
-    if (deleting) return;
-    setDeleting(true);
-    try {
-      await remove({ roadmapId: item.id });
+    const succeeded = await deleteAction.run(
+      () => remove({ roadmapId: item.id }),
+      "Could not delete roadmap item",
+    );
+    if (succeeded) {
       onClose();
-    } catch (error) {
-      Alert.alert(
-        "Could not delete",
-        error instanceof Error ? error.message : "Try again.",
-      );
-    } finally {
-      setDeleting(false);
     }
   };
 
   const confirmDelete = () => {
+    if (deleteAction.pending) return;
     Alert.alert(
       "Delete roadmap item?",
       "This permanently deletes the roadmap item and detaches all linked feedback.",
@@ -279,7 +312,9 @@ function RoadmapDetail({
         visible
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={onClose}
+        onRequestClose={() =>
+          !detachAction.pending && !deleteAction.pending && onClose()
+        }
       >
         <View style={styles.modal}>
           <Text style={styles.modalTitle}>{item.title}</Text>
@@ -314,29 +349,55 @@ function RoadmapDetail({
                 <Text numberOfLines={1} style={styles.feedbackTitle}>
                   {entry.title}
                 </Text>
-                <Pressable onPress={() => void detach({ entryId: entry.id })}>
+                <Pressable
+                  disabled={detachAction.pending}
+                  style={detachAction.pending && styles.disabled}
+                  onPress={() =>
+                    void detachAction.run(
+                      () => detach({ entryId: entry.id }),
+                      "Could not detach feedback",
+                    )
+                  }
+                >
                   <Text style={styles.danger}>Detach</Text>
                 </Pressable>
               </View>
             )}
           />
           <View style={styles.modalActions}>
-            <Pressable style={styles.secondaryButton} onPress={onClose}>
+            <Pressable
+              disabled={detachAction.pending || deleteAction.pending}
+              style={[
+                styles.secondaryButton,
+                (detachAction.pending || deleteAction.pending) &&
+                  styles.disabled,
+              ]}
+              onPress={onClose}
+            >
               <Text>Close</Text>
             </Pressable>
             <Pressable
-              style={styles.secondaryButton}
+              disabled={detachAction.pending || deleteAction.pending}
+              style={[
+                styles.secondaryButton,
+                (detachAction.pending || deleteAction.pending) &&
+                  styles.disabled,
+              ]}
               onPress={() => setEditing(true)}
             >
               <Text>Edit</Text>
             </Pressable>
             <Pressable
-              disabled={deleting}
-              style={styles.dangerButton}
+              disabled={deleteAction.pending || detachAction.pending}
+              style={[
+                styles.dangerButton,
+                (deleteAction.pending || detachAction.pending) &&
+                  styles.disabled,
+              ]}
               onPress={confirmDelete}
             >
               <Text style={styles.dangerText}>
-                {deleting ? "Deleting…" : "Delete"}
+                {deleteAction.pending ? "Deleting…" : "Delete"}
               </Text>
             </Pressable>
           </View>
@@ -362,6 +423,7 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   loader: { flex: 1 },
   pageLoader: { paddingVertical: 16 },
+  disabled: { opacity: 0.5 },
   title: { color: adminTheme.text, fontSize: 28, fontWeight: "700" },
   subtitle: { color: adminTheme.muted, fontSize: 14 },
   board: { gap: 12, paddingHorizontal: 12, paddingBottom: 120 },

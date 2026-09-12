@@ -3,8 +3,6 @@ import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +13,7 @@ import {
 
 import { adminTheme } from "@/constants/AdminTheme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useAdminAction } from "@/lib/action";
 import { feedbackHooks } from "@/lib/feedback";
 
 const statuses: EntryStatus[] = [
@@ -39,6 +38,7 @@ export default function FeedbackDetailScreen() {
   const attachRoadmap = feedbackHooks.useAttachFeedbackToRoadmap();
   const detachRoadmap = feedbackHooks.useDetachFeedbackFromRoadmap();
   const createRoadmapForEntry = feedbackHooks.useCreateRoadmapForEntry();
+  const action = useAdminAction();
   const [roadmapSearch, setRoadmapSearch] = useState("");
   const debouncedSearch = useDebouncedValue(roadmapSearch, 300);
   const roadmapResults = feedbackHooks.useSearchRoadmap(debouncedSearch);
@@ -71,21 +71,31 @@ export default function FeedbackDetailScreen() {
         <Control
           label="Status"
           value={entry.status.replaceAll("_", " ")}
+          disabled={action.pending}
           onPress={() =>
-            void setStatus({
-              entryId: entry.id,
-              status: next(statuses, entry.status),
-            })
+            void action.run(
+              () =>
+                setStatus({
+                  entryId: entry.id,
+                  status: next(statuses, entry.status),
+                }),
+              "Could not update status",
+            )
           }
         />
         <Control
           label="Priority"
           value={entry.priority ?? "none"}
+          disabled={action.pending}
           onPress={() =>
-            void setPriority({
-              entryId: entry.id,
-              priority: next(priorities, entry.priority ?? null),
-            })
+            void action.run(
+              () =>
+                setPriority({
+                  entryId: entry.id,
+                  priority: next(priorities, entry.priority ?? null),
+                }),
+              "Could not update priority",
+            )
           }
         />
       </View>
@@ -93,7 +103,15 @@ export default function FeedbackDetailScreen() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Roadmap</Text>
         {entry.roadmap && (
-          <Pressable onPress={() => void detachRoadmap({ entryId: entry.id })}>
+          <Pressable
+            disabled={action.pending}
+            onPress={() =>
+              void action.run(
+                () => detachRoadmap({ entryId: entry.id }),
+                "Could not detach roadmap item",
+              )
+            }
+          >
             <Text style={styles.delete}>Detach</Text>
           </Pressable>
         )}
@@ -108,6 +126,7 @@ export default function FeedbackDetailScreen() {
       ) : (
         <View style={styles.roadmapSearch}>
           <TextInput
+            editable={!action.pending}
             value={roadmapSearch}
             onChangeText={setRoadmapSearch}
             placeholder="Search roadmap items"
@@ -118,8 +137,13 @@ export default function FeedbackDetailScreen() {
             <Pressable
               key={item.id}
               style={styles.result}
+              disabled={action.pending}
               onPress={() =>
-                void attachRoadmap({ entryId: entry.id, roadmapId: item.id })
+                void action.run(
+                  () =>
+                    attachRoadmap({ entryId: entry.id, roadmapId: item.id }),
+                  "Could not attach roadmap item",
+                )
               }
             >
               <Text style={styles.resultTitle}>{item.title}</Text>
@@ -128,22 +152,29 @@ export default function FeedbackDetailScreen() {
               </Text>
             </Pressable>
           ))}
-          {!!debouncedSearch.trim() && roadmapResults?.length === 0 && (
-            <Pressable
-              style={styles.create}
-              onPress={() =>
-                void createRoadmapForEntry({
-                  entryId: entry.id,
-                  title: roadmapSearch.trim(),
-                  status: "planned",
-                })
-              }
-            >
-              <Text style={styles.createText}>
-                Create “{roadmapSearch.trim()}”
-              </Text>
-            </Pressable>
-          )}
+          {!!debouncedSearch.trim() &&
+            debouncedSearch.trim() === roadmapSearch.trim() &&
+            roadmapResults?.length === 0 && (
+              <Pressable
+                style={styles.create}
+                disabled={action.pending}
+                onPress={() =>
+                  void action.run(
+                    () =>
+                      createRoadmapForEntry({
+                        entryId: entry.id,
+                        title: debouncedSearch.trim(),
+                        status: "planned",
+                      }),
+                    "Could not create roadmap item",
+                  )
+                }
+              >
+                <Text style={styles.createText}>
+                  Create “{roadmapSearch.trim()}”
+                </Text>
+              </Pressable>
+            )}
         </View>
       )}
       <View style={styles.divider} />
@@ -155,14 +186,20 @@ export default function FeedbackDetailScreen() {
 function Control({
   label,
   value,
+  disabled,
   onPress,
 }: {
   label: string;
   value: string;
+  disabled?: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.control} onPress={onPress}>
+    <Pressable
+      disabled={disabled}
+      style={[styles.control, disabled && styles.disabled]}
+      onPress={onPress}
+    >
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.controlValue}>{value}</Text>
     </Pressable>
@@ -174,21 +211,125 @@ function Discussion({ entryId }: { entryId: string }) {
   return (
     <View style={styles.discussion}>
       <Text style={styles.sectionTitle}>Discussion</Text>
-      <FlatList
-        scrollEnabled={false}
-        data={comments.results}
-        keyExtractor={(comment) => comment.id}
-        ListEmptyComponent={<Text style={styles.label}>No comments yet.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.comment}>
-            <Text style={styles.label}>{item.actorId}</Text>
-            <Text style={styles.commentBody}>
-              {item.body ?? "Comment deleted"}
-            </Text>
-          </View>
-        )}
-      />
+      {comments.status === "LoadingFirstPage" ? (
+        <Text style={styles.label}>Loading comments…</Text>
+      ) : comments.results.length === 0 ? (
+        <Text style={styles.label}>No comments yet.</Text>
+      ) : (
+        comments.results.map((comment) => (
+          <AdminCommentBranch
+            key={comment.id}
+            entryId={entryId}
+            comment={comment}
+          />
+        ))
+      )}
+      {(comments.status === "CanLoadMore" ||
+        comments.status === "LoadingMore") && (
+        <LoadMoreButton
+          label="Load more comments"
+          disabled={comments.status === "LoadingMore"}
+          onPress={() => comments.loadMore(feedbackHooks.pageSizes.comments)}
+        />
+      )}
     </View>
+  );
+}
+
+function AdminCommentBranch({
+  entryId,
+  comment,
+}: {
+  entryId: string;
+  comment: ReturnType<typeof feedbackHooks.useComments>["results"][number];
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <View style={styles.comment}>
+      <Text style={styles.label}>{comment.actorId}</Text>
+      <Text style={styles.commentBody}>
+        {comment.body ?? "Comment deleted"}
+      </Text>
+      {comment.replyCount > 0 && (
+        <>
+          <Pressable onPress={() => setExpanded((value) => !value)}>
+            <Text style={styles.replyToggle}>
+              {expanded
+                ? "Hide replies"
+                : `View ${comment.replyCount} ${comment.replyCount === 1 ? "reply" : "replies"}`}
+            </Text>
+          </Pressable>
+          {expanded && (
+            <AdminReplyList entryId={entryId} parentCommentId={comment.id} />
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
+function AdminReplyList({
+  entryId,
+  parentCommentId,
+}: {
+  entryId: string;
+  parentCommentId: string;
+}) {
+  const replies = feedbackHooks.useComments({
+    entryId,
+    parentCommentId,
+    sort: "oldest",
+  });
+
+  return (
+    <View style={styles.replies}>
+      {replies.status === "LoadingFirstPage" ? (
+        <Text style={styles.label}>Loading replies…</Text>
+      ) : replies.results.length === 0 ? (
+        <Text style={styles.label}>No replies yet.</Text>
+      ) : (
+        replies.results.map((reply) => (
+          <AdminCommentBranch
+            key={reply.id}
+            entryId={entryId}
+            comment={reply}
+          />
+        ))
+      )}
+      {(replies.status === "CanLoadMore" ||
+        replies.status === "LoadingMore") && (
+        <LoadMoreButton
+          label="Load more replies"
+          disabled={replies.status === "LoadingMore"}
+          onPress={() => replies.loadMore(feedbackHooks.pageSizes.replies)}
+        />
+      )}
+    </View>
+  );
+}
+
+function LoadMoreButton({
+  label,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      style={[styles.loadMore, disabled && styles.disabled]}
+      onPress={onPress}
+    >
+      {disabled ? (
+        <ActivityIndicator color={adminTheme.primary} />
+      ) : (
+        <Text style={styles.loadMoreText}>{label}</Text>
+      )}
+    </Pressable>
   );
 }
 
@@ -238,6 +379,7 @@ const styles = StyleSheet.create({
     backgroundColor: adminTheme.surface,
     padding: 12,
   },
+  disabled: { opacity: 0.5 },
   label: { color: adminTheme.muted, fontSize: 11, textTransform: "capitalize" },
   controlValue: {
     color: adminTheme.text,
@@ -285,4 +427,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   commentBody: { color: adminTheme.text, fontSize: 14, lineHeight: 20 },
+  replyToggle: { color: adminTheme.primary, fontSize: 12, fontWeight: "600" },
+  replies: {
+    gap: 4,
+    borderLeftWidth: 2,
+    borderColor: adminTheme.border,
+    marginLeft: 4,
+    paddingLeft: 12,
+  },
+  loadMore: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 40,
+    borderWidth: 1,
+    borderColor: adminTheme.border,
+    borderRadius: 10,
+    backgroundColor: adminTheme.surface,
+    paddingHorizontal: 12,
+  },
+  loadMoreText: { color: adminTheme.primary, fontSize: 12, fontWeight: "600" },
 });

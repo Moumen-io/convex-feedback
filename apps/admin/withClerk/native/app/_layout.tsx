@@ -8,6 +8,7 @@ import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Button,
   Modal,
   StyleSheet,
@@ -43,21 +44,51 @@ function AdminGate() {
   const convexAuth = useConvexAuth();
   const [authOpen, setAuthOpen] = useState(false);
   const [allowed, setAllowed] = useState<boolean | undefined>();
+  const [accessError, setAccessError] = useState<string>();
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!convexAuth.isAuthenticated) {
       setAllowed(undefined);
+      setAccessError(undefined);
       return;
     }
     let active = true;
+    setAllowed(undefined);
+    setAccessError(undefined);
     void convex
       .query(anyApi.feedback.isAdmin, {})
-      .then((result) => active && setAllowed(result as boolean))
-      .catch(() => active && setAllowed(false));
+      .then((result) => {
+        if (!active) return;
+        setAccessError(undefined);
+        setAllowed(result as boolean);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setAccessError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to verify admin access.",
+        );
+        setAllowed(undefined);
+        Alert.alert(
+          "Unable to verify access",
+          reason instanceof Error
+            ? reason.message
+            : "Unable to verify admin access.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Retry",
+              onPress: () => setRetryCount((value) => value + 1),
+            },
+          ],
+        );
+      });
     return () => {
       active = false;
     };
-  }, [convexAuth.isAuthenticated]);
+  }, [convexAuth.isAuthenticated, retryCount]);
 
   const loading = !clerk.isLoaded || convexAuth.isLoading;
 
@@ -77,6 +108,16 @@ function AdminGate() {
             title="Sign in"
             color={adminTheme.primary}
             onPress={() => setAuthOpen(true)}
+          />
+        </Centered>
+      ) : accessError ? (
+        <Centered>
+          <Text style={styles.title}>Unable to verify access</Text>
+          <Text style={styles.body}>{accessError}</Text>
+          <Button
+            title="Retry"
+            color={adminTheme.primary}
+            onPress={() => setRetryCount((value) => value + 1)}
           />
         </Centered>
       ) : allowed === undefined ? (

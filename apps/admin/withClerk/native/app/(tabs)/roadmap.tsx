@@ -239,7 +239,40 @@ function RoadmapDetail({
   const detach = feedbackHooks.useDetachFeedbackFromRoadmap();
   const remove = feedbackHooks.useDeleteRoadmap();
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   if (!item) return null;
+
+  const deleteItem = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await remove({ roadmapId: item.id });
+      onClose();
+    } catch (error) {
+      Alert.alert(
+        "Could not delete",
+        error instanceof Error ? error.message : "Try again.",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      "Delete roadmap item?",
+      "This permanently deletes the roadmap item and detaches all linked feedback.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => void deleteItem(),
+        },
+      ],
+    );
+  };
+
   return (
     <>
       <Modal
@@ -298,10 +331,13 @@ function RoadmapDetail({
               <Text>Edit</Text>
             </Pressable>
             <Pressable
+              disabled={deleting}
               style={styles.dangerButton}
-              onPress={() => void remove({ roadmapId: item.id }).then(onClose)}
+              onPress={confirmDelete}
             >
-              <Text style={styles.dangerText}>Delete</Text>
+              <Text style={styles.dangerText}>
+                {deleting ? "Deleting…" : "Delete"}
+              </Text>
             </Pressable>
           </View>
         </View>

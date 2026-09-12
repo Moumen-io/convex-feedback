@@ -1,4 +1,9 @@
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server";
 import { ConvexError, v } from "convex/values";
+import { mergedStream, stream } from "convex-helpers/server/stream";
 
 import type { Doc } from "./_generated/dataModel.js";
 import { query } from "./_generated/server.js";
@@ -12,6 +17,7 @@ import {
   type EntryPriority,
   type EntryStatus,
 } from "./model.js";
+import schema from "./schema.js";
 
 function matchesFilters(
   entry: Doc<"entries">,
@@ -43,71 +49,67 @@ export const listEntries = query({
     status: v.optional(entryStatusValidator),
     priority: v.optional(entryPriorityValidator),
     tagId: v.optional(v.id("tags")),
-    limit: v.number(),
+    paginationOpts: paginationOptsValidator,
     viewerActorId: v.string(),
   },
-  returns: v.array(adminEntryValidator),
+  returns: paginationResultValidator(adminEntryValidator),
   handler: async (ctx, args) => {
-    const limit = Math.min(Math.max(Math.floor(args.limit), 1), 100);
     const kinds =
       args.kinds === undefined ? undefined : [...new Set(args.kinds)];
     if (kinds?.length === 0) {
       throw new ConvexError("`kinds` must contain at least one kind.");
     }
-    let entries: Doc<"entries">[];
-
-    if (args.tagId !== undefined) {
-      const predicate = (entry: Doc<"entries">) =>
-        matchesFilters(entry, kinds, args.status, args.priority);
-      const [primary, secondary] = await Promise.all([
-        ctx.db
-          .query("entries")
-          .withIndex("by_primary_tag_id", (q) =>
-            q.eq("primaryTagId", args.tagId),
-          )
-          .order("desc")
-          .take(limit * 4),
-        ctx.db
-          .query("entries")
-          .withIndex("by_secondary_tag_id", (q) =>
-            q.eq("secondaryTagId", args.tagId),
-          )
-          .order("desc")
-          .take(limit * 4),
-      ]);
-      entries = [...primary, ...secondary]
-        .filter(predicate)
-        .sort((a, b) => b._creationTime - a._creationTime)
-        .slice(0, limit);
-    } else {
-      const status = args.status;
-      const base =
-        args.priority !== undefined
-          ? ctx.db
-              .query("entries")
-              .withIndex("by_priority", (q) => q.eq("priority", args.priority))
-          : status !== undefined
-            ? ctx.db
+    const { status, priority, tagId } = args;
+    const matches = (entry: Doc<"entries">) =>
+      matchesFilters(entry, kinds, status, priority);
+    const result =
+      tagId !== undefined
+        ? await mergedStream(
+            [
+              stream(ctx.db, schema)
                 .query("entries")
-                .withIndex("by_status", (q) => q.eq("status", status))
-            : kinds?.length === 1
-              ? ctx.db
+                .withIndex("by_primary_tag_id", (q) =>
+                  q.eq("primaryTagId", tagId),
+                )
+                .order("desc"),
+              stream(ctx.db, schema)
+                .query("entries")
+                .withIndex("by_secondary_tag_id", (q) =>
+                  q.eq("secondaryTagId", tagId),
+                )
+                .order("desc"),
+            ],
+            ["_creationTime"],
+          )
+            .filterWith((entry) => Promise.resolve(matches(entry)))
+            .paginate(args.paginationOpts)
+        : await (
+            priority !== undefined
+              ? stream(ctx.db, schema)
                   .query("entries")
-                  .withIndex("by_kind", (q) => q.eq("kind", kinds[0]!))
-              : ctx.db.query("entries");
-      entries = await base.order("desc").take(limit * 4);
-      entries = entries
-        .filter((entry) =>
-          matchesFilters(entry, kinds, args.status, args.priority),
-        )
-        .slice(0, limit);
-    }
+                  .withIndex("by_priority", (q) => q.eq("priority", priority))
+              : status !== undefined
+                ? stream(ctx.db, schema)
+                    .query("entries")
+                    .withIndex("by_status", (q) => q.eq("status", status))
+                : kinds?.length === 1
+                  ? stream(ctx.db, schema)
+                      .query("entries")
+                      .withIndex("by_kind", (q) => q.eq("kind", kinds[0]!))
+                  : stream(ctx.db, schema).query("entries")
+          )
+            .order("desc")
+            .filterWith((entry) => Promise.resolve(matches(entry)))
+            .paginate(args.paginationOpts);
 
-    return await Promise.all(
-      entries.map((entry) =>
-        serializeAdminEntry(ctx, entry, args.viewerActorId),
+    return {
+      ...result,
+      page: await Promise.all(
+        result.page.map((entry) =>
+          serializeAdminEntry(ctx, entry, args.viewerActorId),
+        ),
       ),
-    );
+    };
   },
 });
 
@@ -118,33 +120,52 @@ export const searchEntries = query({
     status: v.optional(entryStatusValidator),
     priority: v.optional(entryPriorityValidator),
     tagId: v.optional(v.id("tags")),
-    limit: v.number(),
+    paginationOpts: paginationOptsValidator,
     viewerActorId: v.string(),
   },
-  returns: v.array(adminEntryValidator),
+  returns: paginationResultValidator(adminEntryValidator),
   handler: async (ctx, args) => {
     const searchQuery = args.searchQuery.trim();
-    if (searchQuery.length === 0 || args.limit <= 0) return [];
-    const limit = Math.min(Math.floor(args.limit), 100);
+    if (searchQuery.length === 0) {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
     const kinds =
       args.kinds === undefined ? undefined : [...new Set(args.kinds)];
-    const entries = await ctx.db
+    if (kinds?.length === 0) {
+      throw new ConvexError("`kinds` must contain at least one kind.");
+    }
+    const indexedKind = kinds?.length === 1 ? kinds[0] : undefined;
+    const result = await ctx.db
       .query("entries")
-      .withSearchIndex("search", (q) => q.search("searchText", searchQuery))
-      .take(limit * 3);
-    const filtered = entries
-      .filter(
-        (entry) =>
-          matchesFilters(entry, kinds, args.status, args.priority) &&
-          (args.tagId === undefined ||
-            entry.primaryTagId === args.tagId ||
-            entry.secondaryTagId === args.tagId),
-      )
-      .slice(0, limit);
-    return await Promise.all(
-      filtered.map((entry) =>
-        serializeAdminEntry(ctx, entry, args.viewerActorId),
-      ),
+      .withSearchIndex("search", (q) => {
+        const searched = q.search("searchText", searchQuery);
+        const withKind =
+          indexedKind === undefined
+            ? searched
+            : searched.eq("kind", indexedKind);
+        const withStatus =
+          args.status === undefined
+            ? withKind
+            : withKind.eq("status", args.status);
+        return args.priority === undefined
+          ? withStatus
+          : withStatus.eq("priority", args.priority);
+      })
+      .paginate(args.paginationOpts);
+    const filtered = result.page.filter(
+      (entry) =>
+        matchesFilters(entry, kinds, args.status, args.priority) &&
+        (args.tagId === undefined ||
+          entry.primaryTagId === args.tagId ||
+          entry.secondaryTagId === args.tagId),
     );
+    return {
+      ...result,
+      page: await Promise.all(
+        filtered.map((entry) =>
+          serializeAdminEntry(ctx, entry, args.viewerActorId),
+        ),
+      ),
+    };
   },
 });

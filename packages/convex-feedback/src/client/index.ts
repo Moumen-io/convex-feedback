@@ -643,13 +643,13 @@ function buildFeedbackApi<
 
     adminListEntries: queryGeneric({
       args: {
+        paginationOpts: paginationOptsValidator,
         kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
         priority: v.optional(entryPriorityValidator),
         tagId: v.optional(v.string()),
-        limit: v.optional(v.number()),
       },
-      returns: v.array(adminEntryValidator),
+      returns: paginationResultValidator(adminEntryValidator),
       handler: async (ctx, args) => {
         const actor = await requireAdminActor(ctx);
         return await ctx.runQuery(component.admin.listEntries, {
@@ -657,7 +657,10 @@ function buildFeedbackApi<
           ...(args.status === undefined ? {} : { status: args.status }),
           ...(args.priority === undefined ? {} : { priority: args.priority }),
           ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
-          limit: clampPositive(args.limit, 50, 100),
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
           viewerActorId: actor.id,
         });
       },
@@ -677,14 +680,14 @@ function buildFeedbackApi<
 
     adminSearchEntries: queryGeneric({
       args: {
+        paginationOpts: paginationOptsValidator,
         searchQuery: v.string(),
         kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
         priority: v.optional(entryPriorityValidator),
         tagId: v.optional(v.string()),
-        limit: v.optional(v.number()),
       },
-      returns: v.array(adminEntryValidator),
+      returns: paginationResultValidator(adminEntryValidator),
       handler: async (ctx, args) => {
         const actor = await requireAdminActor(ctx);
         return await ctx.runQuery(component.admin.searchEntries, {
@@ -693,7 +696,10 @@ function buildFeedbackApi<
           ...(args.status === undefined ? {} : { status: args.status }),
           ...(args.priority === undefined ? {} : { priority: args.priority }),
           ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
-          limit: clampPositive(args.limit, 50, 100),
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
           viewerActorId: actor.id,
         });
       },
@@ -947,11 +953,20 @@ function buildFeedbackApi<
     }),
 
     listRoadmap: queryGeneric({
-      args: { status: v.optional(roadmapStatusValidator) },
-      returns: v.array(roadmapItemValidator),
+      args: {
+        paginationOpts: paginationOptsValidator,
+        status: v.optional(roadmapStatusValidator),
+      },
+      returns: paginationResultValidator(roadmapItemValidator),
       handler: async (ctx, args) => {
         await requireAdminActor(ctx);
-        return await ctx.runQuery(component.roadmap.list, args);
+        return await ctx.runQuery(component.roadmap.list, {
+          ...args,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
+        });
       },
     }),
 
@@ -1083,12 +1098,19 @@ function buildFeedbackApi<
     }),
 
     listRoadmapFeedback: queryGeneric({
-      args: { roadmapId: v.string() },
-      returns: v.array(adminEntryValidator),
+      args: {
+        paginationOpts: paginationOptsValidator,
+        roadmapId: v.string(),
+      },
+      returns: paginationResultValidator(adminEntryValidator),
       handler: async (ctx, args) => {
         const actor = await requireAdminActor(ctx);
         return await ctx.runQuery(component.roadmap.listFeedback, {
           ...args,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
           viewerActorId: actor.id,
         });
       },

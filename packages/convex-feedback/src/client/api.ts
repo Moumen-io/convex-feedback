@@ -178,11 +178,12 @@ export type SetEntryStatusArgs = {
 };
 
 export type AdminListEntriesArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
   kinds?: EntryKind[];
   status?: EntryStatus;
   priority?: EntryPriority;
   tagId?: string;
-  limit?: number;
 };
 
 export type AdminSearchEntriesArgs = AdminListEntriesArgs & {
@@ -207,7 +208,11 @@ export type DetachTagArgs = {
   placement: "primary" | "secondary";
 };
 
-export type ListRoadmapArgs = { status?: RoadmapStatus };
+export type ListRoadmapArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
+  status?: RoadmapStatus;
+};
 export type SearchRoadmapArgs = { searchQuery: string; limit?: number };
 export type CreateRoadmapArgs = {
   title: string;
@@ -231,7 +236,11 @@ export type AttachFeedbackToRoadmapArgs = {
   entryId: string;
 };
 export type DetachFeedbackFromRoadmapArgs = { entryId: string };
-export type ListRoadmapFeedbackArgs = { roadmapId: string };
+export type ListRoadmapFeedbackArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
+  roadmapId: string;
+};
 
 /**
  * Arguments for setting the current actor's entry-upvote state.
@@ -445,7 +454,7 @@ export interface FeedbackPublicApi<
     "query",
     "public",
     AdminListEntriesArgs,
-    AdminFeedbackEntry[],
+    PaginationResult<AdminFeedbackEntry>,
     Name
   >;
   adminGetEntry: FunctionReference<
@@ -459,7 +468,7 @@ export interface FeedbackPublicApi<
     "query",
     "public",
     AdminSearchEntriesArgs,
-    AdminFeedbackEntry[],
+    PaginationResult<AdminFeedbackEntry>,
     Name
   >;
   setEntryPriority: FunctionReference<
@@ -517,7 +526,7 @@ export interface FeedbackPublicApi<
     "query",
     "public",
     ListRoadmapArgs,
-    RoadmapItem[],
+    PaginationResult<RoadmapItem>,
     Name
   >;
   searchRoadmap: FunctionReference<
@@ -573,7 +582,7 @@ export interface FeedbackPublicApi<
     "query",
     "public",
     ListRoadmapFeedbackArgs,
-    AdminFeedbackEntry[],
+    PaginationResult<AdminFeedbackEntry>,
     Name
   >;
 

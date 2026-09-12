@@ -52,7 +52,7 @@ const schema = defineSchema({
     .index("by_roadmap_id", ["roadmapId"])
     .searchIndex("search", {
       searchField: "searchText",
-      filterFields: ["kind", "status", "statusFilter"],
+      filterFields: ["kind", "status", "statusFilter", "priority"],
     }),
 
   tags: defineTable({

@@ -26,7 +26,8 @@ import type {
  */
 export interface FeedbackHooksOptions {
   /**
-   * Number of entries initially requested by `useEntries`.
+   * Number of entries initially requested by entry-list hooks, including the
+   * public board, admin inbox, admin search, and roadmap attachments.
    *
    * @default 20
    */
@@ -46,6 +47,13 @@ export interface FeedbackHooksOptions {
    * @default 10
    */
   replyPageSize?: number;
+
+  /**
+   * Number of roadmap items initially requested by `useRoadmap`.
+   *
+   * @default 30
+   */
+  roadmapPageSize?: number;
 }
 
 /**
@@ -144,7 +152,6 @@ export interface UseAdminEntriesArgs {
   status?: EntryStatus;
   priority?: EntryPriority;
   tagId?: string;
-  limit?: number;
 }
 
 export interface UseAdminSearchEntriesArgs extends UseAdminEntriesArgs {
@@ -215,6 +222,7 @@ function createFeedbackHooksImplementation<RateLimitResult>(
   const entryPageSize = positivePageSize(options.entryPageSize, 20);
   const commentPageSize = positivePageSize(options.commentPageSize, 20);
   const replyPageSize = positivePageSize(options.replyPageSize, 10);
+  const roadmapPageSize = positivePageSize(options.roadmapPageSize, 30);
 
   return {
     /**
@@ -225,6 +233,7 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       entries: entryPageSize,
       comments: commentPageSize,
       replies: replyPageSize,
+      roadmap: roadmapPageSize,
     } as const,
 
     /**
@@ -288,15 +297,18 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return useQuery(api.isAdmin, {});
     },
 
-    /** Returns a bounded admin inbox with private triage relationships. */
+    /** Returns a cursor-paginated admin inbox with private triage relationships. */
     useAdminEntries(args: UseAdminEntriesArgs = {}) {
-      return useQuery(api.adminListEntries, {
-        ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
-        ...(args.status === undefined ? {} : { status: args.status }),
-        ...(args.priority === undefined ? {} : { priority: args.priority }),
-        ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
-        ...(args.limit === undefined ? {} : { limit: args.limit }),
-      });
+      return usePaginatedQuery(
+        api.adminListEntries,
+        {
+          ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
+          ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.priority === undefined ? {} : { priority: args.priority }),
+          ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
+        },
+        { initialNumItems: entryPageSize },
+      );
     },
 
     /** Returns one admin-enriched feedback entry. */
@@ -310,7 +322,7 @@ function createFeedbackHooksImplementation<RateLimitResult>(
     /** Searches the admin inbox with triage filters. */
     useAdminSearchEntries(args: UseAdminSearchEntriesArgs) {
       const searchQuery = args.searchQuery.trim();
-      return useQuery(
+      return usePaginatedQuery(
         api.adminSearchEntries,
         searchQuery.length === 0
           ? "skip"
@@ -322,8 +334,8 @@ function createFeedbackHooksImplementation<RateLimitResult>(
                 ? {}
                 : { priority: args.priority }),
               ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
-              ...(args.limit === undefined ? {} : { limit: args.limit }),
             },
+        { initialNumItems: entryPageSize },
       );
     },
 
@@ -332,7 +344,11 @@ function createFeedbackHooksImplementation<RateLimitResult>(
     },
 
     useRoadmap(status?: RoadmapStatus) {
-      return useQuery(api.listRoadmap, status === undefined ? {} : { status });
+      return usePaginatedQuery(
+        api.listRoadmap,
+        status === undefined ? {} : { status },
+        { initialNumItems: roadmapPageSize },
+      );
     },
 
     useSearchRoadmap(searchQuery: string, limit = 10) {
@@ -344,9 +360,10 @@ function createFeedbackHooksImplementation<RateLimitResult>(
     },
 
     useRoadmapFeedback(roadmapId: string | null | undefined) {
-      return useQuery(
+      return usePaginatedQuery(
         api.listRoadmapFeedback,
         roadmapId === null || roadmapId === undefined ? "skip" : { roadmapId },
+        { initialNumItems: entryPageSize },
       );
     },
 

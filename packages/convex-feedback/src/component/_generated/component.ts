@@ -79,19 +79,19 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         } | null,
         Name
       >;
-      isAdmin: FunctionReference<
-        "query",
-        "internal",
-        { actorIsAdmin: boolean },
-        boolean,
-        Name
-      >;
       listEntries: FunctionReference<
         "query",
         "internal",
         {
           kinds?: Array<"feedback" | "feature_request" | "bug_report">;
-          limit: number;
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
           priority?: "low" | "medium" | "high";
           status?:
             | "open"
@@ -103,55 +103,61 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           tagId?: string;
           viewerActorId: string;
         },
-        Array<{
-          actorId: string;
-          body: string;
-          commentCount: number;
-          creationTime: number;
-          id: string;
-          kind: "feedback" | "feature_request" | "bug_report";
-          metadata?: {
-            additional?: Record<string, string | number | boolean>;
-            standard?: Record<string, string | number | boolean>;
-          };
-          primaryTag?: {
-            color?: string;
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            actorId: string;
+            body: string;
+            commentCount: number;
             creationTime: number;
             id: string;
-            name: string;
-            updatedAt: number;
-          };
-          priority?: "low" | "medium" | "high";
-          roadmap?: {
-            createdAt: number;
-            creationTime: number;
-            description?: string;
-            feedbackCount: number;
-            id: string;
-            position: number;
-            status: "planned" | "in_progress" | "shipped";
+            kind: "feedback" | "feature_request" | "bug_report";
+            metadata?: {
+              additional?: Record<string, string | number | boolean>;
+              standard?: Record<string, string | number | boolean>;
+            };
+            primaryTag?: {
+              color?: string;
+              creationTime: number;
+              id: string;
+              name: string;
+              updatedAt: number;
+            };
+            priority?: "low" | "medium" | "high";
+            roadmap?: {
+              createdAt: number;
+              creationTime: number;
+              description?: string;
+              feedbackCount: number;
+              id: string;
+              position: number;
+              status: "planned" | "in_progress" | "shipped";
+              title: string;
+              updatedAt: number;
+            };
+            secondaryTag?: {
+              color?: string;
+              creationTime: number;
+              id: string;
+              name: string;
+              updatedAt: number;
+            };
+            status:
+              | "open"
+              | "under_review"
+              | "planned"
+              | "in_progress"
+              | "completed"
+              | "closed";
             title: string;
-            updatedAt: number;
-          };
-          secondaryTag?: {
-            color?: string;
-            creationTime: number;
-            id: string;
-            name: string;
-            updatedAt: number;
-          };
-          status:
-            | "open"
-            | "under_review"
-            | "planned"
-            | "in_progress"
-            | "completed"
-            | "closed";
-          title: string;
-          updatedAt?: number;
-          upvoteCount: number;
-          viewerHasUpvoted: boolean;
-        }>,
+            updatedAt?: number;
+            upvoteCount: number;
+            viewerHasUpvoted: boolean;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        },
         Name
       >;
       searchEntries: FunctionReference<
@@ -159,7 +165,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         {
           kinds?: Array<"feedback" | "feature_request" | "bug_report">;
-          limit: number;
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
           priority?: "low" | "medium" | "high";
           searchQuery: string;
           status?:
@@ -172,55 +185,61 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           tagId?: string;
           viewerActorId: string;
         },
-        Array<{
-          actorId: string;
-          body: string;
-          commentCount: number;
-          creationTime: number;
-          id: string;
-          kind: "feedback" | "feature_request" | "bug_report";
-          metadata?: {
-            additional?: Record<string, string | number | boolean>;
-            standard?: Record<string, string | number | boolean>;
-          };
-          primaryTag?: {
-            color?: string;
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            actorId: string;
+            body: string;
+            commentCount: number;
             creationTime: number;
             id: string;
-            name: string;
-            updatedAt: number;
-          };
-          priority?: "low" | "medium" | "high";
-          roadmap?: {
-            createdAt: number;
-            creationTime: number;
-            description?: string;
-            feedbackCount: number;
-            id: string;
-            position: number;
-            status: "planned" | "in_progress" | "shipped";
+            kind: "feedback" | "feature_request" | "bug_report";
+            metadata?: {
+              additional?: Record<string, string | number | boolean>;
+              standard?: Record<string, string | number | boolean>;
+            };
+            primaryTag?: {
+              color?: string;
+              creationTime: number;
+              id: string;
+              name: string;
+              updatedAt: number;
+            };
+            priority?: "low" | "medium" | "high";
+            roadmap?: {
+              createdAt: number;
+              creationTime: number;
+              description?: string;
+              feedbackCount: number;
+              id: string;
+              position: number;
+              status: "planned" | "in_progress" | "shipped";
+              title: string;
+              updatedAt: number;
+            };
+            secondaryTag?: {
+              color?: string;
+              creationTime: number;
+              id: string;
+              name: string;
+              updatedAt: number;
+            };
+            status:
+              | "open"
+              | "under_review"
+              | "planned"
+              | "in_progress"
+              | "completed"
+              | "closed";
             title: string;
-            updatedAt: number;
-          };
-          secondaryTag?: {
-            color?: string;
-            creationTime: number;
-            id: string;
-            name: string;
-            updatedAt: number;
-          };
-          status:
-            | "open"
-            | "under_review"
-            | "planned"
-            | "in_progress"
-            | "completed"
-            | "closed";
-          title: string;
-          updatedAt?: number;
-          upvoteCount: number;
-          viewerHasUpvoted: boolean;
-        }>,
+            updatedAt?: number;
+            upvoteCount: number;
+            viewerHasUpvoted: boolean;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        },
         Name
       >;
     };
@@ -608,44 +627,21 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       list: FunctionReference<
         "query",
         "internal",
-        { status?: "planned" | "in_progress" | "shipped" },
-        Array<{
-          createdAt: number;
-          creationTime: number;
-          description?: string;
-          feedbackCount: number;
-          id: string;
-          position: number;
-          status: "planned" | "in_progress" | "shipped";
-          title: string;
-          updatedAt: number;
-        }>,
-        Name
-      >;
-      listFeedback: FunctionReference<
-        "query",
-        "internal",
-        { roadmapId: string; viewerActorId: string },
-        Array<{
-          actorId: string;
-          body: string;
-          commentCount: number;
-          creationTime: number;
-          id: string;
-          kind: "feedback" | "feature_request" | "bug_report";
-          metadata?: {
-            additional?: Record<string, string | number | boolean>;
-            standard?: Record<string, string | number | boolean>;
+        {
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
           };
-          primaryTag?: {
-            color?: string;
-            creationTime: number;
-            id: string;
-            name: string;
-            updatedAt: number;
-          };
-          priority?: "low" | "medium" | "high";
-          roadmap?: {
+          status?: "planned" | "in_progress" | "shipped";
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
             createdAt: number;
             creationTime: number;
             description?: string;
@@ -655,26 +651,82 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             status: "planned" | "in_progress" | "shipped";
             title: string;
             updatedAt: number;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        },
+        Name
+      >;
+      listFeedback: FunctionReference<
+        "query",
+        "internal",
+        {
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
           };
-          secondaryTag?: {
-            color?: string;
+          roadmapId: string;
+          viewerActorId: string;
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            actorId: string;
+            body: string;
+            commentCount: number;
             creationTime: number;
             id: string;
-            name: string;
-            updatedAt: number;
-          };
-          status:
-            | "open"
-            | "under_review"
-            | "planned"
-            | "in_progress"
-            | "completed"
-            | "closed";
-          title: string;
-          updatedAt?: number;
-          upvoteCount: number;
-          viewerHasUpvoted: boolean;
-        }>,
+            kind: "feedback" | "feature_request" | "bug_report";
+            metadata?: {
+              additional?: Record<string, string | number | boolean>;
+              standard?: Record<string, string | number | boolean>;
+            };
+            primaryTag?: {
+              color?: string;
+              creationTime: number;
+              id: string;
+              name: string;
+              updatedAt: number;
+            };
+            priority?: "low" | "medium" | "high";
+            roadmap?: {
+              createdAt: number;
+              creationTime: number;
+              description?: string;
+              feedbackCount: number;
+              id: string;
+              position: number;
+              status: "planned" | "in_progress" | "shipped";
+              title: string;
+              updatedAt: number;
+            };
+            secondaryTag?: {
+              color?: string;
+              creationTime: number;
+              id: string;
+              name: string;
+              updatedAt: number;
+            };
+            status:
+              | "open"
+              | "under_review"
+              | "planned"
+              | "in_progress"
+              | "completed"
+              | "closed";
+            title: string;
+            updatedAt?: number;
+            upvoteCount: number;
+            viewerHasUpvoted: boolean;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        },
         Name
       >;
       move: FunctionReference<

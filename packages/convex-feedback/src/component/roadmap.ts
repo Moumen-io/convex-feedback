@@ -1,3 +1,7 @@
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "./_generated/server.js";
@@ -29,18 +33,24 @@ function optionalDescription(value: string | undefined): string | undefined {
 }
 
 export const list = query({
-  args: { status: v.optional(roadmapStatusValidator) },
-  returns: v.array(roadmapItemValidator),
+  args: {
+    paginationOpts: paginationOptsValidator,
+    status: v.optional(roadmapStatusValidator),
+  },
+  returns: paginationResultValidator(roadmapItemValidator),
   handler: async (ctx, args) => {
     const status = args.status;
-    const items =
+    const result =
       status === undefined
-        ? await ctx.db.query("roadmap").withIndex("by_position").take(500)
+        ? await ctx.db
+            .query("roadmap")
+            .withIndex("by_position")
+            .paginate(args.paginationOpts)
         : await ctx.db
             .query("roadmap")
             .withIndex("by_status_and_position", (q) => q.eq("status", status))
-            .take(500);
-    return items.map(serializeRoadmapItem);
+            .paginate(args.paginationOpts);
+    return { ...result, page: result.page.map(serializeRoadmapItem) };
   },
 });
 
@@ -249,18 +259,25 @@ export const detachFeedback = mutation({
 });
 
 export const listFeedback = query({
-  args: { roadmapId: v.id("roadmap"), viewerActorId: v.string() },
-  returns: v.array(adminEntryValidator),
+  args: {
+    paginationOpts: paginationOptsValidator,
+    roadmapId: v.id("roadmap"),
+    viewerActorId: v.string(),
+  },
+  returns: paginationResultValidator(adminEntryValidator),
   handler: async (ctx, args) => {
-    const entries = await ctx.db
+    const result = await ctx.db
       .query("entries")
       .withIndex("by_roadmap_id", (q) => q.eq("roadmapId", args.roadmapId))
       .order("desc")
-      .take(500);
-    return await Promise.all(
-      entries.map((entry) =>
-        serializeAdminEntry(ctx, entry, args.viewerActorId),
+      .paginate(args.paginationOpts);
+    return {
+      ...result,
+      page: await Promise.all(
+        result.page.map((entry) =>
+          serializeAdminEntry(ctx, entry, args.viewerActorId),
+        ),
       ),
-    );
+    };
   },
 });

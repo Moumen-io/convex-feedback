@@ -54,7 +54,6 @@ export default function InboxScreen() {
       ...(status === "all" ? {} : { status: status as EntryStatus }),
       ...(priority === "all" ? {} : { priority: priority as EntryPriority }),
       ...(selectedTag ? { tagId: selectedTag.id } : {}),
-      limit: 100,
     }),
     [kind, priority, selectedTag, status],
   );
@@ -63,7 +62,8 @@ export default function InboxScreen() {
     searchQuery: debounced,
     ...filters,
   });
-  const entries = debounced.trim() ? searched : listed;
+  const page = debounced.trim() ? searched : listed;
+  const entries = page.results;
 
   return (
     <View style={styles.screen}>
@@ -102,17 +102,35 @@ export default function InboxScreen() {
           }
         />
       </ScrollView>
-      {entries === undefined ? (
+      {page.status === "LoadingFirstPage" ? (
         <ActivityIndicator style={styles.loader} color={adminTheme.primary} />
       ) : (
         <FlatList
           data={entries}
+          onEndReached={() => {
+            if (page.status === "CanLoadMore") {
+              page.loadMore(feedbackHooks.pageSizes.entries);
+            }
+          }}
+          onEndReachedThreshold={0.4}
           keyExtractor={(entry) => entry.id}
           contentContainerStyle={
             entries.length === 0 ? styles.emptyList : styles.list
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>No feedback matches these filters.</Text>
+            page.status === "Exhausted" ? (
+              <Text style={styles.empty}>
+                No feedback matches these filters.
+              </Text>
+            ) : null
+          }
+          ListFooterComponent={
+            page.status === "LoadingMore" ? (
+              <ActivityIndicator
+                style={styles.pageLoader}
+                color={adminTheme.primary}
+              />
+            ) : null
           }
           renderItem={({ item }) => (
             <EntryRow
@@ -208,6 +226,7 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
   loader: { flex: 1 },
+  pageLoader: { paddingVertical: 20 },
   list: { paddingHorizontal: 12, paddingBottom: 120 },
   emptyList: {
     flexGrow: 1,

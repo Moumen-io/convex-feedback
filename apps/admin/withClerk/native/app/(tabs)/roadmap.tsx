@@ -1,6 +1,7 @@
 import type { RoadmapItem, RoadmapStatus } from "convex-feedback";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -22,7 +23,8 @@ const stages: { value: RoadmapStatus; label: string }[] = [
 ];
 
 export default function RoadmapScreen() {
-  const items = feedbackHooks.useRoadmap();
+  const roadmap = feedbackHooks.useRoadmap();
+  const items = roadmap.results;
   const move = feedbackHooks.useMoveRoadmapItem();
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<RoadmapItem>();
@@ -34,83 +36,100 @@ export default function RoadmapScreen() {
           <Text style={styles.title}>Roadmap</Text>
           <Text style={styles.subtitle}>Move feedback into delivery</Text>
         </View>
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => setCreateOpen(true)}
-        >
-          <Text style={styles.primaryButtonText}>New item</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          {roadmap.status === "CanLoadMore" && (
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => roadmap.loadMore(feedbackHooks.pageSizes.roadmap)}
+            >
+              <Text>More</Text>
+            </Pressable>
+          )}
+          {roadmap.status === "LoadingMore" && (
+            <ActivityIndicator color={adminTheme.primary} />
+          )}
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => setCreateOpen(true)}
+          >
+            <Text style={styles.primaryButtonText}>New item</Text>
+          </Pressable>
+        </View>
       </View>
-      <ScrollView
-        horizontal
-        pagingEnabled={false}
-        contentContainerStyle={styles.board}
-      >
-        {stages.map((stage, stageIndex) => {
-          const stageItems =
-            items
-              ?.filter((item) => item.status === stage.value)
-              .sort((a, b) => a.position - b.position) ?? [];
-          return (
-            <View key={stage.value} style={styles.column}>
-              <View style={styles.columnHeader}>
-                <Text style={styles.columnTitle}>{stage.label}</Text>
-                <Text style={styles.count}>{stageItems.length}</Text>
-              </View>
-              <FlatList
-                data={stageItems}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.cards}
-                ListEmptyComponent={
-                  <Text style={styles.empty}>No items in this stage.</Text>
-                }
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={styles.card}
-                    onPress={() => setSelected(item)}
-                  >
-                    <Text style={styles.cardTitle}>{item.title}</Text>
-                    {!!item.description && (
-                      <Text style={styles.cardBody} numberOfLines={2}>
-                        {item.description}
-                      </Text>
-                    )}
-                    <View style={styles.cardFooter}>
-                      <Text style={styles.feedbackCount}>
-                        {item.feedbackCount} linked
-                      </Text>
-                      <View style={styles.actions}>
-                        {stageIndex > 0 && (
-                          <MoveButton
-                            label="←"
-                            onPress={() =>
-                              void move({
-                                roadmapId: item.id,
-                                status: stages[stageIndex - 1]!.value,
-                              })
-                            }
-                          />
-                        )}
-                        {stageIndex < stages.length - 1 && (
-                          <MoveButton
-                            label="→"
-                            onPress={() =>
-                              void move({
-                                roadmapId: item.id,
-                                status: stages[stageIndex + 1]!.value,
-                              })
-                            }
-                          />
-                        )}
+      {roadmap.status === "LoadingFirstPage" ? (
+        <ActivityIndicator style={styles.loader} color={adminTheme.primary} />
+      ) : (
+        <ScrollView
+          horizontal
+          pagingEnabled={false}
+          contentContainerStyle={styles.board}
+        >
+          {stages.map((stage, stageIndex) => {
+            const stageItems =
+              items
+                ?.filter((item) => item.status === stage.value)
+                .sort((a, b) => a.position - b.position) ?? [];
+            return (
+              <View key={stage.value} style={styles.column}>
+                <View style={styles.columnHeader}>
+                  <Text style={styles.columnTitle}>{stage.label}</Text>
+                  <Text style={styles.count}>{stageItems.length}</Text>
+                </View>
+                <FlatList
+                  data={stageItems}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.cards}
+                  ListEmptyComponent={
+                    <Text style={styles.empty}>No items in this stage.</Text>
+                  }
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={styles.card}
+                      onPress={() => setSelected(item)}
+                    >
+                      <Text style={styles.cardTitle}>{item.title}</Text>
+                      {!!item.description && (
+                        <Text style={styles.cardBody} numberOfLines={2}>
+                          {item.description}
+                        </Text>
+                      )}
+                      <View style={styles.cardFooter}>
+                        <Text style={styles.feedbackCount}>
+                          {item.feedbackCount} linked
+                        </Text>
+                        <View style={styles.actions}>
+                          {stageIndex > 0 && (
+                            <MoveButton
+                              label="←"
+                              onPress={() =>
+                                void move({
+                                  roadmapId: item.id,
+                                  status: stages[stageIndex - 1]!.value,
+                                })
+                              }
+                            />
+                          )}
+                          {stageIndex < stages.length - 1 && (
+                            <MoveButton
+                              label="→"
+                              onPress={() =>
+                                void move({
+                                  roadmapId: item.id,
+                                  status: stages[stageIndex + 1]!.value,
+                                })
+                              }
+                            />
+                          )}
+                        </View>
                       </View>
-                    </View>
-                  </Pressable>
-                )}
-              />
-            </View>
-          );
-        })}
-      </ScrollView>
+                    </Pressable>
+                  )}
+                />
+              </View>
+            );
+          })}
+        </ScrollView>
+      )}
       <RoadmapForm visible={createOpen} onClose={() => setCreateOpen(false)} />
       <RoadmapDetail item={selected} onClose={() => setSelected(undefined)} />
     </View>
@@ -236,10 +255,26 @@ function RoadmapDetail({
           </Text>
           <Text style={styles.columnTitle}>Attached feedback</Text>
           <FlatList
-            data={feedback ?? []}
+            data={feedback.results}
+            onEndReached={() => {
+              if (feedback.status === "CanLoadMore") {
+                feedback.loadMore(feedbackHooks.pageSizes.entries);
+              }
+            }}
+            onEndReachedThreshold={0.4}
             keyExtractor={(entry) => entry.id}
             ListEmptyComponent={
-              <Text style={styles.empty}>No feedback attached.</Text>
+              feedback.status === "Exhausted" ? (
+                <Text style={styles.empty}>No feedback attached.</Text>
+              ) : null
+            }
+            ListFooterComponent={
+              feedback.status === "LoadingMore" ? (
+                <ActivityIndicator
+                  style={styles.pageLoader}
+                  color={adminTheme.primary}
+                />
+              ) : null
             }
             renderItem={({ item: entry }) => (
               <View style={styles.feedbackRow}>
@@ -288,6 +323,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 18,
   },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  loader: { flex: 1 },
+  pageLoader: { paddingVertical: 16 },
   title: { color: adminTheme.text, fontSize: 28, fontWeight: "700" },
   subtitle: { color: adminTheme.muted, fontSize: 14 },
   board: { gap: 12, paddingHorizontal: 12, paddingBottom: 120 },

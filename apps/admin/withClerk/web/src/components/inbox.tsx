@@ -19,6 +19,7 @@ import { useMemo, useState } from "react";
 
 import { FeedbackSheet } from "@/components/feedback-sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -40,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { feedbackHooks } from "@/lib/feedback";
 import { useTags } from "@/providers/tags-provider";
@@ -139,7 +141,6 @@ export function InboxView() {
       ...(status === "all" ? {} : { status: status as EntryStatus }),
       ...(priority === "all" ? {} : { priority: priority as EntryPriority }),
       ...(tagId === "all" ? {} : { tagId }),
-      limit: 100,
     }),
     [kind, priority, status, tagId],
   );
@@ -148,7 +149,8 @@ export function InboxView() {
     searchQuery: debouncedSearch,
     ...filters,
   });
-  const entries = debouncedSearch.length > 0 ? searched : listed;
+  const page = debouncedSearch.length > 0 ? searched : listed;
+  const entries = page.results;
   const tagItems = [
     { label: "All tags", value: "all" },
     ...(tags ?? []).map((tag: FeedbackTag) => ({
@@ -202,13 +204,13 @@ export function InboxView() {
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto bg-card">
-        {entries === undefined ? (
+        {page.status === "LoadingFirstPage" ? (
           <div className="flex flex-col gap-3 p-4">
             {Array.from({ length: 7 }, (_, index) => (
               <Skeleton key={index} className="h-20 w-full" />
             ))}
           </div>
-        ) : entries.length === 0 ? (
+        ) : entries.length === 0 && page.status === "Exhausted" ? (
           <Empty className="min-h-80">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -221,9 +223,26 @@ export function InboxView() {
             </EmptyHeader>
           </Empty>
         ) : (
-          entries.map((entry) => (
-            <EntryRow key={entry.id} entry={entry} onSelect={setSelectedId} />
-          ))
+          <>
+            {entries.map((entry) => (
+              <EntryRow key={entry.id} entry={entry} onSelect={setSelectedId} />
+            ))}
+            {(page.status === "CanLoadMore" ||
+              page.status === "LoadingMore") && (
+              <div className="flex justify-center p-4">
+                <Button
+                  variant="outline"
+                  disabled={page.status === "LoadingMore"}
+                  onClick={() => page.loadMore(feedbackHooks.pageSizes.entries)}
+                >
+                  {page.status === "LoadingMore" && (
+                    <Spinner data-icon="inline-start" />
+                  )}
+                  Load more
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
       <FeedbackSheet entryId={selectedId} onClose={() => setSelectedId(null)} />

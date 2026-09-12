@@ -143,10 +143,10 @@ describe("convex-feedback component", () => {
     const filtered = await testInstance.query(api.admin.listEntries, {
       tagId: primaryTagId,
       priority: "high",
-      limit: 10,
+      paginationOpts: { cursor: null, numItems: 10 },
       viewerActorId: actor.id,
     });
-    expect(filtered.map((entry) => entry.id)).toEqual([entryId]);
+    expect(filtered.page.map((entry) => entry.id)).toEqual([entryId]);
 
     await testInstance.mutation(api.tags.remove, {
       actor,
@@ -199,6 +199,49 @@ describe("convex-feedback component", () => {
       ctx.db.get("entries", entryId),
     );
     expect(storedEntry?.roadmapId).toBeUndefined();
+  });
+
+  test("admin inbox and roadmap lists use cursor pagination", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    for (const title of [
+      "Paged feedback one",
+      "Paged feedback two",
+      "Paged feedback three",
+    ]) {
+      await createEntry(testInstance, title);
+    }
+
+    const firstEntries = await testInstance.query(api.admin.listEntries, {
+      paginationOpts: { cursor: null, numItems: 2 },
+      viewerActorId: actor.id,
+    });
+    const remainingEntries = await testInstance.query(api.admin.listEntries, {
+      paginationOpts: { cursor: firstEntries.continueCursor, numItems: 2 },
+      viewerActorId: actor.id,
+    });
+    expect(firstEntries.page).toHaveLength(2);
+    expect(remainingEntries.page).toHaveLength(1);
+    expect(remainingEntries.isDone).toBe(true);
+
+    for (const title of ["Roadmap one", "Roadmap two", "Roadmap three"]) {
+      await testInstance.mutation(api.roadmap.create, {
+        actor,
+        title,
+        status: "planned",
+      });
+    }
+    const firstRoadmap = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: null, numItems: 2 },
+      status: "planned",
+    });
+    const remainingRoadmap = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: firstRoadmap.continueCursor, numItems: 2 },
+      status: "planned",
+    });
+    expect(firstRoadmap.page).toHaveLength(2);
+    expect(remainingRoadmap.page).toHaveLength(1);
+    expect(remainingRoadmap.isDone).toBe(true);
   });
 
   test("open and closed status filters are materialized and queried on Convex", async () => {

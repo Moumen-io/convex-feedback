@@ -448,7 +448,7 @@ The wrapper exposes:
 | `deleteComment`      | mutation | Soft-delete a comment                              |
 | `setCommentLike`     | mutation | Idempotently set comment like state                |
 
-The same wrapper exposes `isAdmin`, admin list/detail/search queries, priority updates, tag CRUD and attachment functions, roadmap CRUD/search/reordering functions, and feedback-to-roadmap attachment functions. All of those operations resolve the host actor; only `isAdmin` itself returns a boolean instead of rejecting a non-admin caller.
+The same wrapper exposes `isAdmin`, cursor-paginated admin list/search queries, admin detail, priority updates, tag CRUD and attachment functions, cursor-paginated roadmap lists, roadmap search/reordering functions, and feedback-to-roadmap attachment functions. All of those operations resolve the host actor; only `isAdmin` itself returns a boolean instead of rejecting a non-admin caller. Bounded limits remain on suggestion-style full-text searches such as the roadmap selector.
 
 Every public argument/result type is exported and documented for editor IntelliSense.
 

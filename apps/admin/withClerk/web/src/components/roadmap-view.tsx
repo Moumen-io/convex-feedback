@@ -28,6 +28,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { feedbackHooks } from "@/lib/feedback";
 
@@ -38,7 +39,8 @@ const stages: { value: RoadmapStatus; label: string }[] = [
 ];
 
 export function RoadmapView() {
-  const items = feedbackHooks.useRoadmap();
+  const roadmap = feedbackHooks.useRoadmap();
+  const items = roadmap.results;
   const move = feedbackHooks.useMoveRoadmapItem();
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<RoadmapItem | null>(null);
@@ -64,10 +66,25 @@ export function RoadmapView() {
             Turn recurring feedback into visible delivery work.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <PlusIcon data-icon="inline-start" />
-          New item
-        </Button>
+        <div className="flex gap-2">
+          {(roadmap.status === "CanLoadMore" ||
+            roadmap.status === "LoadingMore") && (
+            <Button
+              variant="outline"
+              disabled={roadmap.status === "LoadingMore"}
+              onClick={() => roadmap.loadMore(feedbackHooks.pageSizes.roadmap)}
+            >
+              {roadmap.status === "LoadingMore" && (
+                <Spinner data-icon="inline-start" />
+              )}
+              Load more
+            </Button>
+          )}
+          <Button onClick={() => setCreateOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            New item
+          </Button>
+        </div>
       </header>
       <div className="grid min-h-0 flex-1 gap-px overflow-x-auto bg-border lg:grid-cols-3">
         {stages.map((stage) => {
@@ -92,7 +109,7 @@ export function RoadmapView() {
                 <Badge variant="secondary">{stageItems?.length ?? 0}</Badge>
               </div>
               <div className="flex flex-col gap-2 p-3">
-                {items === undefined ? (
+                {roadmap.status === "LoadingFirstPage" ? (
                   [0, 1, 2].map((index) => (
                     <Skeleton key={index} className="h-28 w-full" />
                   ))
@@ -314,12 +331,13 @@ function RoadmapDetail({
           </div>
           <div className="flex max-h-80 flex-col gap-1 overflow-y-auto">
             <h3 className="mb-1 text-sm font-medium">Attached feedback</h3>
-            {feedback?.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No feedback attached.
-              </p>
-            )}
-            {feedback?.map((entry) => (
+            {feedback.results.length === 0 &&
+              feedback.status === "Exhausted" && (
+                <p className="text-sm text-muted-foreground">
+                  No feedback attached.
+                </p>
+              )}
+            {feedback.results.map((entry) => (
               <div
                 key={entry.id}
                 className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm"
@@ -334,6 +352,21 @@ function RoadmapDetail({
                 </Button>
               </div>
             ))}
+            {(feedback.status === "CanLoadMore" ||
+              feedback.status === "LoadingMore") && (
+              <Button
+                variant="outline"
+                disabled={feedback.status === "LoadingMore"}
+                onClick={() =>
+                  feedback.loadMore(feedbackHooks.pageSizes.entries)
+                }
+              >
+                {feedback.status === "LoadingMore" && (
+                  <Spinner data-icon="inline-start" />
+                )}
+                Load more feedback
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

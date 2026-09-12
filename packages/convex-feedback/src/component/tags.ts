@@ -33,7 +33,7 @@ export const list = query({
     const tags = await ctx.db
       .query("tags")
       .withIndex("by_normalized_name")
-      .take(500);
+      .collect();
     return tags.map(serializeTag);
   },
 });

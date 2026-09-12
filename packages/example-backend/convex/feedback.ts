@@ -4,6 +4,7 @@ import { components } from "./_generated/api";
 
 export const {
   isAdmin,
+  isAuthenticated,
   listEntries,
   getEntry,
   searchEntries,
@@ -18,6 +19,7 @@ export const {
   listRoadmap,
   searchRoadmap,
   createRoadmap,
+  createRoadmapForEntry,
   updateRoadmap,
   deleteRoadmap,
   moveRoadmapItem,

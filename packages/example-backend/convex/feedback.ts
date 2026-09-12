@@ -3,6 +3,7 @@ import { exposeFeedbackApi } from "convex-feedback";
 import { components } from "./_generated/api";
 
 export const {
+  isAdmin,
   listEntries,
   getEntry,
   searchEntries,
@@ -10,6 +11,25 @@ export const {
   createEntry,
   updateEntry,
   setEntryStatus,
+  adminListEntries,
+  adminGetEntry,
+  adminSearchEntries,
+  setEntryPriority,
+  listTags,
+  createTag,
+  updateTag,
+  deleteTag,
+  attachTag,
+  detachTag,
+  listRoadmap,
+  searchRoadmap,
+  createRoadmap,
+  updateRoadmap,
+  deleteRoadmap,
+  moveRoadmapItem,
+  attachFeedbackToRoadmap,
+  detachFeedbackFromRoadmap,
+  listRoadmapFeedback,
   setEntryUpvote,
   listComments,
   createComment,
@@ -24,7 +44,7 @@ export const {
 
     return {
       id: identity.tokenIdentifier,
-      isModerator: false,
+      isAdmin: false,
     };
   },
   config: {

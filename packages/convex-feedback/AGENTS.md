@@ -13,7 +13,7 @@ This package is the headless persistence and client integration layer.
 - Parent validation must confirm the comment belongs to the same entry before accepting a reply.
 - `maxDepth` is write-time enforcement. Reads never recurse.
 - Host configuration is passed through wrappers; do not create a configuration table.
-- Keep authentication provider details out of the component. The wrapper passes `{ id, isModerator }`.
+- Keep authentication provider details out of the component. The wrapper passes `{ id, isAdmin }`.
 - Keep `args` and `returns` on every Convex function.
 - Do not use `v.any()` in handwritten validators.
 - Do not edit `_generated` except when replacing bootstrap output with actual Convex codegen output.

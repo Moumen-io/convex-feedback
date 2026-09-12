@@ -96,6 +96,111 @@ describe("convex-feedback component", () => {
     expect(entry?.viewerHasUpvoted).toBe(true);
   });
 
+  test("admin priority and tags stay private and tag deletion cascades", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance, "Admin triage target");
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const primaryTagId = await testInstance.mutation(api.tags.create, {
+      actor,
+      name: "Revenue",
+      color: "#8b5cf6",
+    });
+    const secondaryTagId = await testInstance.mutation(api.tags.create, {
+      actor,
+      name: "Mobile",
+    });
+
+    await testInstance.mutation(api.entries.setPriority, {
+      actor,
+      entryId,
+      priority: "high",
+    });
+    await testInstance.mutation(api.tags.attach, {
+      actor,
+      entryId,
+      tagId: primaryTagId,
+      placement: "primary",
+    });
+    await testInstance.mutation(api.tags.attach, {
+      actor,
+      entryId,
+      tagId: secondaryTagId,
+      placement: "secondary",
+    });
+
+    const publicEntry = await testInstance.query(api.entries.get, { entryId });
+    expect(publicEntry).not.toHaveProperty("priority");
+    expect(publicEntry).not.toHaveProperty("primaryTag");
+
+    const adminEntry = await testInstance.query(api.admin.getEntry, {
+      entryId,
+      viewerActorId: actor.id,
+    });
+    expect(adminEntry?.priority).toBe("high");
+    expect(adminEntry?.primaryTag?.name).toBe("Revenue");
+    expect(adminEntry?.secondaryTag?.name).toBe("Mobile");
+
+    const filtered = await testInstance.query(api.admin.listEntries, {
+      tagId: primaryTagId,
+      priority: "high",
+      limit: 10,
+      viewerActorId: actor.id,
+    });
+    expect(filtered.map((entry) => entry.id)).toEqual([entryId]);
+
+    await testInstance.mutation(api.tags.remove, {
+      actor,
+      tagId: primaryTagId,
+    });
+    const stored = await testInstance.run((ctx) =>
+      ctx.db.get("entries", entryId),
+    );
+    expect(stored?.primaryTagId).toBeUndefined();
+    expect(stored?.secondaryTagId).toBe(secondaryTagId);
+  });
+
+  test("roadmap uses fractional positions and deletion detaches feedback", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const entryId = await createEntry(testInstance, "Roadmap target");
+    const firstId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "First item",
+      status: "planned",
+    });
+    const secondId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Second item",
+      status: "planned",
+    });
+    const movedPosition = await testInstance.mutation(api.roadmap.move, {
+      actor,
+      roadmapId: secondId,
+      status: "planned",
+      nextItemId: firstId,
+    });
+    expect(movedPosition).toBe(0);
+
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor,
+      roadmapId: firstId,
+      entryId,
+    });
+    const attachedItem = await testInstance.run((ctx) =>
+      ctx.db.get("roadmap", firstId),
+    );
+    expect(attachedItem?.feedbackCount).toBe(1);
+
+    await testInstance.mutation(api.roadmap.remove, {
+      actor,
+      roadmapId: firstId,
+    });
+    const storedEntry = await testInstance.run((ctx) =>
+      ctx.db.get("entries", entryId),
+    );
+    expect(storedEntry?.roadmapId).toBeUndefined();
+  });
+
   test("open and closed status filters are materialized and queried on Convex", async () => {
     const testInstance = setup();
     const openId = await createEntry(testInstance, "Open filter target");
@@ -103,12 +208,12 @@ describe("convex-feedback component", () => {
     const closedId = await createEntry(testInstance, "Closed filter target");
 
     await testInstance.mutation(api.entries.setStatus, {
-      actor: { id: "moderator-1", isModerator: true },
+      actor: { id: "admin-1", isAdmin: true },
       entryId: plannedId,
       status: "planned",
     });
     await testInstance.mutation(api.entries.setStatus, {
-      actor: { id: "moderator-1", isModerator: true },
+      actor: { id: "admin-1", isAdmin: true },
       entryId: closedId,
       status: "closed",
     });
@@ -191,7 +296,7 @@ describe("convex-feedback component", () => {
     ).resolves.toEqual({ updated: 0, hasMore: false });
   });
 
-  test("entry metadata is returned only by moderator get queries", async () => {
+  test("entry metadata is returned only by admin get queries", async () => {
     const testInstance = setup();
     const metadata = {
       standard: { platform: "web", screenWidth: 1440 },
@@ -214,20 +319,20 @@ describe("convex-feedback component", () => {
       entryId,
       viewerActorId: "member-1",
     });
-    const moderator = await testInstance.query(api.entries.get, {
+    const admin = await testInstance.query(api.entries.get, {
       entryId,
-      viewerActorId: "moderator-1",
-      viewerIsModerator: true,
+      viewerActorId: "admin-1",
+      viewerIsAdmin: true,
     });
     const list = await testInstance.query(api.entries.list, {
       paginationOpts: { numItems: 10, cursor: null },
       sort: "newest",
-      viewerActorId: "moderator-1",
+      viewerActorId: "admin-1",
     });
 
     expect(anonymous).not.toHaveProperty("metadata");
     expect(member).not.toHaveProperty("metadata");
-    expect(moderator?.metadata).toEqual(metadata);
+    expect(admin?.metadata).toEqual(metadata);
     expect(list.page[0]).not.toHaveProperty("metadata");
   });
 

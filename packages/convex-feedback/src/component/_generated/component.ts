@@ -23,6 +23,207 @@ import type { FunctionReference } from "convex/server";
  */
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
+    admin: {
+      getEntry: FunctionReference<
+        "query",
+        "internal",
+        { entryId: string; viewerActorId: string },
+        {
+          actorId: string;
+          body: string;
+          commentCount: number;
+          creationTime: number;
+          id: string;
+          kind: "feedback" | "feature_request" | "bug_report";
+          metadata?: {
+            additional?: Record<string, string | number | boolean>;
+            standard?: Record<string, string | number | boolean>;
+          };
+          primaryTag?: {
+            color?: string;
+            creationTime: number;
+            id: string;
+            name: string;
+            updatedAt: number;
+          };
+          priority?: "low" | "medium" | "high";
+          roadmap?: {
+            createdAt: number;
+            creationTime: number;
+            description?: string;
+            feedbackCount: number;
+            id: string;
+            position: number;
+            status: "planned" | "in_progress" | "shipped";
+            title: string;
+            updatedAt: number;
+          };
+          secondaryTag?: {
+            color?: string;
+            creationTime: number;
+            id: string;
+            name: string;
+            updatedAt: number;
+          };
+          status:
+            | "open"
+            | "under_review"
+            | "planned"
+            | "in_progress"
+            | "completed"
+            | "closed";
+          title: string;
+          updatedAt?: number;
+          upvoteCount: number;
+          viewerHasUpvoted: boolean;
+        } | null,
+        Name
+      >;
+      isAdmin: FunctionReference<
+        "query",
+        "internal",
+        { actorIsAdmin: boolean },
+        boolean,
+        Name
+      >;
+      listEntries: FunctionReference<
+        "query",
+        "internal",
+        {
+          kinds?: Array<"feedback" | "feature_request" | "bug_report">;
+          limit: number;
+          priority?: "low" | "medium" | "high";
+          status?:
+            | "open"
+            | "under_review"
+            | "planned"
+            | "in_progress"
+            | "completed"
+            | "closed";
+          tagId?: string;
+          viewerActorId: string;
+        },
+        Array<{
+          actorId: string;
+          body: string;
+          commentCount: number;
+          creationTime: number;
+          id: string;
+          kind: "feedback" | "feature_request" | "bug_report";
+          metadata?: {
+            additional?: Record<string, string | number | boolean>;
+            standard?: Record<string, string | number | boolean>;
+          };
+          primaryTag?: {
+            color?: string;
+            creationTime: number;
+            id: string;
+            name: string;
+            updatedAt: number;
+          };
+          priority?: "low" | "medium" | "high";
+          roadmap?: {
+            createdAt: number;
+            creationTime: number;
+            description?: string;
+            feedbackCount: number;
+            id: string;
+            position: number;
+            status: "planned" | "in_progress" | "shipped";
+            title: string;
+            updatedAt: number;
+          };
+          secondaryTag?: {
+            color?: string;
+            creationTime: number;
+            id: string;
+            name: string;
+            updatedAt: number;
+          };
+          status:
+            | "open"
+            | "under_review"
+            | "planned"
+            | "in_progress"
+            | "completed"
+            | "closed";
+          title: string;
+          updatedAt?: number;
+          upvoteCount: number;
+          viewerHasUpvoted: boolean;
+        }>,
+        Name
+      >;
+      searchEntries: FunctionReference<
+        "query",
+        "internal",
+        {
+          kinds?: Array<"feedback" | "feature_request" | "bug_report">;
+          limit: number;
+          priority?: "low" | "medium" | "high";
+          searchQuery: string;
+          status?:
+            | "open"
+            | "under_review"
+            | "planned"
+            | "in_progress"
+            | "completed"
+            | "closed";
+          tagId?: string;
+          viewerActorId: string;
+        },
+        Array<{
+          actorId: string;
+          body: string;
+          commentCount: number;
+          creationTime: number;
+          id: string;
+          kind: "feedback" | "feature_request" | "bug_report";
+          metadata?: {
+            additional?: Record<string, string | number | boolean>;
+            standard?: Record<string, string | number | boolean>;
+          };
+          primaryTag?: {
+            color?: string;
+            creationTime: number;
+            id: string;
+            name: string;
+            updatedAt: number;
+          };
+          priority?: "low" | "medium" | "high";
+          roadmap?: {
+            createdAt: number;
+            creationTime: number;
+            description?: string;
+            feedbackCount: number;
+            id: string;
+            position: number;
+            status: "planned" | "in_progress" | "shipped";
+            title: string;
+            updatedAt: number;
+          };
+          secondaryTag?: {
+            color?: string;
+            creationTime: number;
+            id: string;
+            name: string;
+            updatedAt: number;
+          };
+          status:
+            | "open"
+            | "under_review"
+            | "planned"
+            | "in_progress"
+            | "completed"
+            | "closed";
+          title: string;
+          updatedAt?: number;
+          upvoteCount: number;
+          viewerHasUpvoted: boolean;
+        }>,
+        Name
+      >;
+    };
     comments: {
       create: FunctionReference<
         "mutation",
@@ -81,7 +282,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isModerator: boolean };
+          actor: { id: string; isAdmin: boolean };
           commentId: string;
           deletableByAuthor: boolean;
         },
@@ -99,7 +300,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isModerator: boolean };
+          actor: { id: string; isAdmin: boolean };
           body: string;
           commentId: string;
           editableByAuthor: boolean;
@@ -139,11 +340,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       get: FunctionReference<
         "query",
         "internal",
-        {
-          entryId: string;
-          viewerActorId?: string;
-          viewerIsModerator?: boolean;
-        },
+        { entryId: string; viewerActorId?: string; viewerIsAdmin?: boolean },
         {
           actorId: string;
           body: string;
@@ -266,11 +463,22 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         }>,
         Name
       >;
+      setPriority: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          entryId: string;
+          priority: "low" | "medium" | "high" | null;
+        },
+        null,
+        Name
+      >;
       setStatus: FunctionReference<
         "mutation",
         "internal",
         {
-          actor: { id: string; isModerator: boolean };
+          actor: { id: string; isAdmin: boolean };
           entryId: string;
           status:
             | "open"
@@ -354,13 +562,234 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isModerator: boolean };
+          actor: { id: string; isAdmin: boolean };
           body: string;
           editableByAuthor: boolean;
           entryId: string;
           maxBodyLength: number;
           maxTitleLength: number;
           title: string;
+        },
+        null,
+        Name
+      >;
+    };
+    roadmap: {
+      attachFeedback: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          entryId: string;
+          roadmapId: string;
+        },
+        null,
+        Name
+      >;
+      create: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          description?: string;
+          status: "planned" | "in_progress" | "shipped";
+          title: string;
+        },
+        string,
+        Name
+      >;
+      detachFeedback: FunctionReference<
+        "mutation",
+        "internal",
+        { actor: { id: string; isAdmin: boolean }; entryId: string },
+        null,
+        Name
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        { status?: "planned" | "in_progress" | "shipped" },
+        Array<{
+          createdAt: number;
+          creationTime: number;
+          description?: string;
+          feedbackCount: number;
+          id: string;
+          position: number;
+          status: "planned" | "in_progress" | "shipped";
+          title: string;
+          updatedAt: number;
+        }>,
+        Name
+      >;
+      listFeedback: FunctionReference<
+        "query",
+        "internal",
+        { roadmapId: string; viewerActorId: string },
+        Array<{
+          actorId: string;
+          body: string;
+          commentCount: number;
+          creationTime: number;
+          id: string;
+          kind: "feedback" | "feature_request" | "bug_report";
+          metadata?: {
+            additional?: Record<string, string | number | boolean>;
+            standard?: Record<string, string | number | boolean>;
+          };
+          primaryTag?: {
+            color?: string;
+            creationTime: number;
+            id: string;
+            name: string;
+            updatedAt: number;
+          };
+          priority?: "low" | "medium" | "high";
+          roadmap?: {
+            createdAt: number;
+            creationTime: number;
+            description?: string;
+            feedbackCount: number;
+            id: string;
+            position: number;
+            status: "planned" | "in_progress" | "shipped";
+            title: string;
+            updatedAt: number;
+          };
+          secondaryTag?: {
+            color?: string;
+            creationTime: number;
+            id: string;
+            name: string;
+            updatedAt: number;
+          };
+          status:
+            | "open"
+            | "under_review"
+            | "planned"
+            | "in_progress"
+            | "completed"
+            | "closed";
+          title: string;
+          updatedAt?: number;
+          upvoteCount: number;
+          viewerHasUpvoted: boolean;
+        }>,
+        Name
+      >;
+      move: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          nextItemId?: string;
+          previousItemId?: string;
+          roadmapId: string;
+          status: "planned" | "in_progress" | "shipped";
+        },
+        number,
+        Name
+      >;
+      remove: FunctionReference<
+        "mutation",
+        "internal",
+        { actor: { id: string; isAdmin: boolean }; roadmapId: string },
+        null,
+        Name
+      >;
+      search: FunctionReference<
+        "query",
+        "internal",
+        { limit: number; searchQuery: string },
+        Array<{
+          createdAt: number;
+          creationTime: number;
+          description?: string;
+          feedbackCount: number;
+          id: string;
+          position: number;
+          status: "planned" | "in_progress" | "shipped";
+          title: string;
+          updatedAt: number;
+        }>,
+        Name
+      >;
+      update: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          description?: string;
+          roadmapId: string;
+          title: string;
+        },
+        null,
+        Name
+      >;
+    };
+    tags: {
+      attach: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          entryId: string;
+          placement: "primary" | "secondary";
+          tagId: string;
+        },
+        null,
+        Name
+      >;
+      create: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          color?: string;
+          name: string;
+        },
+        string,
+        Name
+      >;
+      detach: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          entryId: string;
+          placement: "primary" | "secondary";
+        },
+        null,
+        Name
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        {},
+        Array<{
+          color?: string;
+          creationTime: number;
+          id: string;
+          name: string;
+          updatedAt: number;
+        }>,
+        Name
+      >;
+      remove: FunctionReference<
+        "mutation",
+        "internal",
+        { actor: { id: string; isAdmin: boolean }; tagId: string },
+        null,
+        Name
+      >;
+      update: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          color?: string;
+          name: string;
+          tagId: string;
         },
         null,
         Name

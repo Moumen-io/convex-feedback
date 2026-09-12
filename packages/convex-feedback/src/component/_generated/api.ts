@@ -8,12 +8,15 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
 import type * as entries from "../entries.js";
 import type * as helpers from "../helpers.js";
 import type * as migrations from "../migrations.js";
 import type * as model from "../model.js";
+import type * as roadmap from "../roadmap.js";
+import type * as tags from "../tags.js";
 import type * as types from "../types.js";
 
 import type {
@@ -24,12 +27,15 @@ import type {
 import { anyApi, componentsGeneric } from "convex/server";
 
 const fullApi: ApiFromModules<{
+  admin: typeof admin;
   comments: typeof comments;
   crons: typeof crons;
   entries: typeof entries;
   helpers: typeof helpers;
   migrations: typeof migrations;
   model: typeof model;
+  roadmap: typeof roadmap;
+  tags: typeof tags;
   types: typeof types;
 }> = anyApi as any;
 

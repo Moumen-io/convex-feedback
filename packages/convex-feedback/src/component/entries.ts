@@ -19,6 +19,7 @@ import {
 import {
   actorValidator,
   entryKindValidator,
+  entryPriorityValidator,
   entrySortValidator,
   entryStatusFilterForStatus,
   entryStatusFilterValidator,
@@ -276,7 +277,7 @@ export const get = query({
   args: {
     entryId: v.id("entries"),
     viewerActorId: v.optional(v.string()),
-    viewerIsModerator: v.optional(v.boolean()),
+    viewerIsAdmin: v.optional(v.boolean()),
   },
   returns: v.union(publicEntryValidator, v.null()),
   handler: async (ctx, args) => {
@@ -287,7 +288,7 @@ export const get = query({
           ctx,
           entry,
           args.viewerActorId,
-          args.viewerIsModerator === true,
+          args.viewerIsAdmin === true,
         );
   },
 });
@@ -620,7 +621,7 @@ export const update = mutation({
     if (entry === null) throw new ConvexError("Entry not found.");
 
     const canEdit =
-      args.actor.isModerator ||
+      args.actor.isAdmin ||
       (args.editableByAuthor && entry.actorId === args.actor.id);
     if (!canEdit) throw new ConvexError("Not authorized to edit this entry.");
 
@@ -651,8 +652,8 @@ export const setStatus = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!args.actor.isModerator) {
-      throw new ConvexError("Moderator access is required to change status.");
+    if (!args.actor.isAdmin) {
+      throw new ConvexError("Admin access is required to change status.");
     }
     if ((await ctx.db.get("entries", args.entryId)) === null) {
       throw new ConvexError("Entry not found.");
@@ -660,6 +661,28 @@ export const setStatus = mutation({
     await ctx.db.patch("entries", args.entryId, {
       status: args.status,
       statusFilter: entryStatusFilterForStatus(args.status),
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+export const setPriority = mutation({
+  args: {
+    actor: actorValidator,
+    entryId: v.id("entries"),
+    priority: v.union(entryPriorityValidator, v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (!args.actor.isAdmin) {
+      throw new ConvexError("Admin access is required to change priority.");
+    }
+    if ((await ctx.db.get("entries", args.entryId)) === null) {
+      throw new ConvexError("Entry not found.");
+    }
+    await ctx.db.patch("entries", args.entryId, {
+      priority: args.priority === null ? undefined : args.priority,
       updatedAt: Date.now(),
     });
     return null;

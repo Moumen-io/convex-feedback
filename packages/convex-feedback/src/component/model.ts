@@ -26,6 +26,18 @@ export const entrySortValidator = v.union(
   v.literal("newest"),
 );
 
+export const entryPriorityValidator = v.union(
+  v.literal("low"),
+  v.literal("medium"),
+  v.literal("high"),
+);
+
+export const roadmapStatusValidator = v.union(
+  v.literal("planned"),
+  v.literal("in_progress"),
+  v.literal("shipped"),
+);
+
 export const commentSortValidator = v.union(
   v.literal("top"),
   v.literal("newest"),
@@ -34,7 +46,27 @@ export const commentSortValidator = v.union(
 
 export const actorValidator = v.object({
   id: v.string(),
-  isModerator: v.boolean(),
+  isAdmin: v.boolean(),
+});
+
+export const tagValidator = v.object({
+  id: v.string(),
+  creationTime: v.number(),
+  name: v.string(),
+  color: v.optional(v.string()),
+  updatedAt: v.number(),
+});
+
+export const roadmapItemValidator = v.object({
+  id: v.string(),
+  creationTime: v.number(),
+  title: v.string(),
+  description: v.optional(v.string()),
+  status: roadmapStatusValidator,
+  position: v.number(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  feedbackCount: v.number(),
 });
 
 export const feedbackMetadataValueValidator = v.union(
@@ -88,6 +120,14 @@ export const similarEntriesValidator = v.object({
   similar: v.array(publicEntryValidator),
 });
 
+export const adminEntryValidator = publicEntryValidator.extend({
+  priority: v.optional(entryPriorityValidator),
+  primaryTag: v.optional(tagValidator),
+  secondaryTag: v.optional(tagValidator),
+  roadmap: v.optional(roadmapItemValidator),
+  metadata: v.optional(feedbackMetadataValidator),
+});
+
 /**
  * Category of feedback represented by an entry.
  *
@@ -123,6 +163,18 @@ export function entryStatusFilterForStatus(
  */
 export type EntrySort = Infer<typeof entrySortValidator>;
 
+/** Internal triage priority visible only through the admin API. */
+export type EntryPriority = Infer<typeof entryPriorityValidator>;
+
+/** Workflow stage for an admin roadmap item. */
+export type RoadmapStatus = Infer<typeof roadmapStatusValidator>;
+
+/** Admin-managed tag attached to an entry as primary or secondary metadata. */
+export type FeedbackTag = Infer<typeof tagValidator>;
+
+/** Admin-managed roadmap item and its current attached-feedback count. */
+export type RoadmapItem = Infer<typeof roadmapItemValidator>;
+
 /**
  * Server-side ordering strategy for comments and replies.
  *
@@ -144,8 +196,8 @@ export type CommentSort = Infer<typeof commentSortValidator>;
  * application user ID, anonymous installation ID, or another stable
  * host-controlled identifier.
  *
- * @property isModerator
- * Whether the actor can perform moderator-only actions such as changing entry
+ * @property isAdmin
+ * Whether the actor can perform admin-only actions such as changing entry
  * status or modifying content they do not own.
  */
 export type FeedbackActor = Infer<typeof actorValidator>;
@@ -199,10 +251,13 @@ export type FeedbackMetadata = Infer<typeof feedbackMetadataValidator>;
  *
  * @property metadata
  * Creation-time diagnostic metadata. Present only when `getEntry` is queried
- * by a moderator. Ordinary entry lists, searches, and non-moderator reads omit
+ * by an admin. Ordinary entry lists, searches, and non-admin reads omit
  * this property.
  */
 export type FeedbackEntry = Infer<typeof publicEntryValidator>;
+
+/** Feedback entry enriched with private triage metadata for admin clients. */
+export type AdminFeedbackEntry = Infer<typeof adminEntryValidator>;
 
 /**
  * Public representation of a comment or reply.

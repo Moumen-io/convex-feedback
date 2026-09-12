@@ -156,7 +156,7 @@ export const update = mutation({
     }
 
     const canEdit =
-      args.actor.isModerator ||
+      args.actor.isAdmin ||
       (args.editableByAuthor && comment.actorId === args.actor.id);
     if (!canEdit) throw new ConvexError("Not authorized to edit this comment.");
 
@@ -187,7 +187,7 @@ export const remove = mutation({
     if (comment.deletedAt !== undefined) return null;
 
     const canDelete =
-      args.actor.isModerator ||
+      args.actor.isAdmin ||
       (args.deletableByAuthor && comment.actorId === args.actor.id);
     if (!canDelete) {
       throw new ConvexError("Not authorized to delete this comment.");

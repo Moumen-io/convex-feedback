@@ -23,15 +23,20 @@ import {
 
 import type { ComponentApi } from "../component/_generated/component.js";
 import {
+  adminEntryValidator,
   commentSortValidator,
   entryKindValidator,
+  entryPriorityValidator,
   entrySortValidator,
   entryStatusFilterValidator,
   entryStatusValidator,
   feedbackMetadataValidator,
   publicCommentValidator,
   publicEntryValidator,
+  roadmapItemValidator,
+  roadmapStatusValidator,
   similarEntriesValidator,
+  tagValidator,
   type FeedbackActor,
 } from "../component/model.js";
 import type { FeedbackPublicApi } from "./api.js";
@@ -41,8 +46,10 @@ import {
 } from "./config.js";
 
 export type {
+  AdminFeedbackEntry,
   CommentSort,
   EntryKind,
+  EntryPriority,
   EntrySort,
   EntryStatus,
   EntryStatusFilter,
@@ -51,6 +58,9 @@ export type {
   FeedbackEntry,
   FeedbackMetadata,
   FeedbackMetadataValue,
+  FeedbackTag,
+  RoadmapItem,
+  RoadmapStatus,
   SimilarEntriesResult,
 } from "../component/model.js";
 export type { FeedbackPublicApi } from "./api.js";
@@ -127,11 +137,11 @@ export interface ThrowingFeedbackRateLimitConfig {
   behavior?: "throw";
 
   /**
-   * Whether all configured limiter groups apply to moderators.
+   * Whether all configured limiter groups apply to admins.
    *
    * @default false
    */
-  limitModerators?: boolean;
+  limitAdmins?: boolean;
 
   /** Not accepted in throwing mode; select `"return"` to provide a validator. */
   returns?: never;
@@ -170,11 +180,11 @@ export interface ReturningFeedbackRateLimitConfig<
   returns: ReturnsValidator;
 
   /**
-   * Whether all configured limiter groups apply to moderators.
+   * Whether all configured limiter groups apply to admins.
    *
    * @default false
    */
-  limitModerators?: boolean;
+  limitAdmins?: boolean;
 }
 
 /**
@@ -262,10 +272,10 @@ export type ThrowingExposeFeedbackOptions = Omit<
   /** Optional component behavior and throwing rate-limit overrides. */
   config?: FeedbackConfigOverrides & {
     /**
-     * Controls throwing behavior and the moderator exemption.
+     * Controls throwing behavior and the admin exemption.
      *
      * Omit this object to use `behavior: "throw"` and
-     * `limitModerators: false`.
+     * `limitAdmins: false`.
      */
     rateLimiting?: FeedbackRateLimitConfig;
   };
@@ -316,9 +326,9 @@ function requireActor(actor: FeedbackActor | null): FeedbackActor {
   return actor;
 }
 
-function requireModerator(actor: FeedbackActor): void {
-  if (!actor.isModerator) {
-    throw new ConvexError("Moderator permissions are required.");
+function requireAdmin(actor: FeedbackActor): void {
+  if (!actor.isAdmin) {
+    throw new ConvexError("Admin permissions are required.");
   }
 }
 
@@ -351,7 +361,7 @@ async function applyRateLimiter<
 ): Promise<RateLimitResult<ReturnsValidator> | undefined> {
   if (
     limiter === undefined ||
-    (actor.isModerator && rateLimitConfig?.limitModerators !== true)
+    (actor.isAdmin && rateLimitConfig?.limitAdmins !== true)
   ) {
     return undefined;
   }
@@ -423,8 +433,35 @@ function buildFeedbackApi<
     v.object({ active: v.boolean(), likeCount: v.number() }),
     rateLimitReturnValidator,
   );
+  const numberReturns = rateLimitedReturns(
+    v.number(),
+    rateLimitReturnValidator,
+  );
+
+  const requireAdminActor = async (ctx: FeedbackAuthContext) => {
+    const actor = requireActor(await options.actor(ctx));
+    requireAdmin(actor);
+    return actor;
+  };
+
+  const applyAdminEditLimit = async (
+    ctx: FeedbackRateLimitContext,
+    actor: FeedbackActor,
+  ) =>
+    await applyRateLimiter(
+      ctx,
+      actor,
+      options.rateLimiters?.editContent,
+      rateLimitConfig,
+    );
 
   return {
+    isAdmin: queryGeneric({
+      args: {},
+      returns: v.boolean(),
+      handler: async (ctx) => (await options.actor(ctx))?.isAdmin === true,
+    }),
+
     listEntries: queryGeneric({
       args: {
         paginationOpts: paginationOptsValidator,
@@ -461,7 +498,7 @@ function buildFeedbackApi<
         return await ctx.runQuery(component.entries.get, {
           entryId: args.entryId,
           ...actorIdFields(actor),
-          ...(actor?.isModerator === true ? { viewerIsModerator: true } : {}),
+          ...(actor?.isAdmin === true ? { viewerIsAdmin: true } : {}),
         });
       },
     }),
@@ -588,7 +625,7 @@ function buildFeedbackApi<
       returns: nullReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
-        requireModerator(actor);
+        requireAdmin(actor);
         const limited = await applyRateLimiter(
           asRateLimitContext(ctx),
           actor,
@@ -600,6 +637,85 @@ function buildFeedbackApi<
           actor,
           entryId: args.entryId,
           status: args.status,
+        });
+      },
+    }),
+
+    adminListEntries: queryGeneric({
+      args: {
+        kinds: v.optional(v.array(entryKindValidator)),
+        status: v.optional(entryStatusValidator),
+        priority: v.optional(entryPriorityValidator),
+        tagId: v.optional(v.string()),
+        limit: v.optional(v.number()),
+      },
+      returns: v.array(adminEntryValidator),
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        return await ctx.runQuery(component.admin.listEntries, {
+          ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
+          ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.priority === undefined ? {} : { priority: args.priority }),
+          ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
+          limit: clampPositive(args.limit, 50, 100),
+          viewerActorId: actor.id,
+        });
+      },
+    }),
+
+    adminGetEntry: queryGeneric({
+      args: { entryId: v.string() },
+      returns: v.union(adminEntryValidator, v.null()),
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        return await ctx.runQuery(component.admin.getEntry, {
+          entryId: args.entryId,
+          viewerActorId: actor.id,
+        });
+      },
+    }),
+
+    adminSearchEntries: queryGeneric({
+      args: {
+        searchQuery: v.string(),
+        kinds: v.optional(v.array(entryKindValidator)),
+        status: v.optional(entryStatusValidator),
+        priority: v.optional(entryPriorityValidator),
+        tagId: v.optional(v.string()),
+        limit: v.optional(v.number()),
+      },
+      returns: v.array(adminEntryValidator),
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        return await ctx.runQuery(component.admin.searchEntries, {
+          searchQuery: args.searchQuery,
+          ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
+          ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.priority === undefined ? {} : { priority: args.priority }),
+          ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
+          limit: clampPositive(args.limit, 50, 100),
+          viewerActorId: actor.id,
+        });
+      },
+    }),
+
+    setEntryPriority: mutationGeneric({
+      args: {
+        entryId: v.string(),
+        priority: v.union(entryPriorityValidator, v.null()),
+      },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.entries.setPriority, {
+          actor,
+          entryId: args.entryId,
+          priority: args.priority,
         });
       },
     }),
@@ -736,6 +852,244 @@ function buildFeedbackApi<
           actorId: actor.id,
           commentId: args.commentId,
           desiredState: args.desiredState,
+        });
+      },
+    }),
+
+    listTags: queryGeneric({
+      args: {},
+      returns: v.array(tagValidator),
+      handler: async (ctx) => {
+        await requireAdminActor(ctx);
+        return await ctx.runQuery(component.tags.list, {});
+      },
+    }),
+
+    createTag: mutationGeneric({
+      args: { name: v.string(), color: v.optional(v.string()) },
+      returns: idReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.tags.create, { actor, ...args });
+      },
+    }),
+
+    updateTag: mutationGeneric({
+      args: {
+        tagId: v.string(),
+        name: v.string(),
+        color: v.optional(v.string()),
+      },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.tags.update, { actor, ...args });
+      },
+    }),
+
+    deleteTag: mutationGeneric({
+      args: { tagId: v.string() },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.tags.remove, { actor, ...args });
+      },
+    }),
+
+    attachTag: mutationGeneric({
+      args: {
+        entryId: v.string(),
+        tagId: v.string(),
+        placement: v.union(v.literal("primary"), v.literal("secondary")),
+      },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.tags.attach, { actor, ...args });
+      },
+    }),
+
+    detachTag: mutationGeneric({
+      args: {
+        entryId: v.string(),
+        placement: v.union(v.literal("primary"), v.literal("secondary")),
+      },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.tags.detach, { actor, ...args });
+      },
+    }),
+
+    listRoadmap: queryGeneric({
+      args: { status: v.optional(roadmapStatusValidator) },
+      returns: v.array(roadmapItemValidator),
+      handler: async (ctx, args) => {
+        await requireAdminActor(ctx);
+        return await ctx.runQuery(component.roadmap.list, args);
+      },
+    }),
+
+    searchRoadmap: queryGeneric({
+      args: { searchQuery: v.string(), limit: v.optional(v.number()) },
+      returns: v.array(roadmapItemValidator),
+      handler: async (ctx, args) => {
+        await requireAdminActor(ctx);
+        return await ctx.runQuery(component.roadmap.search, {
+          searchQuery: args.searchQuery,
+          limit: clampPositive(args.limit, 10, 50),
+        });
+      },
+    }),
+
+    createRoadmap: mutationGeneric({
+      args: {
+        title: v.string(),
+        description: v.optional(v.string()),
+        status: roadmapStatusValidator,
+      },
+      returns: idReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.create, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    updateRoadmap: mutationGeneric({
+      args: {
+        roadmapId: v.string(),
+        title: v.string(),
+        description: v.optional(v.string()),
+      },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.update, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    deleteRoadmap: mutationGeneric({
+      args: { roadmapId: v.string() },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.remove, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    moveRoadmapItem: mutationGeneric({
+      args: {
+        roadmapId: v.string(),
+        status: roadmapStatusValidator,
+        previousItemId: v.optional(v.string()),
+        nextItemId: v.optional(v.string()),
+      },
+      returns: numberReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.move, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    attachFeedbackToRoadmap: mutationGeneric({
+      args: { roadmapId: v.string(), entryId: v.string() },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.attachFeedback, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    detachFeedbackFromRoadmap: mutationGeneric({
+      args: { entryId: v.string() },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.detachFeedback, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    listRoadmapFeedback: queryGeneric({
+      args: { roadmapId: v.string() },
+      returns: v.array(adminEntryValidator),
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        return await ctx.runQuery(component.roadmap.listFeedback, {
+          ...args,
+          viewerActorId: actor.id,
         });
       },
     }),

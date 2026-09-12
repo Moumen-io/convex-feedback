@@ -13,6 +13,11 @@ import type {
   FeedbackComment,
   FeedbackEntry,
   FeedbackMetadata,
+  AdminFeedbackEntry,
+  EntryPriority,
+  FeedbackTag,
+  RoadmapItem,
+  RoadmapStatus,
   SimilarEntriesResult,
 } from "../component/model.js";
 
@@ -172,6 +177,62 @@ export type SetEntryStatusArgs = {
   status: EntryStatus;
 };
 
+export type AdminListEntriesArgs = {
+  kinds?: EntryKind[];
+  status?: EntryStatus;
+  priority?: EntryPriority;
+  tagId?: string;
+  limit?: number;
+};
+
+export type AdminSearchEntriesArgs = AdminListEntriesArgs & {
+  searchQuery: string;
+};
+
+export type SetEntryPriorityArgs = {
+  entryId: string;
+  priority: EntryPriority | null;
+};
+
+export type CreateTagArgs = { name: string; color?: string };
+export type UpdateTagArgs = CreateTagArgs & { tagId: string };
+export type DeleteTagArgs = { tagId: string };
+export type AttachTagArgs = {
+  entryId: string;
+  tagId: string;
+  placement: "primary" | "secondary";
+};
+export type DetachTagArgs = {
+  entryId: string;
+  placement: "primary" | "secondary";
+};
+
+export type ListRoadmapArgs = { status?: RoadmapStatus };
+export type SearchRoadmapArgs = { searchQuery: string; limit?: number };
+export type CreateRoadmapArgs = {
+  title: string;
+  description?: string;
+  status: RoadmapStatus;
+};
+export type UpdateRoadmapArgs = {
+  roadmapId: string;
+  title: string;
+  description?: string;
+};
+export type DeleteRoadmapArgs = { roadmapId: string };
+export type MoveRoadmapArgs = {
+  roadmapId: string;
+  status: RoadmapStatus;
+  previousItemId?: string;
+  nextItemId?: string;
+};
+export type AttachFeedbackToRoadmapArgs = {
+  roadmapId: string;
+  entryId: string;
+};
+export type DetachFeedbackFromRoadmapArgs = { entryId: string };
+export type ListRoadmapFeedbackArgs = { roadmapId: string };
+
 /**
  * Arguments for setting the current actor's entry-upvote state.
  */
@@ -308,6 +369,15 @@ export interface FeedbackPublicApi<
   Name extends string | undefined = string | undefined,
   RateLimitResult = never,
 > {
+  /** Returns whether the host actor has admin permissions. */
+  isAdmin: FunctionReference<
+    "query",
+    "public",
+    Record<string, never>,
+    boolean,
+    Name
+  >;
+
   /** Returns a cursor-paginated entry list. */
   listEntries: FunctionReference<
     "query",
@@ -368,6 +438,142 @@ export interface FeedbackPublicApi<
     "public",
     SetEntryStatusArgs,
     null | RateLimitResult,
+    Name
+  >;
+
+  adminListEntries: FunctionReference<
+    "query",
+    "public",
+    AdminListEntriesArgs,
+    AdminFeedbackEntry[],
+    Name
+  >;
+  adminGetEntry: FunctionReference<
+    "query",
+    "public",
+    GetEntryArgs,
+    AdminFeedbackEntry | null,
+    Name
+  >;
+  adminSearchEntries: FunctionReference<
+    "query",
+    "public",
+    AdminSearchEntriesArgs,
+    AdminFeedbackEntry[],
+    Name
+  >;
+  setEntryPriority: FunctionReference<
+    "mutation",
+    "public",
+    SetEntryPriorityArgs,
+    null | RateLimitResult,
+    Name
+  >;
+
+  listTags: FunctionReference<
+    "query",
+    "public",
+    Record<string, never>,
+    FeedbackTag[],
+    Name
+  >;
+  createTag: FunctionReference<
+    "mutation",
+    "public",
+    CreateTagArgs,
+    string | RateLimitResult,
+    Name
+  >;
+  updateTag: FunctionReference<
+    "mutation",
+    "public",
+    UpdateTagArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  deleteTag: FunctionReference<
+    "mutation",
+    "public",
+    DeleteTagArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  attachTag: FunctionReference<
+    "mutation",
+    "public",
+    AttachTagArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  detachTag: FunctionReference<
+    "mutation",
+    "public",
+    DetachTagArgs,
+    null | RateLimitResult,
+    Name
+  >;
+
+  listRoadmap: FunctionReference<
+    "query",
+    "public",
+    ListRoadmapArgs,
+    RoadmapItem[],
+    Name
+  >;
+  searchRoadmap: FunctionReference<
+    "query",
+    "public",
+    SearchRoadmapArgs,
+    RoadmapItem[],
+    Name
+  >;
+  createRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    CreateRoadmapArgs,
+    string | RateLimitResult,
+    Name
+  >;
+  updateRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    UpdateRoadmapArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  deleteRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    DeleteRoadmapArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  moveRoadmapItem: FunctionReference<
+    "mutation",
+    "public",
+    MoveRoadmapArgs,
+    number | RateLimitResult,
+    Name
+  >;
+  attachFeedbackToRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    AttachFeedbackToRoadmapArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  detachFeedbackFromRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    DetachFeedbackFromRoadmapArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  listRoadmapFeedback: FunctionReference<
+    "query",
+    "public",
+    ListRoadmapFeedbackArgs,
+    AdminFeedbackEntry[],
     Name
   >;
 

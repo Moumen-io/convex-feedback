@@ -2,14 +2,17 @@
 
 import { usePaginatedQuery } from "convex-helpers/react";
 import { useMutation, useQuery } from "convex/react";
+import { anyApi } from "convex/server";
 
 import type { FeedbackPublicApi } from "../client/api.js";
 import type {
   CommentSort,
   EntryKind,
+  EntryPriority,
   EntrySort,
   EntryStatus,
   EntryStatusFilter,
+  RoadmapStatus,
   SimilarEntriesResult,
 } from "../component/model.js";
 
@@ -134,6 +137,18 @@ export interface SearchEntriesArgs {
    * value to its configured maximum.
    */
   limit?: number;
+}
+
+export interface UseAdminEntriesArgs {
+  kinds?: readonly EntryKind[];
+  status?: EntryStatus;
+  priority?: EntryPriority;
+  tagId?: string;
+  limit?: number;
+}
+
+export interface UseAdminSearchEntriesArgs extends UseAdminEntriesArgs {
+  searchQuery: string;
 }
 
 /**
@@ -268,6 +283,73 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return searchQuery.length === 0 ? [] : result;
     },
 
+    /** Returns whether the authenticated host actor is an admin. */
+    useIsAdmin() {
+      return useQuery(api.isAdmin, {});
+    },
+
+    /** Returns a bounded admin inbox with private triage relationships. */
+    useAdminEntries(args: UseAdminEntriesArgs = {}) {
+      return useQuery(api.adminListEntries, {
+        ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
+        ...(args.status === undefined ? {} : { status: args.status }),
+        ...(args.priority === undefined ? {} : { priority: args.priority }),
+        ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
+        ...(args.limit === undefined ? {} : { limit: args.limit }),
+      });
+    },
+
+    /** Returns one admin-enriched feedback entry. */
+    useAdminEntry(entryId: string | null | undefined) {
+      return useQuery(
+        api.adminGetEntry,
+        entryId === null || entryId === undefined ? "skip" : { entryId },
+      );
+    },
+
+    /** Searches the admin inbox with triage filters. */
+    useAdminSearchEntries(args: UseAdminSearchEntriesArgs) {
+      const searchQuery = args.searchQuery.trim();
+      return useQuery(
+        api.adminSearchEntries,
+        searchQuery.length === 0
+          ? "skip"
+          : {
+              searchQuery,
+              ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
+              ...(args.status === undefined ? {} : { status: args.status }),
+              ...(args.priority === undefined
+                ? {}
+                : { priority: args.priority }),
+              ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
+              ...(args.limit === undefined ? {} : { limit: args.limit }),
+            },
+      );
+    },
+
+    useTags() {
+      return useQuery(api.listTags, {});
+    },
+
+    useRoadmap(status?: RoadmapStatus) {
+      return useQuery(api.listRoadmap, status === undefined ? {} : { status });
+    },
+
+    useSearchRoadmap(searchQuery: string, limit = 10) {
+      const normalized = searchQuery.trim();
+      return useQuery(
+        api.searchRoadmap,
+        normalized.length === 0 ? "skip" : { searchQuery: normalized, limit },
+      );
+    },
+
+    useRoadmapFeedback(roadmapId: string | null | undefined) {
+      return useQuery(
+        api.listRoadmapFeedback,
+        roadmapId === null || roadmapId === undefined ? "skip" : { roadmapId },
+      );
+    },
+
     /**
      * Reactively finds exact and similar entries for a proposed draft.
      *
@@ -320,6 +402,54 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return useMutation(api.setEntryStatus);
     },
 
+    useSetEntryPriority() {
+      return useMutation(api.setEntryPriority);
+    },
+
+    useCreateTag() {
+      return useMutation(api.createTag);
+    },
+
+    useUpdateTag() {
+      return useMutation(api.updateTag);
+    },
+
+    useDeleteTag() {
+      return useMutation(api.deleteTag);
+    },
+
+    useAttachTag() {
+      return useMutation(api.attachTag);
+    },
+
+    useDetachTag() {
+      return useMutation(api.detachTag);
+    },
+
+    useCreateRoadmap() {
+      return useMutation(api.createRoadmap);
+    },
+
+    useUpdateRoadmap() {
+      return useMutation(api.updateRoadmap);
+    },
+
+    useDeleteRoadmap() {
+      return useMutation(api.deleteRoadmap);
+    },
+
+    useMoveRoadmapItem() {
+      return useMutation(api.moveRoadmapItem);
+    },
+
+    useAttachFeedbackToRoadmap() {
+      return useMutation(api.attachFeedbackToRoadmap);
+    },
+
+    useDetachFeedbackFromRoadmap() {
+      return useMutation(api.detachFeedbackFromRoadmap);
+    },
+
     /** Returns the idempotent entry-upvote state mutation. */
     useSetEntryUpvote() {
       return useMutation(api.setEntryUpvote);
@@ -353,18 +483,24 @@ type CreatedFeedbackHooks<RateLimitResult> = ReturnType<
 
 /** Creates hooks for a feedback API whose rate limiters reject by throwing. */
 export function createFeedbackHooks(
-  api: FeedbackPublicApi<string | undefined, never>,
+  api?: FeedbackPublicApi<string | undefined, never>,
   options?: FeedbackHooksOptions,
 ): CreatedFeedbackHooks<never>;
 
 /** Creates hooks carrying a validated non-throwing rate-limit result. */
 export function createFeedbackHooks<RateLimitResult>(
-  api: FeedbackPublicApi<string | undefined, RateLimitResult>,
+  api?: FeedbackPublicApi<string | undefined, RateLimitResult>,
   options?: FeedbackHooksOptions,
 ): CreatedFeedbackHooks<RateLimitResult>;
 
 export function createFeedbackHooks<RateLimitResult>(
-  api: FeedbackPublicApi<string | undefined, RateLimitResult>,
+  api: FeedbackPublicApi<
+    string | undefined,
+    RateLimitResult
+  > = anyApi.feedback as unknown as FeedbackPublicApi<
+    string | undefined,
+    RateLimitResult
+  >,
   options: FeedbackHooksOptions = {},
 ): CreatedFeedbackHooks<RateLimitResult> {
   return createFeedbackHooksImplementation(api, options);

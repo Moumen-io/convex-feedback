@@ -43,19 +43,19 @@ async function invokeQuery<Args extends DefaultFunctionArgs, Result>(
 }
 
 describe("metadata API authorization", () => {
-  test("only the host-resolved moderator flag reaches getEntry", async () => {
-    const moderatorRunQuery = vi.fn(() => Promise.resolve(null));
+  test("only the host-resolved admin flag reaches getEntry", async () => {
+    const adminRunQuery = vi.fn(() => Promise.resolve(null));
     const memberRunQuery = vi.fn(() => Promise.resolve(null));
-    const moderatorApi = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "moderator-1", isModerator: true }),
+    const adminApi = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve({ id: "admin-1", isAdmin: true }),
     });
     const memberApi = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "member-1", isModerator: false }),
+      actor: () => Promise.resolve({ id: "member-1", isAdmin: false }),
     });
 
     await invokeQuery(
-      moderatorApi.getEntry,
-      { runQuery: moderatorRunQuery } as unknown as GenericQueryCtx<never>,
+      adminApi.getEntry,
+      { runQuery: adminRunQuery } as unknown as GenericQueryCtx<never>,
       { entryId: "entry-1" },
     );
     await invokeQuery(
@@ -64,10 +64,10 @@ describe("metadata API authorization", () => {
       { entryId: "entry-1" },
     );
 
-    expect(moderatorRunQuery).toHaveBeenCalledWith("entries:get", {
+    expect(adminRunQuery).toHaveBeenCalledWith("entries:get", {
       entryId: "entry-1",
-      viewerActorId: "moderator-1",
-      viewerIsModerator: true,
+      viewerActorId: "admin-1",
+      viewerIsAdmin: true,
     });
     expect(memberRunQuery).toHaveBeenCalledWith("entries:get", {
       entryId: "entry-1",

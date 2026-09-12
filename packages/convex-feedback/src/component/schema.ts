@@ -3,9 +3,11 @@ import { v } from "convex/values";
 
 import {
   entryKindValidator,
+  entryPriorityValidator,
   entryStatusFilterValidator,
   entryStatusValidator,
   feedbackMetadataValidator,
+  roadmapStatusValidator,
 } from "./model.js";
 
 const schema = defineSchema({
@@ -22,6 +24,10 @@ const schema = defineSchema({
     commentCount: v.number(),
     updatedAt: v.optional(v.number()),
     metadata: v.optional(feedbackMetadataValidator),
+    priority: v.optional(entryPriorityValidator),
+    primaryTagId: v.optional(v.id("tags")),
+    secondaryTagId: v.optional(v.id("tags")),
+    roadmapId: v.optional(v.id("roadmap")),
   })
     .index("by_kind", ["kind"])
     .index("by_status", ["status"])
@@ -40,9 +46,36 @@ const schema = defineSchema({
     ])
     .index("by_normalized_title", ["normalizedTitle"])
     .index("by_kind_normalized_title", ["kind", "normalizedTitle"])
+    .index("by_priority", ["priority"])
+    .index("by_primary_tag_id", ["primaryTagId"])
+    .index("by_secondary_tag_id", ["secondaryTagId"])
+    .index("by_roadmap_id", ["roadmapId"])
     .searchIndex("search", {
       searchField: "searchText",
       filterFields: ["kind", "status", "statusFilter"],
+    }),
+
+  tags: defineTable({
+    name: v.string(),
+    normalizedName: v.string(),
+    color: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_normalized_name", ["normalizedName"]),
+
+  roadmap: defineTable({
+    title: v.string(),
+    description: v.optional(v.string()),
+    status: roadmapStatusValidator,
+    position: v.number(),
+    feedbackCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_and_position", ["status", "position"])
+    .index("by_position", ["position"])
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["status"],
     }),
 
   comments: defineTable({

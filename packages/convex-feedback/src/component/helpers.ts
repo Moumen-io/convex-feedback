@@ -2,7 +2,13 @@ import { ConvexError } from "convex/values";
 
 import type { DataModel } from "./_generated/dataModel.js";
 import type { QueryCtx } from "./types.js";
-import type { FeedbackComment, FeedbackEntry } from "./model.js";
+import type {
+  AdminFeedbackEntry,
+  FeedbackComment,
+  FeedbackEntry,
+  FeedbackTag,
+  RoadmapItem,
+} from "./model.js";
 
 const metadataMaximumKeysPerSection = 32;
 const metadataMaximumKeyLength = 64;
@@ -134,6 +140,63 @@ export async function serializeEntry(
     ...(includeMetadata && entry.metadata !== undefined
       ? { metadata: entry.metadata }
       : {}),
+  };
+}
+
+export function serializeTag(tag: DataModel["tags"]["document"]): FeedbackTag {
+  return {
+    id: tag._id,
+    creationTime: tag._creationTime,
+    name: tag.name,
+    ...(tag.color === undefined ? {} : { color: tag.color }),
+    updatedAt: tag.updatedAt,
+  };
+}
+
+export function serializeRoadmapItem(
+  item: DataModel["roadmap"]["document"],
+): RoadmapItem {
+  return {
+    id: item._id,
+    creationTime: item._creationTime,
+    title: item.title,
+    ...(item.description === undefined
+      ? {}
+      : { description: item.description }),
+    status: item.status,
+    position: item.position,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    feedbackCount: item.feedbackCount,
+  };
+}
+
+export async function serializeAdminEntry(
+  ctx: QueryCtx,
+  entry: DataModel["entries"]["document"],
+  viewerActorId: string,
+): Promise<AdminFeedbackEntry> {
+  const [base, primaryTag, secondaryTag, roadmap] = await Promise.all([
+    serializeEntry(ctx, entry, viewerActorId, true),
+    entry.primaryTagId === undefined
+      ? null
+      : ctx.db.get("tags", entry.primaryTagId),
+    entry.secondaryTagId === undefined
+      ? null
+      : ctx.db.get("tags", entry.secondaryTagId),
+    entry.roadmapId === undefined
+      ? null
+      : ctx.db.get("roadmap", entry.roadmapId),
+  ]);
+
+  return {
+    ...base,
+    ...(entry.priority === undefined ? {} : { priority: entry.priority }),
+    ...(primaryTag === null ? {} : { primaryTag: serializeTag(primaryTag) }),
+    ...(secondaryTag === null
+      ? {}
+      : { secondaryTag: serializeTag(secondaryTag) }),
+    ...(roadmap === null ? {} : { roadmap: serializeRoadmapItem(roadmap) }),
   };
 }
 

@@ -1,0 +1,65 @@
+name: Apply admin slice 2
+
+on:
+  push:
+    branches:
+      - fix/admin-filtering-arbitrary-tags
+    paths:
+      - .github/workflows/apply-admin-slice2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/admin-filtering-arbitrary-tags
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Apply filtering and arbitrary-tag changes
+        run: node .github/scripts/apply-admin-slice2.mjs
+
+      - name: Regenerate component API
+        run: npm run codegen:component
+
+      - name: Format repository
+        run: npm run format
+
+      - name: Run repository checks
+        run: npm run test:all
+
+      - name: Validate web admin
+        working-directory: apps/admin/withClerk/web
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+
+      - name: Validate native admin
+        working-directory: apps/admin/withClerk/native
+        run: |
+          npm ci
+          npm run typecheck
+
+      - name: Commit implementation
+        run: |
+          rm .github/scripts/apply-admin-slice2.mjs
+          rm .github/workflows/apply-admin-slice2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix admin filtering and support arbitrary tags"
+          git push origin HEAD:fix/admin-filtering-arbitrary-tags

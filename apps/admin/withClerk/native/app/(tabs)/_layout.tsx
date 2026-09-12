@@ -18,10 +18,6 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>Roadmap</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="map.fill" md="map" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="tags">
-        <NativeTabs.Trigger.Label>Tags</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="tag.fill" md="label" />
-      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

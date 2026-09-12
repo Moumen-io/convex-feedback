@@ -29,39 +29,6 @@ async function createEntry(
 }
 
 describe("admin filtering pagination", () => {
-  test("tag filtering happens before list and search page boundaries", async () => {
-    const testInstance = setup();
-    const targetId = await createEntry(testInstance, "Needle target");
-    for (let index = 0; index < 30; index += 1) {
-      await createEntry(testInstance, "Needle decoy " + index);
-    }
-
-    const tagId = await testInstance.mutation(api.tags.create, {
-      actor,
-      name: "Target only",
-    });
-    await testInstance.mutation(api.tags.attach, {
-      actor,
-      entryId: targetId,
-      tagId,
-    });
-
-    const listed = await testInstance.query(api.admin.listEntries, {
-      tagId,
-      paginationOpts: { cursor: null, numItems: 1 },
-      viewerActorId: actor.id,
-    });
-    expect(listed.page.map((entry) => entry.id)).toEqual([targetId]);
-
-    const searched = await testInstance.query(api.admin.searchEntries, {
-      searchQuery: "common searchable needle",
-      tagId,
-      paginationOpts: { cursor: null, numItems: 1 },
-      viewerActorId: actor.id,
-    });
-    expect(searched.page.map((entry) => entry.id)).toEqual([targetId]);
-  });
-
   test("multi-kind admin search pre-filters before pagination", async () => {
     const testInstance = setup();
     const targetId = await createEntry(testInstance, "Multi kind target");

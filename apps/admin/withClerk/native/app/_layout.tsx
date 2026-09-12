@@ -16,7 +16,6 @@ import {
 } from "react-native";
 
 import { adminTheme } from "@/constants/AdminTheme";
-import { TagsProvider } from "@/providers/tags-provider";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
@@ -93,20 +92,18 @@ function AdminGate() {
           <UserButton />
         </Centered>
       ) : (
-        <TagsProvider>
-          <Stack
-            screenOptions={{
-              headerShadowVisible: false,
-              contentStyle: { backgroundColor: adminTheme.background },
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="feedback/[entryId]"
-              options={{ title: "Feedback", presentation: "modal" }}
-            />
-          </Stack>
-        </TagsProvider>
+        <Stack
+          screenOptions={{
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: adminTheme.background },
+          }}
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="feedback/[entryId]"
+            options={{ title: "Feedback", presentation: "modal" }}
+          />
+        </Stack>
       )}
       <Modal
         visible={authOpen}

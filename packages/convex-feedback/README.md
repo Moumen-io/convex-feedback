@@ -19,13 +19,13 @@ A headless, fully typed Convex component for product feedback, feature requests,
 - Convex full-text search.
 - Exact-title + full-text duplicate suggestions.
 - Host-controlled authentication and admin permissions.
-- Admin priority, arbitrary tags, and roadmap workflows.
+- Admin priority and roadmap workflows.
 - Optional host-defined mutation rate limiting.
 - Configurable limits and behavior
 - Typed React hooks.
 - `convex-test` helper entry point.
 
-The component owns five tables: `entries`, `comments`, `reactions`, `tags`, and `roadmap`.
+The component owns four tables: `entries`, `comments`, `reactions`, and `roadmap`.
 
 ## Requirements
 
@@ -107,12 +107,6 @@ export const {
   updateComment,
   deleteComment,
   setCommentLike,
-  listTags,
-  createTag,
-  updateTag,
-  deleteTag,
-  attachTag,
-  detachTag,
   listRoadmap,
   searchRoadmap,
   createRoadmap,
@@ -302,7 +296,7 @@ Metadata is intentionally absent from entry lists, searches, and duplicate sugge
 
 ## Admin panel
 
-The standalone [Vite and Expo Clerk admin apps](../../apps/admin/withClerk/README.md) provide an inbox, entry detail workflow, tag management, and a stage-based roadmap. They are reference applications to fork and deploy, not reusable UI exports.
+The standalone [Vite and Expo Clerk admin apps](../../apps/admin/withClerk/README.md) provide an inbox, entry detail workflow, and a stage-based roadmap. They are reference applications to fork and deploy, not reusable UI exports.
 
 The host actor is the authorization boundary. With Clerk, expose a trusted session claim (for example, one derived from Clerk public metadata) and map it in the host only:
 
@@ -320,7 +314,7 @@ actor: async (ctx) => {
 
 Set the claim and Convex Clerk provider using Clerk's current integration instructions, then export the complete wrapper API shown above as `convex/feedback.ts`. Both reference apps use `anyApi.feedback` by default and perform a one-shot `isAdmin` check at their root; every admin query and mutation still rechecks the actor on the server.
 
-Admin entries may have an optional `low`, `medium`, or `high` priority; any number of admin-managed tags; and one roadmap relation. Tag IDs are stored directly on each feedback entry rather than in a relation table. Deleting a tag removes its ID from related entries. Deleting a roadmap item detaches all related feedback. Public entry queries and the existing public UI do not expose this internal metadata.
+Admin entries may have an optional `low`, `medium`, or `high` priority and one roadmap relation. Deleting a roadmap item detaches all related feedback. Public entry queries and the existing public UI do not expose priority, while roadmap reads are public.
 
 ## Entry kinds and statuses
 
@@ -448,7 +442,7 @@ The wrapper exposes:
 | `deleteComment`      | mutation | Soft-delete a comment                              |
 | `setCommentLike`     | mutation | Idempotently set comment like state                |
 
-The same wrapper exposes `isAdmin`, cursor-paginated admin list/search queries, admin detail, priority updates, tag CRUD and attachment functions, cursor-paginated roadmap lists, roadmap search/reordering functions, and feedback-to-roadmap attachment functions. All of those operations resolve the host actor; only `isAdmin` itself returns a boolean instead of rejecting a non-admin caller. Bounded limits remain on suggestion-style full-text searches such as the roadmap selector.
+The same wrapper exposes `isAdmin`, cursor-paginated admin list/search queries, admin detail, priority updates, cursor-paginated public roadmap lists, roadmap search/reordering functions, and feedback-to-roadmap attachment functions. Roadmap reads and attached public entries are unauthenticated; roadmap mutations and admin operations resolve the host actor. Only `isAdmin` itself returns a boolean instead of rejecting a non-admin caller. Bounded limits remain on suggestion-style full-text searches such as the roadmap selector.
 
 Every public argument/result type is exported and documented for editor IntelliSense.
 

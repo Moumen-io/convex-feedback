@@ -58,13 +58,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "in_progress"
             | "completed"
             | "closed";
-          tags: Array<{
-            color?: string;
-            creationTime: number;
-            id: string;
-            name: string;
-            updatedAt: number;
-          }>;
           title: string;
           updatedAt?: number;
           upvoteCount: number;
@@ -93,7 +86,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "in_progress"
             | "completed"
             | "closed";
-          tagId?: string;
           viewerActorId: string;
         },
         {
@@ -129,13 +121,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "in_progress"
               | "completed"
               | "closed";
-            tags: Array<{
-              color?: string;
-              creationTime: number;
-              id: string;
-              name: string;
-              updatedAt: number;
-            }>;
             title: string;
             updatedAt?: number;
             upvoteCount: number;
@@ -168,7 +153,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "in_progress"
             | "completed"
             | "closed";
-          tagId?: string;
           viewerActorId: string;
         },
         {
@@ -204,13 +188,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "in_progress"
               | "completed"
               | "closed";
-            tags: Array<{
-              color?: string;
-              creationTime: number;
-              id: string;
-              name: string;
-              updatedAt: number;
-            }>;
             title: string;
             updatedAt?: number;
             upvoteCount: number;
@@ -740,73 +717,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           description?: string;
           roadmapId: string;
           title: string;
-        },
-        null,
-        Name
-      >;
-    };
-    tags: {
-      attach: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          actor: { id: string; isAdmin: boolean };
-          entryId: string;
-          tagId: string;
-        },
-        null,
-        Name
-      >;
-      create: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          actor: { id: string; isAdmin: boolean };
-          color?: string;
-          name: string;
-        },
-        string,
-        Name
-      >;
-      detach: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          actor: { id: string; isAdmin: boolean };
-          entryId: string;
-          tagId: string;
-        },
-        null,
-        Name
-      >;
-      list: FunctionReference<
-        "query",
-        "internal",
-        {},
-        Array<{
-          color?: string;
-          creationTime: number;
-          id: string;
-          name: string;
-          updatedAt: number;
-        }>,
-        Name
-      >;
-      remove: FunctionReference<
-        "mutation",
-        "internal",
-        { actor: { id: string; isAdmin: boolean }; tagId: string },
-        null,
-        Name
-      >;
-      update: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          actor: { id: string; isAdmin: boolean };
-          color?: string;
-          name: string;
-          tagId: string;
         },
         null,
         Name

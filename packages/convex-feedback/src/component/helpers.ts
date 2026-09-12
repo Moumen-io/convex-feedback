@@ -6,7 +6,6 @@ import type {
   AdminFeedbackEntry,
   FeedbackComment,
   FeedbackEntry,
-  FeedbackTag,
   RoadmapItem,
 } from "./model.js";
 
@@ -143,16 +142,6 @@ export async function serializeEntry(
   };
 }
 
-export function serializeTag(tag: DataModel["tags"]["document"]): FeedbackTag {
-  return {
-    id: tag._id,
-    creationTime: tag._creationTime,
-    name: tag.name,
-    ...(tag.color === undefined ? {} : { color: tag.color }),
-    updatedAt: tag.updatedAt,
-  };
-}
-
 export function serializeRoadmapItem(
   item: DataModel["roadmap"]["document"],
 ): RoadmapItem {
@@ -176,9 +165,8 @@ export async function serializeAdminEntry(
   entry: DataModel["entries"]["document"],
   viewerActorId: string,
 ): Promise<AdminFeedbackEntry> {
-  const [base, tagDocuments, roadmap] = await Promise.all([
+  const [base, roadmap] = await Promise.all([
     serializeEntry(ctx, entry, viewerActorId, true),
-    Promise.all((entry.tagIds ?? []).map((tagId) => ctx.db.get("tags", tagId))),
     entry.roadmapId === undefined
       ? null
       : ctx.db.get("roadmap", entry.roadmapId),
@@ -187,9 +175,6 @@ export async function serializeAdminEntry(
   return {
     ...base,
     ...(entry.priority === undefined ? {} : { priority: entry.priority }),
-    tags: tagDocuments.flatMap((tag) =>
-      tag === null ? [] : [serializeTag(tag)],
-    ),
     ...(roadmap === null ? {} : { roadmap: serializeRoadmapItem(roadmap) }),
   };
 }

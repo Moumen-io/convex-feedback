@@ -96,77 +96,32 @@ describe("convex-feedback component", () => {
     expect(entry?.viewerHasUpvoted).toBe(true);
   });
 
-  test("admin priority and arbitrary tags stay private and deletion cascades", async () => {
+  test("admin priority stays private from public entries", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance, "Admin triage target");
     const actor = { id: "admin-1", isAdmin: true } as const;
-    const revenueTagId = await testInstance.mutation(api.tags.create, {
-      actor,
-      name: "Revenue",
-      color: "#8b5cf6",
-    });
-    const mobileTagId = await testInstance.mutation(api.tags.create, {
-      actor,
-      name: "Mobile",
-    });
-    const retentionTagId = await testInstance.mutation(api.tags.create, {
-      actor,
-      name: "Retention",
-    });
 
     await testInstance.mutation(api.entries.setPriority, {
       actor,
       entryId,
       priority: "high",
     });
-    for (const tagId of [revenueTagId, mobileTagId, retentionTagId]) {
-      await testInstance.mutation(api.tags.attach, { actor, entryId, tagId });
-    }
 
     const publicEntry = await testInstance.query(api.entries.get, { entryId });
     expect(publicEntry).not.toHaveProperty("priority");
-    expect(publicEntry).not.toHaveProperty("tags");
 
     const adminEntry = await testInstance.query(api.admin.getEntry, {
       entryId,
       viewerActorId: actor.id,
     });
     expect(adminEntry?.priority).toBe("high");
-    expect(adminEntry?.tags.map((tag) => tag.name)).toEqual([
-      "Revenue",
-      "Mobile",
-      "Retention",
-    ]);
 
     const filtered = await testInstance.query(api.admin.listEntries, {
-      tagId: retentionTagId,
       priority: "high",
       paginationOpts: { cursor: null, numItems: 10 },
       viewerActorId: actor.id,
     });
     expect(filtered.page.map((entry) => entry.id)).toEqual([entryId]);
-
-    await testInstance.mutation(api.tags.detach, {
-      actor,
-      entryId,
-      tagId: mobileTagId,
-    });
-    await testInstance.mutation(api.tags.remove, {
-      actor,
-      tagId: revenueTagId,
-    });
-
-    vi.useFakeTimers();
-    try {
-      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
-    } finally {
-      vi.useRealTimers();
-    }
-
-    const stored = await testInstance.run((ctx) =>
-      ctx.db.get("entries", entryId),
-    );
-    expect(stored?.tagIds).toEqual([retentionTagId]);
   });
 
   test("roadmap uses fractional positions and deletion detaches feedback", async () => {
@@ -321,16 +276,11 @@ describe("convex-feedback component", () => {
       title: "Public roadmap entry",
     });
     expect(result.page[0]).not.toHaveProperty("priority");
-    expect(result.page[0]).not.toHaveProperty("tags");
   });
 
-  test("tag and roadmap deletion self-schedule beyond 100 entries", async () => {
+  test("roadmap deletion self-schedules beyond 100 entries", async () => {
     const testInstance = setup();
     const actor = { id: "admin-1", isAdmin: true } as const;
-    const tagId = await testInstance.mutation(api.tags.create, {
-      actor,
-      name: "Bulk cleanup",
-    });
     const roadmapId = await testInstance.mutation(api.roadmap.create, {
       actor,
       title: "Bulk cleanup roadmap",
@@ -352,7 +302,6 @@ describe("convex-feedback component", () => {
             searchText: "Bulk entry " + index + "\nBulk cleanup body",
             upvoteCount: 0,
             commentCount: 0,
-            tagIds: [tagId],
             roadmapId,
           }),
         );
@@ -361,14 +310,11 @@ describe("convex-feedback component", () => {
       return ids;
     });
 
-    await testInstance.mutation(api.tags.remove, { actor, tagId });
     await testInstance.mutation(api.roadmap.remove, { actor, roadmapId });
 
     const pending = await testInstance.run(async (ctx) => ({
-      tag: await ctx.db.get("tags", tagId),
       roadmap: await ctx.db.get("roadmap", roadmapId),
     }));
-    expect(pending.tag?.deletingAt).toEqual(expect.any(Number));
     expect(pending.roadmap?.deletingAt).toEqual(expect.any(Number));
 
     vi.useFakeTimers();
@@ -379,20 +325,15 @@ describe("convex-feedback component", () => {
     }
 
     const cleaned = await testInstance.run(async (ctx) => ({
-      tag: await ctx.db.get("tags", tagId),
       roadmap: await ctx.db.get("roadmap", roadmapId),
       entries: await Promise.all(
         entryIds.map((entryId) => ctx.db.get("entries", entryId)),
       ),
     }));
-    expect(cleaned.tag).toBeNull();
     expect(cleaned.roadmap).toBeNull();
     expect(
       cleaned.entries.every(
-        (entry) =>
-          entry !== null &&
-          !entry.tagIds?.includes(tagId) &&
-          entry.roadmapId === undefined,
+        (entry) => entry !== null && entry.roadmapId === undefined,
       ),
     ).toBe(true);
   });

@@ -20,7 +20,6 @@ import {
 import { adminTheme } from "@/constants/AdminTheme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { feedbackHooks } from "@/lib/feedback";
-import { useTags } from "@/providers/tags-provider";
 
 const kinds = ["all", "feedback", "feature_request", "bug_report"] as const;
 const statuses = [
@@ -40,22 +39,18 @@ function nextValue<T extends string>(values: readonly T[], current: T): T {
 
 export default function InboxScreen() {
   const router = useRouter();
-  const tags = useTags();
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<(typeof kinds)[number]>("all");
   const [status, setStatus] = useState<(typeof statuses)[number]>("all");
   const [priority, setPriority] = useState<(typeof priorities)[number]>("all");
-  const [tagIndex, setTagIndex] = useState(0);
   const debounced = useDebouncedValue(search, 300);
-  const selectedTag = tagIndex === 0 ? undefined : tags?.[tagIndex - 1];
   const filters = useMemo(
     () => ({
       ...(kind === "all" ? {} : { kinds: [kind as EntryKind] }),
       ...(status === "all" ? {} : { status: status as EntryStatus }),
       ...(priority === "all" ? {} : { priority: priority as EntryPriority }),
-      ...(selectedTag ? { tagId: selectedTag.id } : {}),
     }),
-    [kind, priority, selectedTag, status],
+    [kind, priority, status],
   );
   const listed = feedbackHooks.useAdminEntries(filters);
   const searched = feedbackHooks.useAdminSearchEntries({
@@ -94,12 +89,6 @@ export default function InboxScreen() {
         <Filter
           label={`Priority · ${priority}`}
           onPress={() => setPriority(nextValue(priorities, priority))}
-        />
-        <Filter
-          label={`Tag · ${selectedTag?.name ?? "all"}`}
-          onPress={() =>
-            setTagIndex((value) => (value + 1) % ((tags?.length ?? 0) + 1))
-          }
         />
       </ScrollView>
       {page.status === "LoadingFirstPage" ? (

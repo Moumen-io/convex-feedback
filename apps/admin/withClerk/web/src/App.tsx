@@ -2,17 +2,15 @@ import { ClerkProvider, SignIn, UserButton, useAuth } from "@clerk/react";
 import { ConvexReactClient, useConvexAuth } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { anyApi } from "convex/server";
-import { InboxIcon, MapIcon, ShieldXIcon, TagsIcon } from "lucide-react";
+import { InboxIcon, MapIcon, ShieldXIcon } from "lucide-react";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
 
 import { InboxView } from "@/components/inbox";
 import { RoadmapView } from "@/components/roadmap-view";
-import { TagsView } from "@/components/tags-view";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
-import { TagsProvider } from "@/providers/tags-provider";
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const convexUrl = import.meta.env.VITE_CONVEX_URL;
@@ -86,19 +84,14 @@ function AdminGate() {
       </main>
     );
   }
-  return (
-    <TagsProvider>
-      <AdminShell />
-    </TagsProvider>
-  );
+  return <AdminShell />;
 }
 
 function AdminShell() {
-  const [view, setView] = useState<"inbox" | "roadmap" | "tags">("inbox");
+  const [view, setView] = useState<"inbox" | "roadmap">("inbox");
   const nav = [
     { value: "inbox" as const, label: "Inbox", icon: InboxIcon },
     { value: "roadmap" as const, label: "Roadmap", icon: MapIcon },
-    { value: "tags" as const, label: "Tags", icon: TagsIcon },
   ];
   return (
     <main className="grid min-h-svh bg-background md:grid-cols-[13rem_minmax(0,1fr)]">
@@ -130,7 +123,6 @@ function AdminShell() {
       <div className="flex min-h-0 min-w-0 flex-col md:h-svh">
         {view === "inbox" && <InboxView />}
         {view === "roadmap" && <RoadmapView />}
-        {view === "tags" && <TagsView />}
       </div>
     </main>
   );

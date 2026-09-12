@@ -10,7 +10,7 @@
 
 Optional React DOM, React Native, and Expo Router UI for `convex-feedback`.
 
-This package keeps the public feedback experience unchanged. Internal priority, tags, and roadmap workflows live in the forkable [Clerk admin panel](../../apps/admin/withClerk/README.md), which uses the headless hooks directly.
+This package provides the public feedback and roadmap experience. Internal priority and roadmap management live in the forkable [Clerk admin panel](../../apps/admin/withClerk/README.md), which uses the headless hooks directly.
 
 The package is intentionally layered:
 

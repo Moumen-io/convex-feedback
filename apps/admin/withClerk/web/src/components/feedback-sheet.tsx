@@ -1,4 +1,4 @@
-import type { EntryPriority, EntryStatus, FeedbackTag } from "convex-feedback";
+import type { EntryPriority, EntryStatus } from "convex-feedback";
 import {
   CheckIcon,
   CornerDownRightIcon,
@@ -59,7 +59,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { feedbackHooks } from "@/lib/feedback";
-import { useTags } from "@/providers/tags-provider";
 
 const statusItems = [
   "open",
@@ -95,23 +94,9 @@ export function FeedbackSheet({
   onClose: () => void;
 }) {
   const entry = feedbackHooks.useAdminEntry(entryId);
-  const tags = useTags();
   const setStatus = feedbackHooks.useSetEntryStatus();
   const setPriority = feedbackHooks.useSetEntryPriority();
-  const attachTag = feedbackHooks.useAttachTag();
-  const detachTag = feedbackHooks.useDetachTag();
   const detachRoadmap = feedbackHooks.useDetachFeedbackFromRoadmap();
-
-  const toggleTag = (tag: FeedbackTag) => {
-    if (!entryId || !entry) return;
-    const attached = entry.tags.some((candidate) => candidate.id === tag.id);
-    void notify(
-      attached
-        ? detachTag({ entryId, tagId: tag.id })
-        : attachTag({ entryId, tagId: tag.id }),
-      attached ? "Tag removed" : "Tag attached",
-    );
-  };
 
   return (
     <Sheet open={entryId !== null} onOpenChange={(open) => !open && onClose()}>
@@ -175,14 +160,6 @@ export function FeedbackSheet({
                         "Priority updated",
                       )
                     }
-                  />
-                </Field>
-                <Field className="sm:col-span-2">
-                  <FieldLabel>Tags</FieldLabel>
-                  <TagPicker
-                    tags={tags}
-                    selected={entry.tags}
-                    onToggle={toggleTag}
                   />
                 </Field>
               </div>
@@ -279,45 +256,6 @@ function AdminSelect({
   );
 }
 
-function TagPicker({
-  tags,
-  selected,
-  onToggle,
-}: {
-  tags: FeedbackTag[] | undefined;
-  selected: FeedbackTag[];
-  onToggle: (tag: FeedbackTag) => void;
-}) {
-  if (!tags || tags.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No tags configured yet. Create tags from the Tags view.
-      </p>
-    );
-  }
-
-  const selectedIds = new Set(selected.map((tag) => tag.id));
-  return (
-    <div className="flex flex-wrap gap-2">
-      {tags.map((tag) => {
-        const active = selectedIds.has(tag.id);
-        return (
-          <Button
-            key={tag.id}
-            type="button"
-            variant={active ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => onToggle(tag)}
-          >
-            {active && <CheckIcon data-icon="inline-start" />}
-            {tag.name}
-          </Button>
-        );
-      })}
-    </div>
-  );
-}
-
 function RoadmapSelector({ entryId }: { entryId: string }) {
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -409,16 +347,15 @@ function CreateRoadmapDialog({
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const create = feedbackHooks.useCreateRoadmap();
-  const attach = feedbackHooks.useAttachFeedbackToRoadmap();
+  const createForEntry = feedbackHooks.useCreateRoadmapForEntry();
   const submit = async () => {
     try {
-      const roadmapId = await create({
+      await createForEntry({
+        entryId,
         title,
         description: description || undefined,
         status: "planned",
       });
-      if (typeof roadmapId === "string") await attach({ entryId, roadmapId });
       toast.success("Roadmap item created and attached");
       onOpenChange(false);
       setTitle("");

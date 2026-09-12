@@ -49,14 +49,6 @@ export const actorValidator = v.object({
   isAdmin: v.boolean(),
 });
 
-export const tagValidator = v.object({
-  id: v.string(),
-  creationTime: v.number(),
-  name: v.string(),
-  color: v.optional(v.string()),
-  updatedAt: v.number(),
-});
-
 export const roadmapItemValidator = v.object({
   id: v.string(),
   creationTime: v.number(),
@@ -122,7 +114,6 @@ export const similarEntriesValidator = v.object({
 
 export const adminEntryValidator = publicEntryValidator.extend({
   priority: v.optional(entryPriorityValidator),
-  tags: v.array(tagValidator),
   roadmap: v.optional(roadmapItemValidator),
   metadata: v.optional(feedbackMetadataValidator),
 });
@@ -167,9 +158,6 @@ export type EntryPriority = Infer<typeof entryPriorityValidator>;
 
 /** Workflow stage for an admin roadmap item. */
 export type RoadmapStatus = Infer<typeof roadmapStatusValidator>;
-
-/** Admin-managed tag attached to an entry as private triage metadata. */
-export type FeedbackTag = Infer<typeof tagValidator>;
 
 /** Admin-managed roadmap item and its current attached-feedback count. */
 export type RoadmapItem = Infer<typeof roadmapItemValidator>;

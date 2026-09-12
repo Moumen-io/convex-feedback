@@ -67,7 +67,7 @@ See **[convex-feedback-ui](./packages/convex-feedback-ui/README.md)** for web/na
 
 ### Admin panel
 
-Fork either standalone Clerk reference app under [`apps/admin/withClerk`](./apps/admin/withClerk/README.md): a Vite + Tailwind + shadcn web app or an Expo app using native tabs. Expose the complete host feedback API, return `isAdmin` from the host actor resolver, copy the selected app's `.env.example`, and set its Convex and Clerk variables before deploying. Priority, tags, and roadmap data remain internal and do not alter the public UI.
+Fork either standalone Clerk reference app under [`apps/admin/withClerk`](./apps/admin/withClerk/README.md): a Vite + Tailwind + shadcn web app or an Expo app using native tabs. Expose the complete host feedback API, return `isAdmin` from the host actor resolver, copy the selected app's `.env.example`, and set its Convex and Clerk variables before deploying. Priority remains internal; roadmap data is available through the public roadmap API and does not alter the public feedback UI.
 
 ## Packages
 

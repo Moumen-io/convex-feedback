@@ -3,7 +3,6 @@ import type {
   EntryKind,
   EntryPriority,
   EntryStatus,
-  FeedbackTag,
 } from "convex-feedback";
 import {
   BugIcon,
@@ -12,7 +11,6 @@ import {
   LightbulbIcon,
   MessageSquareIcon,
   SearchIcon,
-  TagIcon,
   ThumbsUpIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -44,7 +42,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { feedbackHooks } from "@/lib/feedback";
-import { useTags } from "@/providers/tags-provider";
 
 const kindItems = [
   { label: "All kinds", value: "all" },
@@ -106,14 +103,6 @@ function EntryRow({
         </span>
         <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="outline">{entry.status.replaceAll("_", " ")}</Badge>
-          {entry.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag.id} variant="secondary">
-              {tag.name}
-            </Badge>
-          ))}
-          {entry.tags.length > 3 && (
-            <Badge variant="outline">+{entry.tags.length - 3}</Badge>
-          )}
           <span className="inline-flex items-center gap-1">
             <ThumbsUpIcon className="size-3" /> {entry.upvoteCount}
           </span>
@@ -128,12 +117,10 @@ function EntryRow({
 }
 
 export function InboxView() {
-  const tags = useTags();
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("all");
   const [status, setStatus] = useState("all");
   const [priority, setPriority] = useState("all");
-  const [tagId, setTagId] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 280);
 
@@ -142,9 +129,8 @@ export function InboxView() {
       ...(kind === "all" ? {} : { kinds: [kind as EntryKind] }),
       ...(status === "all" ? {} : { status: status as EntryStatus }),
       ...(priority === "all" ? {} : { priority: priority as EntryPriority }),
-      ...(tagId === "all" ? {} : { tagId }),
     }),
-    [kind, priority, status, tagId],
+    [kind, priority, status],
   );
   const listed = feedbackHooks.useAdminEntries(filters);
   const searched = feedbackHooks.useAdminSearchEntries({
@@ -153,14 +139,6 @@ export function InboxView() {
   });
   const page = debouncedSearch.length > 0 ? searched : listed;
   const entries = page.results;
-  const tagItems = [
-    { label: "All tags", value: "all" },
-    ...(tags ?? []).map((tag: FeedbackTag) => ({
-      label: tag.name,
-      value: tag.id,
-    })),
-  ];
-
   return (
     <section className="panel-enter flex min-h-0 flex-1 flex-col">
       <header className="flex flex-col gap-1 border-b px-5 py-5">
@@ -196,12 +174,6 @@ export function InboxView() {
             items={priorityItems}
             value={priority}
             onValueChange={setPriority}
-          />
-          <FilterSelect
-            items={tagItems}
-            value={tagId}
-            onValueChange={setTagId}
-            icon={TagIcon}
           />
         </div>
       </div>
@@ -256,12 +228,10 @@ function FilterSelect({
   items,
   value,
   onValueChange,
-  icon: Icon,
 }: {
   items: { label: string; value: string }[];
   value: string;
   onValueChange: (value: string) => void;
-  icon?: typeof TagIcon;
 }) {
   return (
     <Select
@@ -270,7 +240,6 @@ function FilterSelect({
       onValueChange={(next) => onValueChange(next ?? "all")}
     >
       <SelectTrigger>
-        {Icon && <Icon />}
         <SelectValue />
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false}>

@@ -25,7 +25,6 @@ const schema = defineSchema({
     updatedAt: v.optional(v.number()),
     metadata: v.optional(feedbackMetadataValidator),
     priority: v.optional(entryPriorityValidator),
-    tagIds: v.optional(v.array(v.id("tags"))),
     roadmapId: v.optional(v.id("roadmap")),
   })
     .index("by_kind", ["kind"])
@@ -51,14 +50,6 @@ const schema = defineSchema({
       searchField: "searchText",
       filterFields: ["kind", "status", "statusFilter", "priority"],
     }),
-
-  tags: defineTable({
-    name: v.string(),
-    normalizedName: v.string(),
-    color: v.optional(v.string()),
-    updatedAt: v.number(),
-    deletingAt: v.optional(v.number()),
-  }).index("by_normalized_name", ["normalizedName"]),
 
   roadmap: defineTable({
     title: v.string(),

@@ -16,7 +16,6 @@ import type * as helpers from "../helpers.js";
 import type * as migrations from "../migrations.js";
 import type * as model from "../model.js";
 import type * as roadmap from "../roadmap.js";
-import type * as tags from "../tags.js";
 import type * as types from "../types.js";
 
 import type {
@@ -35,7 +34,6 @@ const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   model: typeof model;
   roadmap: typeof roadmap;
-  tags: typeof tags;
   types: typeof types;
 }> = anyApi as any;
 

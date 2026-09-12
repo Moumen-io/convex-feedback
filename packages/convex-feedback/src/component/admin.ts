@@ -5,7 +5,7 @@ import {
 import { ConvexError, v } from "convex/values";
 import { stream } from "convex-helpers/server/stream";
 
-import type { Doc, Id } from "./_generated/dataModel.js";
+import type { Doc } from "./_generated/dataModel.js";
 import { query } from "./_generated/server.js";
 import { serializeAdminEntry } from "./helpers.js";
 import {
@@ -24,13 +24,11 @@ function matchesFilters(
   kinds: EntryKind[] | undefined,
   status: EntryStatus | undefined,
   priority: EntryPriority | undefined,
-  tagId: Id<"tags"> | undefined,
 ): boolean {
   return (
     (kinds === undefined || kinds.includes(entry.kind)) &&
     (status === undefined || entry.status === status) &&
-    (priority === undefined || entry.priority === priority) &&
-    (tagId === undefined || entry.tagIds?.includes(tagId) === true)
+    (priority === undefined || entry.priority === priority)
   );
 }
 
@@ -59,7 +57,6 @@ export const listEntries = query({
     kinds: v.optional(v.array(entryKindValidator)),
     status: v.optional(entryStatusValidator),
     priority: v.optional(entryPriorityValidator),
-    tagId: v.optional(v.id("tags")),
     paginationOpts: paginationOptsValidator,
     viewerActorId: v.string(),
   },
@@ -90,7 +87,7 @@ export const listEntries = query({
       .order("desc")
       .filterWith((entry) =>
         Promise.resolve(
-          matchesFilters(entry, kinds, args.status, args.priority, args.tagId),
+          matchesFilters(entry, kinds, args.status, args.priority),
         ),
       )
       .paginate(args.paginationOpts);
@@ -112,7 +109,6 @@ export const searchEntries = query({
     kinds: v.optional(v.array(entryKindValidator)),
     status: v.optional(entryStatusValidator),
     priority: v.optional(entryPriorityValidator),
-    tagId: v.optional(v.id("tags")),
     paginationOpts: paginationOptsValidator,
     viewerActorId: v.string(),
   },
@@ -128,8 +124,7 @@ export const searchEntries = query({
       throw new ConvexError("`kinds` must contain at least one kind.");
     }
 
-    const canUseSearchIndex =
-      args.tagId === undefined && (kinds === undefined || kinds.length === 1);
+    const canUseSearchIndex = kinds === undefined || kinds.length === 1;
 
     const result = canUseSearchIndex
       ? await ctx.db
@@ -167,13 +162,8 @@ export const searchEntries = query({
           .order("desc")
           .filterWith((entry) =>
             Promise.resolve(
-              matchesFilters(
-                entry,
-                kinds,
-                args.status,
-                args.priority,
-                args.tagId,
-              ) && matchesSearch(entry, searchQuery),
+              matchesFilters(entry, kinds, args.status, args.priority) &&
+                matchesSearch(entry, searchQuery),
             ),
           )
           .paginate(args.paginationOpts);

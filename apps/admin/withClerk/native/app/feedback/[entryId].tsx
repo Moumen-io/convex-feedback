@@ -16,7 +16,6 @@ import {
 import { adminTheme } from "@/constants/AdminTheme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { feedbackHooks } from "@/lib/feedback";
-import { useTags } from "@/providers/tags-provider";
 
 const statuses: EntryStatus[] = [
   "open",
@@ -35,14 +34,11 @@ function next<T>(values: T[], current: T): T {
 export default function FeedbackDetailScreen() {
   const { entryId } = useLocalSearchParams<{ entryId: string }>();
   const entry = feedbackHooks.useAdminEntry(entryId);
-  const tags = useTags();
   const setStatus = feedbackHooks.useSetEntryStatus();
   const setPriority = feedbackHooks.useSetEntryPriority();
-  const attachTag = feedbackHooks.useAttachTag();
-  const detachTag = feedbackHooks.useDetachTag();
   const attachRoadmap = feedbackHooks.useAttachFeedbackToRoadmap();
   const detachRoadmap = feedbackHooks.useDetachFeedbackFromRoadmap();
-  const createRoadmap = feedbackHooks.useCreateRoadmap();
+  const createRoadmapForEntry = feedbackHooks.useCreateRoadmapForEntry();
   const [roadmapSearch, setRoadmapSearch] = useState("");
   const debouncedSearch = useDebouncedValue(roadmapSearch, 300);
   const roadmapResults = feedbackHooks.useSearchRoadmap(debouncedSearch);
@@ -57,19 +53,6 @@ export default function FeedbackDetailScreen() {
         <Text>Feedback not found.</Text>
       </View>
     );
-
-  const toggleTag = async (tagId: string) => {
-    const attached = entry.tags.some((tag) => tag.id === tagId);
-    try {
-      if (attached) await detachTag({ entryId: entry.id, tagId });
-      else await attachTag({ entryId: entry.id, tagId });
-    } catch (error) {
-      Alert.alert(
-        "Could not update tag",
-        error instanceof Error ? error.message : "Try again.",
-      );
-    }
-  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -105,31 +88,6 @@ export default function FeedbackDetailScreen() {
             })
           }
         />
-      </View>
-      <Text style={styles.tagSectionLabel}>Tags</Text>
-      <View style={styles.tagList}>
-        {(tags ?? []).map((tag) => {
-          const active = entry.tags.some(
-            (candidate) => candidate.id === tag.id,
-          );
-          return (
-            <Pressable
-              key={tag.id}
-              style={[styles.tagChip, active && styles.tagChipActive]}
-              onPress={() => void toggleTag(tag.id)}
-            >
-              <Text
-                style={[styles.tagChipText, active && styles.tagChipTextActive]}
-              >
-                {active ? "✓ " : ""}
-                {tag.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-        {(tags?.length ?? 0) === 0 && (
-          <Text style={styles.label}>No tags configured.</Text>
-        )}
       </View>
       <View style={styles.divider} />
       <View style={styles.sectionHeader}>
@@ -174,14 +132,11 @@ export default function FeedbackDetailScreen() {
             <Pressable
               style={styles.create}
               onPress={() =>
-                void createRoadmap({
+                void createRoadmapForEntry({
+                  entryId: entry.id,
                   title: roadmapSearch.trim(),
                   status: "planned",
-                }).then(
-                  (roadmapId) =>
-                    typeof roadmapId === "string" &&
-                    attachRoadmap({ entryId: entry.id, roadmapId }),
-                )
+                })
               }
             >
               <Text style={styles.createText}>
@@ -274,22 +229,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   controls: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tagSectionLabel: { color: adminTheme.muted, fontSize: 11 },
-  tagList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tagChip: {
-    borderWidth: 1,
-    borderColor: adminTheme.border,
-    borderRadius: 999,
-    backgroundColor: adminTheme.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  tagChipActive: {
-    borderColor: adminTheme.primary,
-    backgroundColor: adminTheme.primarySoft,
-  },
-  tagChipText: { color: adminTheme.text, fontSize: 12 },
-  tagChipTextActive: { color: adminTheme.primary, fontWeight: "700" },
   control: {
     width: "48%",
     gap: 4,

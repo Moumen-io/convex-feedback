@@ -2,7 +2,7 @@
 
 This directory is the isolated Convex component backend.
 
-- `schema.ts`: three tables and query-driven indexes.
+- `schema.ts`: four tables and query-driven indexes.
 - `entries.ts`: entry CRUD, full-text search, duplicate suggestions, entry voting, indexed pagination.
 - `comments.ts`: direct-child pagination, recursive write validation, soft deletion, comment likes.
 - `migrations.ts`: bounded, idempotent legacy-entry backfills.

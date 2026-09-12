@@ -15,7 +15,6 @@ import type {
   FeedbackMetadata,
   AdminFeedbackEntry,
   EntryPriority,
-  FeedbackTag,
   RoadmapItem,
   RoadmapStatus,
   SimilarEntriesResult,
@@ -183,7 +182,6 @@ export type AdminListEntriesArgs = {
   kinds?: EntryKind[];
   status?: EntryStatus;
   priority?: EntryPriority;
-  tagId?: string;
 };
 
 export type AdminSearchEntriesArgs = AdminListEntriesArgs & {
@@ -193,18 +191,6 @@ export type AdminSearchEntriesArgs = AdminListEntriesArgs & {
 export type SetEntryPriorityArgs = {
   entryId: string;
   priority: EntryPriority | null;
-};
-
-export type CreateTagArgs = { name: string; color?: string };
-export type UpdateTagArgs = CreateTagArgs & { tagId: string };
-export type DeleteTagArgs = { tagId: string };
-export type AttachTagArgs = {
-  entryId: string;
-  tagId: string;
-};
-export type DetachTagArgs = {
-  entryId: string;
-  tagId: string;
 };
 
 export type ListRoadmapArgs = {
@@ -486,49 +472,6 @@ export interface FeedbackPublicApi<
     "mutation",
     "public",
     SetEntryPriorityArgs,
-    null | RateLimitResult,
-    Name
-  >;
-
-  listTags: FunctionReference<
-    "query",
-    "public",
-    Record<string, never>,
-    FeedbackTag[],
-    Name
-  >;
-  createTag: FunctionReference<
-    "mutation",
-    "public",
-    CreateTagArgs,
-    string | RateLimitResult,
-    Name
-  >;
-  updateTag: FunctionReference<
-    "mutation",
-    "public",
-    UpdateTagArgs,
-    null | RateLimitResult,
-    Name
-  >;
-  deleteTag: FunctionReference<
-    "mutation",
-    "public",
-    DeleteTagArgs,
-    null | RateLimitResult,
-    Name
-  >;
-  attachTag: FunctionReference<
-    "mutation",
-    "public",
-    AttachTagArgs,
-    null | RateLimitResult,
-    Name
-  >;
-  detachTag: FunctionReference<
-    "mutation",
-    "public",
-    DetachTagArgs,
     null | RateLimitResult,
     Name
   >;

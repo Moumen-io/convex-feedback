@@ -36,7 +36,6 @@ import {
   roadmapItemValidator,
   roadmapStatusValidator,
   similarEntriesValidator,
-  tagValidator,
   type FeedbackActor,
 } from "../component/model.js";
 import type { FeedbackPublicApi } from "./api.js";
@@ -58,7 +57,6 @@ export type {
   FeedbackEntry,
   FeedbackMetadata,
   FeedbackMetadataValue,
-  FeedbackTag,
   RoadmapItem,
   RoadmapStatus,
   SimilarEntriesResult,
@@ -653,7 +651,6 @@ function buildFeedbackApi<
         kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
         priority: v.optional(entryPriorityValidator),
-        tagId: v.optional(v.string()),
       },
       returns: paginationResultValidator(adminEntryValidator),
       handler: async (ctx, args) => {
@@ -662,7 +659,6 @@ function buildFeedbackApi<
           ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
           ...(args.status === undefined ? {} : { status: args.status }),
           ...(args.priority === undefined ? {} : { priority: args.priority }),
-          ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
           paginationOpts: clampPagination(
             args.paginationOpts,
             config.entries.maxPageSize,
@@ -691,7 +687,6 @@ function buildFeedbackApi<
         kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
         priority: v.optional(entryPriorityValidator),
-        tagId: v.optional(v.string()),
       },
       returns: paginationResultValidator(adminEntryValidator),
       handler: async (ctx, args) => {
@@ -701,7 +696,6 @@ function buildFeedbackApi<
           ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
           ...(args.status === undefined ? {} : { status: args.status }),
           ...(args.priority === undefined ? {} : { priority: args.priority }),
-          ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
           paginationOpts: clampPagination(
             args.paginationOpts,
             config.entries.maxPageSize,
@@ -865,95 +859,6 @@ function buildFeedbackApi<
           commentId: args.commentId,
           desiredState: args.desiredState,
         });
-      },
-    }),
-
-    listTags: queryGeneric({
-      args: {},
-      returns: v.array(tagValidator),
-      handler: async (ctx) => {
-        await requireAdminActor(ctx);
-        return await ctx.runQuery(component.tags.list, {});
-      },
-    }),
-
-    createTag: mutationGeneric({
-      args: { name: v.string(), color: v.optional(v.string()) },
-      returns: idReturns,
-      handler: async (ctx, args) => {
-        const actor = await requireAdminActor(ctx);
-        const limited = await applyAdminEditLimit(
-          asRateLimitContext(ctx),
-          actor,
-        );
-        if (limited !== undefined) return limited;
-        return await ctx.runMutation(component.tags.create, { actor, ...args });
-      },
-    }),
-
-    updateTag: mutationGeneric({
-      args: {
-        tagId: v.string(),
-        name: v.string(),
-        color: v.optional(v.string()),
-      },
-      returns: nullReturns,
-      handler: async (ctx, args) => {
-        const actor = await requireAdminActor(ctx);
-        const limited = await applyAdminEditLimit(
-          asRateLimitContext(ctx),
-          actor,
-        );
-        if (limited !== undefined) return limited;
-        return await ctx.runMutation(component.tags.update, { actor, ...args });
-      },
-    }),
-
-    deleteTag: mutationGeneric({
-      args: { tagId: v.string() },
-      returns: nullReturns,
-      handler: async (ctx, args) => {
-        const actor = await requireAdminActor(ctx);
-        const limited = await applyAdminEditLimit(
-          asRateLimitContext(ctx),
-          actor,
-        );
-        if (limited !== undefined) return limited;
-        return await ctx.runMutation(component.tags.remove, { actor, ...args });
-      },
-    }),
-
-    attachTag: mutationGeneric({
-      args: {
-        entryId: v.string(),
-        tagId: v.string(),
-      },
-      returns: nullReturns,
-      handler: async (ctx, args) => {
-        const actor = await requireAdminActor(ctx);
-        const limited = await applyAdminEditLimit(
-          asRateLimitContext(ctx),
-          actor,
-        );
-        if (limited !== undefined) return limited;
-        return await ctx.runMutation(component.tags.attach, { actor, ...args });
-      },
-    }),
-
-    detachTag: mutationGeneric({
-      args: {
-        entryId: v.string(),
-        tagId: v.string(),
-      },
-      returns: nullReturns,
-      handler: async (ctx, args) => {
-        const actor = await requireAdminActor(ctx);
-        const limited = await applyAdminEditLimit(
-          asRateLimitContext(ctx),
-          actor,
-        );
-        if (limited !== undefined) return limited;
-        return await ctx.runMutation(component.tags.detach, { actor, ...args });
       },
     }),
 

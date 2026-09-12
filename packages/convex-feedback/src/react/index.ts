@@ -151,7 +151,6 @@ export interface UseAdminEntriesArgs {
   kinds?: readonly EntryKind[];
   status?: EntryStatus;
   priority?: EntryPriority;
-  tagId?: string;
 }
 
 export interface UseAdminSearchEntriesArgs extends UseAdminEntriesArgs {
@@ -310,7 +309,6 @@ function createFeedbackHooksImplementation<RateLimitResult>(
           ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
           ...(args.status === undefined ? {} : { status: args.status }),
           ...(args.priority === undefined ? {} : { priority: args.priority }),
-          ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
         },
         { initialNumItems: entryPageSize },
       );
@@ -338,14 +336,9 @@ function createFeedbackHooksImplementation<RateLimitResult>(
               ...(args.priority === undefined
                 ? {}
                 : { priority: args.priority }),
-              ...(args.tagId === undefined ? {} : { tagId: args.tagId }),
             },
         { initialNumItems: entryPageSize },
       );
-    },
-
-    useTags() {
-      return useQuery(api.listTags, {});
     },
 
     useRoadmap(status?: RoadmapStatus) {
@@ -426,26 +419,6 @@ function createFeedbackHooksImplementation<RateLimitResult>(
 
     useSetEntryPriority() {
       return useMutation(api.setEntryPriority);
-    },
-
-    useCreateTag() {
-      return useMutation(api.createTag);
-    },
-
-    useUpdateTag() {
-      return useMutation(api.updateTag);
-    },
-
-    useDeleteTag() {
-      return useMutation(api.deleteTag);
-    },
-
-    useAttachTag() {
-      return useMutation(api.attachTag);
-    },
-
-    useDetachTag() {
-      return useMutation(api.detachTag);
     },
 
     useCreateRoadmap() {

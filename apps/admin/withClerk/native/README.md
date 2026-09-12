@@ -17,7 +17,7 @@ A forkable Expo admin app for `convex-feedback`, using Expo Router native tabs, 
 
 After the first native build, use `npm start` for normal development. The app uses `expo-router/unstable-native-tabs`, so verify the target Expo SDK before upgrading.
 
-The app expects the host namespace `api.feedback`. Change `lib/feedback.ts` if your component is exposed elsewhere. The root layout performs a one-shot `isAdmin` query after authentication; the host still authorizes every protected operation.
+The app expects the host namespace `api.feedback`. Change `lib/feedback.ts` if your component is exposed elsewhere. The root layout reactively checks `isAdmin` after authentication and offers retry when that check fails; the host still authorizes every protected operation.
 
 ## Deploy
 

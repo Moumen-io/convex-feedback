@@ -20,4 +20,4 @@ The app expects the component to be mounted at `api.feedback`. If your host expo
 
 Run `npm run build`, then deploy `dist` to any static host and configure the two `VITE_*` environment variables there. Add the deployed origin to Clerk's allowed origins.
 
-The admin gate performs a one-shot `isAdmin` query after Clerk and Convex authentication settle. Every protected mutation is authorized again at the host boundary.
+The admin gate reactively checks `isAdmin` after Clerk and Convex authentication settle. A failed access check offers a retry action, and every protected mutation is authorized again at the host boundary.

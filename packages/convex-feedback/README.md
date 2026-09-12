@@ -312,7 +312,7 @@ actor: async (ctx) => {
 },
 ```
 
-Set the claim and Convex Clerk provider using Clerk's current integration instructions, then export the complete wrapper API shown above as `convex/feedback.ts`. Both reference apps use `anyApi.feedback` by default and perform a one-shot `isAdmin` check at their root; every admin query and mutation still rechecks the actor on the server.
+Set the claim and Convex Clerk provider using Clerk's current integration instructions, then export the complete wrapper API shown above as `convex/feedback.ts`. Both reference apps use `anyApi.feedback` by default and reactively check `isAdmin` at their root, offering retry when the access check fails; every admin query and mutation still rechecks the actor on the server.
 
 Admin entries may have an optional `low`, `medium`, or `high` priority and one roadmap relation. Deleting a roadmap item detaches all related feedback. Public entry queries and the existing public UI do not expose priority, while roadmap reads are public.
 

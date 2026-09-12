@@ -137,10 +137,13 @@ function FeedbackScreenInner({
     );
   }
 
-  const searching = query.trim().length > 0;
+  const normalizedQuery = query.trim();
+  const normalizedDebouncedQuery = debouncedQuery.trim();
+  const searching = normalizedQuery.length > 0;
   const entries = searching ? searchResults : list.results;
   const isLoading = searching
-    ? searchResults === undefined
+    ? normalizedQuery !== normalizedDebouncedQuery ||
+      searchResults === undefined
     : list.status === "LoadingFirstPage";
 
   return (
@@ -226,15 +229,17 @@ function FeedbackScreenInner({
         </FeedbackBoard.List>
       )}
 
-      {!searching && list.status === "CanLoadMore" && (
-        <button
-          type="button"
-          className="cf-button"
-          onClick={() => list.loadMore(hooks.pageSizes.entries)}
-        >
-          {messages.board.loadMore}
-        </button>
-      )}
+      {!searching &&
+        (list.status === "CanLoadMore" || list.status === "LoadingMore") && (
+          <button
+            type="button"
+            className="cf-button"
+            disabled={list.status === "LoadingMore"}
+            onClick={() => list.loadMore(hooks.pageSizes.entries)}
+          >
+            {messages.board.loadMore}
+          </button>
+        )}
     </FeedbackBoard.Root>
   );
 }

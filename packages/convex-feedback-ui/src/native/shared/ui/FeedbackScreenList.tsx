@@ -21,10 +21,10 @@ export function FeedbackScreenList({
   const {
     hooks,
     entrySort,
-    isSearching,
     enabledKinds,
     statusFilter,
     selectedEntryId,
+    query,
     debouncedQuery,
     setSelectedEntryId,
     setShowForm,
@@ -46,15 +46,18 @@ export function FeedbackScreenList({
     statusFilter,
   });
 
-  const entries = isSearching ? search : list.results;
+  const normalizedQuery = query.trim();
+  const normalizedDebouncedQuery = debouncedQuery.trim();
+  const searching = normalizedQuery.length > 0;
+  const entries = searching ? search : list.results;
   const createEntry = () => {
     if (allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) {
       (onCreateEntry ?? (() => setShowForm(true)))();
     }
   };
 
-  const loading = isSearching
-    ? search === undefined
+  const loading = searching
+    ? normalizedQuery !== normalizedDebouncedQuery || search === undefined
     : list.status === "LoadingFirstPage";
 
   return (
@@ -77,7 +80,7 @@ export function FeedbackScreenList({
         <FeedbackBoard.State>
           {emptyState}
           <Text style={{ color: theme.colors.mutedText, textAlign: "center" }}>
-            {isSearching
+            {searching
               ? messages.board.noSearchResults
               : messages.board.noEntries}
           </Text>
@@ -101,12 +104,14 @@ export function FeedbackScreenList({
         </FeedbackBoard.List>
       )}
 
-      {!isSearching && list.status === "CanLoadMore" && (
-        <Button
-          label={messages.board.loadMore}
-          onPress={() => list.loadMore(hooks.pageSizes.entries)}
-        />
-      )}
+      {!searching &&
+        (list.status === "CanLoadMore" || list.status === "LoadingMore") && (
+          <Button
+            label={messages.board.loadMore}
+            disabled={list.status === "LoadingMore"}
+            onPress={() => list.loadMore(hooks.pageSizes.entries)}
+          />
+        )}
     </>
   );
 }

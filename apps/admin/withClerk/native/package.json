@@ -1,7 +1,7 @@
 {
   "name": "convex-feedback-admin-native",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "dependencies": {
     "@clerk/expo": "^4.6.6",
     "convex": "^1.45.0",

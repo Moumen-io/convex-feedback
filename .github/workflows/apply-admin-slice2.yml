@@ -29,6 +29,15 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
+      - name: Fix migration script escaping
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/apply-admin-slice2.mjs')
+          content = path.read_text()
+          path.write_text(content.replace('\\\\`', '\\`'))
+          PY
+
       - name: Apply filtering and arbitrary-tag changes
         run: node .github/scripts/apply-admin-slice2.mjs
 

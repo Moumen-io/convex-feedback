@@ -9,6 +9,16 @@ import {
 import { type DragEvent, useState } from "react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -373,7 +383,27 @@ function RoadmapDetail({
   const detach = feedbackHooks.useDetachFeedbackFromRoadmap();
   const remove = feedbackHooks.useDeleteRoadmap();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   if (!item) return null;
+
+  const deleteItem = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await remove({ roadmapId: item.id });
+      toast.success("Roadmap item deleted");
+      setDeleteOpen(false);
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to delete roadmap item",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <>
       <Dialog open onOpenChange={onOpenChange}>
@@ -394,12 +424,7 @@ function RoadmapDetail({
               </Button>
               <Button
                 variant="destructive"
-                onClick={() =>
-                  void remove({ roadmapId: item.id }).then(() => {
-                    toast.success("Roadmap item deleted");
-                    onOpenChange(false);
-                  })
-                }
+                onClick={() => setDeleteOpen(true)}
               >
                 <Trash2Icon data-icon="inline-start" />
                 Delete
@@ -447,6 +472,31 @@ function RoadmapDetail({
           </div>
         </DialogContent>
       </Dialog>
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => !deleting && setDeleteOpen(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete roadmap item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the roadmap item and detaches all linked
+              feedback. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => void deleteItem()}
+            >
+              {deleting && <Spinner data-icon="inline-start" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <RoadmapEditor open={editOpen} onOpenChange={setEditOpen} item={item} />
     </>
   );

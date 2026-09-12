@@ -231,6 +231,7 @@ function RoadmapForm({
         </Text>
         <TextInput
           style={styles.input}
+          editable={!action.pending}
           value={title}
           onChangeText={setTitle}
           placeholder="Title"
@@ -238,6 +239,7 @@ function RoadmapForm({
         />
         <TextInput
           style={[styles.input, styles.multiline]}
+          editable={!action.pending}
           value={description}
           onChangeText={setDescription}
           placeholder="Description"

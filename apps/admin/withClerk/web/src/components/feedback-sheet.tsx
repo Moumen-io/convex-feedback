@@ -267,7 +267,13 @@ function RoadmapSelector({ entryId }: { entryId: string }) {
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
-          render={<Button variant="outline" className="justify-start" />}
+          render={
+            <Button
+              variant="outline"
+              className="justify-start"
+              disabled={action.pending}
+            />
+          }
         >
           <SearchIcon data-icon="inline-start" /> Search roadmap
         </PopoverTrigger>
@@ -366,7 +372,10 @@ function CreateRoadmapDialog({
     }
   };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => !action.pending && onOpenChange(nextOpen)}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create roadmap item</DialogTitle>
@@ -379,6 +388,7 @@ function CreateRoadmapDialog({
             <FieldLabel htmlFor="roadmap-title">Title</FieldLabel>
             <Input
               id="roadmap-title"
+              disabled={action.pending}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
             />
@@ -387,13 +397,18 @@ function CreateRoadmapDialog({
             <FieldLabel htmlFor="roadmap-description">Description</FieldLabel>
             <Textarea
               id="roadmap-description"
+              disabled={action.pending}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
           </Field>
         </FieldGroup>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            disabled={action.pending}
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button

@@ -418,7 +418,14 @@ function RoadmapDetail({
 
   return (
     <>
-      <Dialog open onOpenChange={onOpenChange}>
+      <Dialog
+        open
+        onOpenChange={(nextOpen) =>
+          !detachAction.pending &&
+          !deleteAction.pending &&
+          onOpenChange(nextOpen)
+        }
+      >
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{item.title}</DialogTitle>

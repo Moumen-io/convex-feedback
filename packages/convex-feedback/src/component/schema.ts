@@ -25,8 +25,7 @@ const schema = defineSchema({
     updatedAt: v.optional(v.number()),
     metadata: v.optional(feedbackMetadataValidator),
     priority: v.optional(entryPriorityValidator),
-    primaryTagId: v.optional(v.id("tags")),
-    secondaryTagId: v.optional(v.id("tags")),
+    tagIds: v.optional(v.array(v.id("tags"))),
     roadmapId: v.optional(v.id("roadmap")),
   })
     .index("by_kind", ["kind"])
@@ -47,8 +46,6 @@ const schema = defineSchema({
     .index("by_normalized_title", ["normalizedTitle"])
     .index("by_kind_normalized_title", ["kind", "normalizedTitle"])
     .index("by_priority", ["priority"])
-    .index("by_primary_tag_id", ["primaryTagId"])
-    .index("by_secondary_tag_id", ["secondaryTagId"])
     .index("by_roadmap_id", ["roadmapId"])
     .searchIndex("search", {
       searchField: "searchText",

@@ -102,13 +102,14 @@ export function FeedbackSheet({
   const detachTag = feedbackHooks.useDetachTag();
   const detachRoadmap = feedbackHooks.useDetachFeedbackFromRoadmap();
 
-  const changeTag = (placement: "primary" | "secondary", tagId: string) => {
-    if (!entryId) return;
+  const toggleTag = (tag: FeedbackTag) => {
+    if (!entryId || !entry) return;
+    const attached = entry.tags.some((candidate) => candidate.id === tag.id);
     void notify(
-      tagId === "none"
-        ? detachTag({ entryId, placement })
-        : attachTag({ entryId, tagId, placement }),
-      `${placement === "primary" ? "Primary" : "Secondary"} tag updated`,
+      attached
+        ? detachTag({ entryId, tagId: tag.id })
+        : attachTag({ entryId, tagId: tag.id }),
+      attached ? "Tag removed" : "Tag attached",
     );
   };
 
@@ -176,20 +177,12 @@ export function FeedbackSheet({
                     }
                   />
                 </Field>
-                <Field>
-                  <FieldLabel>Primary tag</FieldLabel>
-                  <TagSelect
+                <Field className="sm:col-span-2">
+                  <FieldLabel>Tags</FieldLabel>
+                  <TagPicker
                     tags={tags}
-                    value={entry.primaryTag?.id ?? "none"}
-                    onValueChange={(value) => changeTag("primary", value)}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Secondary tag</FieldLabel>
-                  <TagSelect
-                    tags={tags}
-                    value={entry.secondaryTag?.id ?? "none"}
-                    onValueChange={(value) => changeTag("secondary", value)}
+                    selected={entry.tags}
+                    onToggle={toggleTag}
                   />
                 </Field>
               </div>
@@ -286,21 +279,42 @@ function AdminSelect({
   );
 }
 
-function TagSelect({
+function TagPicker({
   tags,
-  value,
-  onValueChange,
+  selected,
+  onToggle,
 }: {
   tags: FeedbackTag[] | undefined;
-  value: string;
-  onValueChange: (value: string) => void;
+  selected: FeedbackTag[];
+  onToggle: (tag: FeedbackTag) => void;
 }) {
-  const items = [
-    { label: "No tag", value: "none" },
-    ...(tags ?? []).map((tag) => ({ label: tag.name, value: tag.id })),
-  ];
+  if (!tags || tags.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No tags configured yet. Create tags from the Tags view.
+      </p>
+    );
+  }
+
+  const selectedIds = new Set(selected.map((tag) => tag.id));
   return (
-    <AdminSelect items={items} value={value} onValueChange={onValueChange} />
+    <div className="flex flex-wrap gap-2">
+      {tags.map((tag) => {
+        const active = selectedIds.has(tag.id);
+        return (
+          <Button
+            key={tag.id}
+            type="button"
+            variant={active ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => onToggle(tag)}
+          >
+            {active && <CheckIcon data-icon="inline-start" />}
+            {tag.name}
+          </Button>
+        );
+      })}
+    </div>
   );
 }
 

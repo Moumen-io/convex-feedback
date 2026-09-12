@@ -96,18 +96,22 @@ describe("convex-feedback component", () => {
     expect(entry?.viewerHasUpvoted).toBe(true);
   });
 
-  test("admin priority and tags stay private and tag deletion cascades", async () => {
+  test("admin priority and arbitrary tags stay private and deletion cascades", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance, "Admin triage target");
     const actor = { id: "admin-1", isAdmin: true } as const;
-    const primaryTagId = await testInstance.mutation(api.tags.create, {
+    const revenueTagId = await testInstance.mutation(api.tags.create, {
       actor,
       name: "Revenue",
       color: "#8b5cf6",
     });
-    const secondaryTagId = await testInstance.mutation(api.tags.create, {
+    const mobileTagId = await testInstance.mutation(api.tags.create, {
       actor,
       name: "Mobile",
+    });
+    const retentionTagId = await testInstance.mutation(api.tags.create, {
+      actor,
+      name: "Retention",
     });
 
     await testInstance.mutation(api.entries.setPriority, {
@@ -115,48 +119,47 @@ describe("convex-feedback component", () => {
       entryId,
       priority: "high",
     });
-    await testInstance.mutation(api.tags.attach, {
-      actor,
-      entryId,
-      tagId: primaryTagId,
-      placement: "primary",
-    });
-    await testInstance.mutation(api.tags.attach, {
-      actor,
-      entryId,
-      tagId: secondaryTagId,
-      placement: "secondary",
-    });
+    for (const tagId of [revenueTagId, mobileTagId, retentionTagId]) {
+      await testInstance.mutation(api.tags.attach, { actor, entryId, tagId });
+    }
 
     const publicEntry = await testInstance.query(api.entries.get, { entryId });
     expect(publicEntry).not.toHaveProperty("priority");
-    expect(publicEntry).not.toHaveProperty("primaryTag");
+    expect(publicEntry).not.toHaveProperty("tags");
 
     const adminEntry = await testInstance.query(api.admin.getEntry, {
       entryId,
       viewerActorId: actor.id,
     });
     expect(adminEntry?.priority).toBe("high");
-    expect(adminEntry?.primaryTag?.name).toBe("Revenue");
-    expect(adminEntry?.secondaryTag?.name).toBe("Mobile");
+    expect(adminEntry?.tags.map((tag) => tag.name)).toEqual([
+      "Revenue",
+      "Mobile",
+      "Retention",
+    ]);
 
     const filtered = await testInstance.query(api.admin.listEntries, {
-      tagId: primaryTagId,
+      tagId: retentionTagId,
       priority: "high",
       paginationOpts: { cursor: null, numItems: 10 },
       viewerActorId: actor.id,
     });
     expect(filtered.page.map((entry) => entry.id)).toEqual([entryId]);
 
+    await testInstance.mutation(api.tags.detach, {
+      actor,
+      entryId,
+      tagId: mobileTagId,
+    });
     await testInstance.mutation(api.tags.remove, {
       actor,
-      tagId: primaryTagId,
+      tagId: revenueTagId,
     });
+
     const stored = await testInstance.run((ctx) =>
       ctx.db.get("entries", entryId),
     );
-    expect(stored?.primaryTagId).toBeUndefined();
-    expect(stored?.secondaryTagId).toBe(secondaryTagId);
+    expect(stored?.tagIds).toEqual([retentionTagId]);
   });
 
   test("roadmap uses fractional positions and deletion detaches feedback", async () => {

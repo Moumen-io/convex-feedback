@@ -39,13 +39,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             additional?: Record<string, string | number | boolean>;
             standard?: Record<string, string | number | boolean>;
           };
-          primaryTag?: {
+          tags: Array<{
             color?: string;
             creationTime: number;
             id: string;
             name: string;
             updatedAt: number;
-          };
+          }>;
           priority?: "low" | "medium" | "high";
           roadmap?: {
             createdAt: number;
@@ -56,13 +56,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             position: number;
             status: "planned" | "in_progress" | "shipped";
             title: string;
-            updatedAt: number;
-          };
-          secondaryTag?: {
-            color?: string;
-            creationTime: number;
-            id: string;
-            name: string;
             updatedAt: number;
           };
           status:
@@ -117,13 +110,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               additional?: Record<string, string | number | boolean>;
               standard?: Record<string, string | number | boolean>;
             };
-            primaryTag?: {
+            tags: Array<{
               color?: string;
               creationTime: number;
               id: string;
               name: string;
               updatedAt: number;
-            };
+            }>;
             priority?: "low" | "medium" | "high";
             roadmap?: {
               createdAt: number;
@@ -134,13 +127,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               position: number;
               status: "planned" | "in_progress" | "shipped";
               title: string;
-              updatedAt: number;
-            };
-            secondaryTag?: {
-              color?: string;
-              creationTime: number;
-              id: string;
-              name: string;
               updatedAt: number;
             };
             status:
@@ -199,13 +185,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               additional?: Record<string, string | number | boolean>;
               standard?: Record<string, string | number | boolean>;
             };
-            primaryTag?: {
+            tags: Array<{
               color?: string;
               creationTime: number;
               id: string;
               name: string;
               updatedAt: number;
-            };
+            }>;
             priority?: "low" | "medium" | "high";
             roadmap?: {
               createdAt: number;
@@ -216,13 +202,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               position: number;
               status: "planned" | "in_progress" | "shipped";
               title: string;
-              updatedAt: number;
-            };
-            secondaryTag?: {
-              color?: string;
-              creationTime: number;
-              id: string;
-              name: string;
               updatedAt: number;
             };
             status:
@@ -686,13 +665,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               additional?: Record<string, string | number | boolean>;
               standard?: Record<string, string | number | boolean>;
             };
-            primaryTag?: {
+            tags: Array<{
               color?: string;
               creationTime: number;
               id: string;
               name: string;
               updatedAt: number;
-            };
+            }>;
             priority?: "low" | "medium" | "high";
             roadmap?: {
               createdAt: number;
@@ -703,13 +682,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               position: number;
               status: "planned" | "in_progress" | "shipped";
               title: string;
-              updatedAt: number;
-            };
-            secondaryTag?: {
-              color?: string;
-              creationTime: number;
-              id: string;
-              name: string;
               updatedAt: number;
             };
             status:
@@ -786,7 +758,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         {
           actor: { id: string; isAdmin: boolean };
           entryId: string;
-          placement: "primary" | "secondary";
           tagId: string;
         },
         null,
@@ -809,7 +780,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         {
           actor: { id: string; isAdmin: boolean };
           entryId: string;
-          placement: "primary" | "secondary";
+          tagId: string;
         },
         null,
         Name

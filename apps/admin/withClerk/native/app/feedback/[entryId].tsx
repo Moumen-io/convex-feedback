@@ -58,21 +58,11 @@ export default function FeedbackDetailScreen() {
       </View>
     );
 
-  const cycleTag = async (placement: "primary" | "secondary") => {
-    const current =
-      placement === "primary" ? entry.primaryTag : entry.secondaryTag;
-    const currentIndex = current
-      ? (tags?.findIndex((tag) => tag.id === current.id) ?? -1) + 1
-      : 0;
-    const nextIndex = (currentIndex + 1) % ((tags?.length ?? 0) + 1);
+  const toggleTag = async (tagId: string) => {
+    const attached = entry.tags.some((tag) => tag.id === tagId);
     try {
-      if (nextIndex === 0) await detachTag({ entryId: entry.id, placement });
-      else
-        await attachTag({
-          entryId: entry.id,
-          placement,
-          tagId: tags![nextIndex - 1]!.id,
-        });
+      if (attached) await detachTag({ entryId: entry.id, tagId });
+      else await attachTag({ entryId: entry.id, tagId });
     } catch (error) {
       Alert.alert(
         "Could not update tag",
@@ -115,16 +105,31 @@ export default function FeedbackDetailScreen() {
             })
           }
         />
-        <Control
-          label="Primary tag"
-          value={entry.primaryTag?.name ?? "none"}
-          onPress={() => void cycleTag("primary")}
-        />
-        <Control
-          label="Secondary tag"
-          value={entry.secondaryTag?.name ?? "none"}
-          onPress={() => void cycleTag("secondary")}
-        />
+      </View>
+      <Text style={styles.tagSectionLabel}>Tags</Text>
+      <View style={styles.tagList}>
+        {(tags ?? []).map((tag) => {
+          const active = entry.tags.some(
+            (candidate) => candidate.id === tag.id,
+          );
+          return (
+            <Pressable
+              key={tag.id}
+              style={[styles.tagChip, active && styles.tagChipActive]}
+              onPress={() => void toggleTag(tag.id)}
+            >
+              <Text
+                style={[styles.tagChipText, active && styles.tagChipTextActive]}
+              >
+                {active ? "✓ " : ""}
+                {tag.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+        {(tags?.length ?? 0) === 0 && (
+          <Text style={styles.label}>No tags configured.</Text>
+        )}
       </View>
       <View style={styles.divider} />
       <View style={styles.sectionHeader}>
@@ -269,6 +274,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   controls: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tagSectionLabel: { color: adminTheme.muted, fontSize: 11 },
+  tagList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tagChip: {
+    borderWidth: 1,
+    borderColor: adminTheme.border,
+    borderRadius: 999,
+    backgroundColor: adminTheme.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  tagChipActive: {
+    borderColor: adminTheme.primary,
+    backgroundColor: adminTheme.primarySoft,
+  },
+  tagChipText: { color: adminTheme.text, fontSize: 12 },
+  tagChipTextActive: { color: adminTheme.primary, fontWeight: "700" },
   control: {
     width: "48%",
     gap: 4,

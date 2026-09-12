@@ -201,11 +201,10 @@ export type DeleteTagArgs = { tagId: string };
 export type AttachTagArgs = {
   entryId: string;
   tagId: string;
-  placement: "primary" | "secondary";
 };
 export type DetachTagArgs = {
   entryId: string;
-  placement: "primary" | "secondary";
+  tagId: string;
 };
 
 export type ListRoadmapArgs = {

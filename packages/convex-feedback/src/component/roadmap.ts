@@ -4,7 +4,8 @@ import {
 } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { mutation, query } from "./_generated/server.js";
+import { internal } from "./_generated/api.js";
+import { internalMutation, mutation, query } from "./_generated/server.js";
 import {
   normalizeRequiredText,
   serializeAdminEntry,
@@ -19,6 +20,7 @@ import {
 
 const POSITION_STEP = 1_000_000;
 const MIN_POSITION_GAP = 1;
+const deletionBatchSize = 100;
 
 function assertAdmin(actor: { id: string; isAdmin: boolean }): void {
   if (!actor.isAdmin) throw new ConvexError("Admin access is required.");
@@ -109,8 +111,12 @@ export const update = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     assertAdmin(args.actor);
-    if ((await ctx.db.get("roadmap", args.roadmapId)) === null) {
+    const item = await ctx.db.get("roadmap", args.roadmapId);
+    if (item === null) {
       throw new ConvexError("Roadmap item not found.");
+    }
+    if (item.deletingAt !== undefined) {
+      throw new ConvexError("Roadmap item is being deleted.");
     }
     await ctx.db.patch("roadmap", args.roadmapId, {
       title: normalizeRequiredText(args.title, "Roadmap title", 160),
@@ -142,6 +148,9 @@ export const move = mutation({
         : ctx.db.get("roadmap", args.nextItemId),
     ]);
     if (item === null) throw new ConvexError("Roadmap item not found.");
+    if (item.deletingAt !== undefined) {
+      throw new ConvexError("Roadmap item is being deleted.");
+    }
     if (previous !== null && previous.status !== args.status) {
       throw new ConvexError("Previous item is not in the target stage.");
     }
@@ -217,14 +226,59 @@ export const remove = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     assertAdmin(args.actor);
-    if ((await ctx.db.get("roadmap", args.roadmapId)) === null) return null;
+    const item = await ctx.db.get("roadmap", args.roadmapId);
+    if (item === null || item.deletingAt !== undefined) return null;
+
+    await ctx.db.patch("roadmap", args.roadmapId, { deletingAt: Date.now() });
+    await ctx.scheduler.runAfter(0, internal.roadmap.removeBatch, {
+      roadmapId: args.roadmapId,
+    });
+    return null;
+  },
+});
+
+export const removeBatch = internalMutation({
+  args: { roadmapId: v.id("roadmap") },
+  returns: v.object({ processed: v.number(), hasMore: v.boolean() }),
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get("roadmap", args.roadmapId);
+    if (item === null || item.deletingAt === undefined) {
+      return { processed: 0, hasMore: false };
+    }
+
     const entries = await ctx.db
       .query("entries")
       .withIndex("by_roadmap_id", (q) => q.eq("roadmapId", args.roadmapId))
-      .collect();
+      .take(deletionBatchSize);
+    const now = Date.now();
     for (const entry of entries) {
-      await ctx.db.patch("entries", entry._id, { roadmapId: undefined });
+      await ctx.db.patch("entries", entry._id, {
+        roadmapId: undefined,
+        updatedAt: now,
+      });
     }
+
+    const hasMore = entries.length === deletionBatchSize;
+    if (hasMore) {
+      await ctx.scheduler.runAfter(0, internal.roadmap.removeBatch, {
+        roadmapId: args.roadmapId,
+      });
+    } else {
+      await ctx.scheduler.runAfter(0, internal.roadmap.finalizeRemoval, {
+        roadmapId: args.roadmapId,
+      });
+    }
+
+    return { processed: entries.length, hasMore };
+  },
+});
+
+export const finalizeRemoval = internalMutation({
+  args: { roadmapId: v.id("roadmap") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get("roadmap", args.roadmapId);
+    if (item === null || item.deletingAt === undefined) return null;
     await ctx.db.delete("roadmap", args.roadmapId);
     return null;
   },
@@ -244,6 +298,9 @@ export const attachFeedback = mutation({
       ctx.db.get("entries", args.entryId),
     ]);
     if (item === null) throw new ConvexError("Roadmap item not found.");
+    if (item.deletingAt !== undefined) {
+      throw new ConvexError("Roadmap item is being deleted.");
+    }
     if (entry === null) throw new ConvexError("Entry not found.");
     if (entry.roadmapId === args.roadmapId) return null;
 

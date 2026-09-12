@@ -5,6 +5,7 @@ import { anyApi } from "convex/server";
 import { InboxIcon, MapIcon, ShieldXIcon } from "lucide-react";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { InboxView } from "@/components/inbox";
 import { RoadmapView } from "@/components/roadmap-view";
@@ -50,22 +51,63 @@ function AuthGate() {
 }
 
 function AdminGate() {
+  const { isAuthenticated } = useConvexAuth();
   const [allowed, setAllowed] = useState<boolean | undefined>();
+  const [error, setError] = useState<string>();
+  const [retryCount, setRetryCount] = useState(0);
   useEffect(() => {
+    if (!isAuthenticated) {
+      setAllowed(undefined);
+      setError(undefined);
+      return;
+    }
     let active = true;
+    setAllowed(undefined);
+    setError(undefined);
     void convex
       .query(anyApi.feedback.isAdmin, {})
       .then((result) => {
-        if (active) setAllowed(result as boolean);
+        if (active) {
+          setError(undefined);
+          setAllowed(result as boolean);
+        }
       })
-      .catch(() => {
-        if (active) setAllowed(false);
+      .catch((reason: unknown) => {
+        if (!active) return;
+        const message =
+          reason instanceof Error
+            ? reason.message
+            : "Unable to verify admin access.";
+        setError(message);
+        setAllowed(undefined);
+        toast.error(message, {
+          action: {
+            label: "Retry",
+            onClick: () => setRetryCount((value) => value + 1),
+          },
+        });
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [isAuthenticated, retryCount]);
 
+  if (error) {
+    return (
+      <main className="grid min-h-svh place-items-center p-6">
+        <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+            <ShieldXIcon className="size-5" />
+          </span>
+          <h1 className="text-lg font-semibold">Unable to verify access</h1>
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <Button onClick={() => setRetryCount((value) => value + 1)}>
+            Retry
+          </Button>
+        </div>
+      </main>
+    );
+  }
   if (allowed === undefined) return <LoadingScreen />;
   if (!allowed) {
     return (

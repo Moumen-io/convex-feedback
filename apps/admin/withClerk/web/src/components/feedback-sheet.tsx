@@ -8,7 +8,6 @@ import {
   ThumbsUpIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +57,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useAdminAction } from "@/lib/action";
 import { feedbackHooks } from "@/lib/feedback";
 
 const statusItems = [
@@ -75,17 +75,6 @@ const priorityItems = [
   { label: "High", value: "high" },
 ];
 
-async function notify(action: Promise<unknown>, message: string) {
-  try {
-    await action;
-    toast.success(message);
-  } catch (error) {
-    toast.error(
-      error instanceof Error ? error.message : "Something went wrong",
-    );
-  }
-}
-
 export function FeedbackSheet({
   entryId,
   onClose,
@@ -97,6 +86,7 @@ export function FeedbackSheet({
   const setStatus = feedbackHooks.useSetEntryStatus();
   const setPriority = feedbackHooks.useSetEntryPriority();
   const detachRoadmap = feedbackHooks.useDetachFeedbackFromRoadmap();
+  const action = useAdminAction();
 
   return (
     <Sheet open={entryId !== null} onOpenChange={(open) => !open && onClose()}>
@@ -132,15 +122,17 @@ export function FeedbackSheet({
                   <AdminSelect
                     items={statusItems}
                     value={entry.status}
-                    onValueChange={(status) =>
-                      void notify(
-                        setStatus({
-                          entryId: entry.id,
-                          status: status as EntryStatus,
-                        }),
+                    disabled={action.pending}
+                    onValueChange={(status) => {
+                      void action.run(
+                        () =>
+                          setStatus({
+                            entryId: entry.id,
+                            status: status as EntryStatus,
+                          }),
                         "Status updated",
-                      )
-                    }
+                      );
+                    }}
                   />
                 </Field>
                 <Field>
@@ -148,18 +140,20 @@ export function FeedbackSheet({
                   <AdminSelect
                     items={priorityItems}
                     value={entry.priority ?? "none"}
-                    onValueChange={(priority) =>
-                      void notify(
-                        setPriority({
-                          entryId: entry.id,
-                          priority:
-                            priority === "none"
-                              ? null
-                              : (priority as EntryPriority),
-                        }),
+                    disabled={action.pending}
+                    onValueChange={(priority) => {
+                      void action.run(
+                        () =>
+                          setPriority({
+                            entryId: entry.id,
+                            priority:
+                              priority === "none"
+                                ? null
+                                : (priority as EntryPriority),
+                          }),
                         "Priority updated",
-                      )
-                    }
+                      );
+                    }}
                   />
                 </Field>
               </div>
@@ -193,9 +187,10 @@ export function FeedbackSheet({
                     <Button
                       variant="ghost"
                       size="sm"
+                      disabled={action.pending}
                       onClick={() =>
-                        void notify(
-                          detachRoadmap({ entryId: entry.id }),
+                        void action.run(
+                          () => detachRoadmap({ entryId: entry.id }),
                           "Roadmap item detached",
                         )
                       }
@@ -229,15 +224,18 @@ function AdminSelect({
   items,
   value,
   onValueChange,
+  disabled,
 }: {
   items: { label: string; value: string }[];
   value: string;
   onValueChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <Select
       items={items}
       value={value}
+      disabled={disabled}
       onValueChange={(next) => next && onValueChange(next)}
     >
       <SelectTrigger className="w-full">
@@ -263,6 +261,7 @@ function RoadmapSelector({ entryId }: { entryId: string }) {
   const debounced = useDebouncedValue(search, 300);
   const results = feedbackHooks.useSearchRoadmap(debounced);
   const attach = feedbackHooks.useAttachFeedbackToRoadmap();
+  const action = useAdminAction();
 
   return (
     <>
@@ -296,10 +295,11 @@ function RoadmapSelector({ entryId }: { entryId: string }) {
                   <CommandItem
                     key={item.id}
                     value={item.id}
+                    disabled={action.pending}
                     onSelect={() => {
                       setOpen(false);
-                      void notify(
-                        attach({ entryId, roadmapId: item.id }),
+                      void action.run(
+                        () => attach({ entryId, roadmapId: item.id }),
                         "Attached to roadmap",
                       );
                     }}
@@ -316,6 +316,7 @@ function RoadmapSelector({ entryId }: { entryId: string }) {
               <Button
                 variant="ghost"
                 className="w-full justify-start"
+                disabled={action.pending}
                 onClick={() => {
                   setOpen(false);
                   setCreateOpen(true);
@@ -348,24 +349,20 @@ function CreateRoadmapDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const createForEntry = feedbackHooks.useCreateRoadmapForEntry();
+  const action = useAdminAction();
   const submit = async () => {
-    try {
+    const succeeded = await action.run(async () => {
       await createForEntry({
         entryId,
         title,
         description: description || undefined,
         status: "planned",
       });
-      toast.success("Roadmap item created and attached");
+    }, "Roadmap item created and attached");
+    if (succeeded) {
       onOpenChange(false);
       setTitle("");
       setDescription("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to create roadmap item",
-      );
     }
   };
   return (
@@ -399,7 +396,10 @@ function CreateRoadmapDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button disabled={!title.trim()} onClick={() => void submit()}>
+          <Button
+            disabled={!title.trim() || action.pending}
+            onClick={() => void submit()}
+          >
             <CheckIcon data-icon="inline-start" />
             Create
           </Button>
@@ -414,21 +414,107 @@ function Discussion({ entryId }: { entryId: string }) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-medium">Discussion</h2>
-      {comments.results.length === 0 ? (
+      {comments.status === "LoadingFirstPage" ? (
+        <p className="text-sm text-muted-foreground">Loading comments…</p>
+      ) : comments.results.length === 0 ? (
         <p className="text-sm text-muted-foreground">No comments yet.</p>
       ) : (
         comments.results.map((comment) => (
-          <div key={comment.id} className="flex gap-2 text-sm">
-            <CornerDownRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">{comment.actorId}</p>
-              <p className="mt-1 whitespace-pre-wrap">
-                {comment.body ?? "Comment deleted"}
-              </p>
-            </div>
-          </div>
+          <AdminCommentBranch
+            key={comment.id}
+            entryId={entryId}
+            comment={comment}
+          />
         ))
       )}
+      {(comments.status === "CanLoadMore" ||
+        comments.status === "LoadingMore") && (
+        <Button
+          variant="outline"
+          disabled={comments.status === "LoadingMore"}
+          onClick={() => comments.loadMore(feedbackHooks.pageSizes.comments)}
+        >
+          Load more comments
+        </Button>
+      )}
     </section>
+  );
+}
+
+function AdminCommentBranch({
+  entryId,
+  comment,
+}: {
+  entryId: string;
+  comment: ReturnType<typeof feedbackHooks.useComments>["results"][number];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="flex gap-2 text-sm">
+      <CornerDownRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground">{comment.actorId}</p>
+        <p className="mt-1 whitespace-pre-wrap">
+          {comment.body ?? "Comment deleted"}
+        </p>
+        {comment.replyCount > 0 && (
+          <>
+            <Button
+              variant="link"
+              size="sm"
+              className="mt-1 px-0"
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {expanded
+                ? "Hide replies"
+                : `View ${comment.replyCount} ${comment.replyCount === 1 ? "reply" : "replies"}`}
+            </Button>
+            {expanded && (
+              <AdminReplyList entryId={entryId} parentCommentId={comment.id} />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminReplyList({
+  entryId,
+  parentCommentId,
+}: {
+  entryId: string;
+  parentCommentId: string;
+}) {
+  const replies = feedbackHooks.useComments({
+    entryId,
+    parentCommentId,
+    sort: "oldest",
+  });
+  return (
+    <div className="mt-2 flex flex-col gap-3 border-l pl-3">
+      {replies.status === "LoadingFirstPage" ? (
+        <p className="text-xs text-muted-foreground">Loading replies…</p>
+      ) : (
+        replies.results.map((reply) => (
+          <AdminCommentBranch
+            key={reply.id}
+            entryId={entryId}
+            comment={reply}
+          />
+        ))
+      )}
+      {(replies.status === "CanLoadMore" ||
+        replies.status === "LoadingMore") && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={replies.status === "LoadingMore"}
+          onClick={() => replies.loadMore(feedbackHooks.pageSizes.replies)}
+        >
+          Load more replies
+        </Button>
+      )}
+    </div>
   );
 }

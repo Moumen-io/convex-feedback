@@ -6,8 +6,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
-import { type DragEvent, useState } from "react";
-import { toast } from "sonner";
+import { type DragEvent, useEffect, useState } from "react";
 
 import {
   AlertDialog,
@@ -41,6 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { feedbackHooks } from "@/lib/feedback";
+import { useAdminAction } from "@/lib/action";
 
 const stages: { value: RoadmapStatus; label: string }[] = [
   { value: "planned", label: "Planned" },
@@ -52,9 +52,12 @@ export function RoadmapView() {
   const roadmap = feedbackHooks.useRoadmap();
   const items = roadmap.results;
   const move = feedbackHooks.useMoveRoadmapItem();
+  const moveAction = useAdminAction();
   const [createOpen, setCreateOpen] = useState(false);
-  const [selected, setSelected] = useState<RoadmapItem | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const selected =
+    items?.find((candidate) => candidate.id === selectedId) ?? null;
 
   const moveTo = async (
     item: RoadmapItem,
@@ -62,19 +65,17 @@ export function RoadmapView() {
     previous?: RoadmapItem,
     next?: RoadmapItem,
   ) => {
-    try {
-      await move({
-        roadmapId: item.id,
-        status,
-        previousItemId: previous?.id,
-        nextItemId: next?.id,
-      });
-      toast.success(`Moved to ${status.replaceAll("_", " ")}`);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to move item",
-      );
-    }
+    if (moveAction.pending) return;
+    await moveAction.run(
+      () =>
+        move({
+          roadmapId: item.id,
+          status,
+          previousItemId: previous?.id,
+          nextItemId: next?.id,
+        }),
+      `Moved to ${status.replaceAll("_", " ")}`,
+    );
   };
 
   const getDraggingItem = () =>
@@ -83,16 +84,13 @@ export function RoadmapView() {
   const dropAtEnd = (
     event: DragEvent<HTMLElement>,
     status: RoadmapStatus,
-    stageItems: RoadmapItem[],
+    _stageItems: RoadmapItem[],
   ) => {
     event.preventDefault();
     const dragged = getDraggingItem();
     if (!dragged) return;
 
-    const destinationItems = stageItems.filter(
-      (candidate) => candidate.id !== dragged.id,
-    );
-    void moveTo(dragged, status, destinationItems.at(-1));
+    void moveTo(dragged, status);
     setDraggingId(null);
   };
 
@@ -220,7 +218,7 @@ export function RoadmapView() {
                       <button
                         type="button"
                         className="w-full text-left"
-                        onClick={() => setSelected(item)}
+                        onClick={() => setSelectedId(item.id)}
                       >
                         <span className="flex items-start gap-2">
                           <GripVerticalIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
@@ -244,6 +242,7 @@ export function RoadmapView() {
                             variant="ghost"
                             size="icon-sm"
                             aria-label="Move to previous stage"
+                            disabled={moveAction.pending}
                             onClick={() =>
                               void moveTo(
                                 item,
@@ -263,6 +262,7 @@ export function RoadmapView() {
                             variant="ghost"
                             size="icon-sm"
                             aria-label="Move to next stage"
+                            disabled={moveAction.pending}
                             onClick={() =>
                               void moveTo(
                                 item,
@@ -289,7 +289,7 @@ export function RoadmapView() {
       <RoadmapEditor open={createOpen} onOpenChange={setCreateOpen} />
       <RoadmapDetail
         item={selected}
-        onOpenChange={(open) => !open && setSelected(null)}
+        onOpenChange={(open) => !open && setSelectedId(null)}
       />
     </section>
   );
@@ -308,28 +308,38 @@ function RoadmapEditor({
   const [description, setDescription] = useState(item?.description ?? "");
   const create = feedbackHooks.useCreateRoadmap();
   const update = feedbackHooks.useUpdateRoadmap();
+  const action = useAdminAction();
+
+  useEffect(() => {
+    setTitle(item?.title ?? "");
+    setDescription(item?.description ?? "");
+  }, [item?.description, item?.id, item?.title, open]);
+
   const save = async () => {
-    try {
-      if (item)
-        await update({
-          roadmapId: item.id,
-          title,
-          description: description || undefined,
-        });
-      else
-        await create({
-          title,
-          description: description || undefined,
-          status: "planned",
-        });
-      toast.success(item ? "Roadmap item updated" : "Roadmap item created");
+    const succeeded = await action.run(
+      () =>
+        item
+          ? update({
+              roadmapId: item.id,
+              title,
+              description: description || undefined,
+            })
+          : create({
+              title,
+              description: description || undefined,
+              status: "planned",
+            }),
+      item ? "Roadmap item updated" : "Roadmap item created",
+    );
+    if (succeeded) {
       onOpenChange(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to save");
     }
   };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => !action.pending && onOpenChange(nextOpen)}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
@@ -360,10 +370,17 @@ function RoadmapEditor({
           </Field>
         </FieldGroup>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            disabled={action.pending}
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
-          <Button disabled={!title.trim()} onClick={() => void save()}>
+          <Button
+            disabled={!title.trim() || action.pending}
+            onClick={() => void save()}
+          >
             Save
           </Button>
         </DialogFooter>
@@ -382,27 +399,20 @@ function RoadmapDetail({
   const feedback = feedbackHooks.useRoadmapFeedback(item?.id);
   const detach = feedbackHooks.useDetachFeedbackFromRoadmap();
   const remove = feedbackHooks.useDeleteRoadmap();
+  const detachAction = useAdminAction();
+  const deleteAction = useAdminAction();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   if (!item) return null;
 
   const deleteItem = async () => {
-    if (deleting) return;
-    setDeleting(true);
-    try {
-      await remove({ roadmapId: item.id });
-      toast.success("Roadmap item deleted");
+    const succeeded = await deleteAction.run(
+      () => remove({ roadmapId: item.id }),
+      "Roadmap item deleted",
+    );
+    if (succeeded) {
       setDeleteOpen(false);
       onOpenChange(false);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to delete roadmap item",
-      );
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -421,10 +431,18 @@ function RoadmapDetail({
               {item.status.replaceAll("_", " ")}
             </Badge>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Button
+                variant="outline"
+                disabled={detachAction.pending || deleteAction.pending}
+                onClick={() => setEditOpen(true)}
+              >
                 Edit
               </Button>
-              <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+              <Button
+                variant="destructive"
+                disabled={detachAction.pending || deleteAction.pending}
+                onClick={() => setDeleteOpen(true)}
+              >
                 <Trash2Icon data-icon="inline-start" />
                 Delete
               </Button>
@@ -447,7 +465,13 @@ function RoadmapDetail({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => void detach({ entryId: entry.id })}
+                  disabled={detachAction.pending}
+                  onClick={() =>
+                    void detachAction.run(
+                      () => detach({ entryId: entry.id }),
+                      "Feedback detached",
+                    )
+                  }
                 >
                   Detach
                 </Button>
@@ -473,7 +497,7 @@ function RoadmapDetail({
       </Dialog>
       <AlertDialog
         open={deleteOpen}
-        onOpenChange={(open) => !deleting && setDeleteOpen(open)}
+        onOpenChange={(open) => !deleteAction.pending && setDeleteOpen(open)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -484,13 +508,15 @@ function RoadmapDetail({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteAction.pending}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={deleting}
+              disabled={deleteAction.pending}
               onClick={() => void deleteItem()}
             >
-              {deleting && <Spinner data-icon="inline-start" />}
+              {deleteAction.pending && <Spinner data-icon="inline-start" />}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

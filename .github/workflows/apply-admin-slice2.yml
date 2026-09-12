@@ -41,9 +41,6 @@ jobs:
       - name: Apply filtering and arbitrary-tag changes
         run: node .github/scripts/apply-admin-slice2.mjs
 
-      - name: Regenerate component API
-        run: npm run codegen:component
-
       - name: Format repository
         run: npm run format
 

@@ -26,6 +26,11 @@ const component = {
     remove: "comments:remove",
     setLike: "comments:setLike",
   },
+  roadmap: {
+    list: "roadmap:list",
+    search: "roadmap:search",
+    listFeedback: "roadmap:listFeedback",
+  },
 } as unknown as ComponentApi<"feedback">;
 
 async function invokeQuery<Args extends DefaultFunctionArgs, Result>(
@@ -72,6 +77,44 @@ describe("metadata API authorization", () => {
     expect(memberRunQuery).toHaveBeenCalledWith("entries:get", {
       entryId: "entry-1",
       viewerActorId: "member-1",
+    });
+  });
+
+  test("allows anonymous roadmap reads and omits a viewer actor", async () => {
+    const runQuery = vi.fn(() => Promise.resolve({}));
+    const publicApi = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve(null),
+    });
+
+    await invokeQuery(
+      publicApi.listRoadmap,
+      { runQuery } as unknown as GenericQueryCtx<never>,
+      { paginationOpts: { cursor: null, numItems: 10 } },
+    );
+    await invokeQuery(
+      publicApi.searchRoadmap,
+      { runQuery } as unknown as GenericQueryCtx<never>,
+      { searchQuery: "roadmap", limit: 10 },
+    );
+    await invokeQuery(
+      publicApi.listRoadmapFeedback,
+      { runQuery } as unknown as GenericQueryCtx<never>,
+      {
+        roadmapId: "roadmap-1",
+        paginationOpts: { cursor: null, numItems: 10 },
+      },
+    );
+
+    expect(runQuery).toHaveBeenNthCalledWith(1, "roadmap:list", {
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(runQuery).toHaveBeenNthCalledWith(2, "roadmap:search", {
+      searchQuery: "roadmap",
+      limit: 10,
+    });
+    expect(runQuery).toHaveBeenNthCalledWith(3, "roadmap:listFeedback", {
+      roadmapId: "roadmap-1",
+      paginationOpts: { cursor: null, numItems: 10 },
     });
   });
 });

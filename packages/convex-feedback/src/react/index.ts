@@ -297,6 +297,11 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return useQuery(api.isAdmin, {});
     },
 
+    /** Returns whether the current request has an authenticated actor. */
+    useIsAuthenticated() {
+      return useQuery(api.isAuthenticated, {});
+    },
+
     /** Returns a cursor-paginated admin inbox with private triage relationships. */
     useAdminEntries(args: UseAdminEntriesArgs = {}) {
       return usePaginatedQuery(

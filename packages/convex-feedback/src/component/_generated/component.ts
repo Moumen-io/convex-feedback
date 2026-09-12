@@ -662,7 +662,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             numItems: number;
           };
           roadmapId: string;
-          viewerActorId: string;
+          viewerActorId?: string;
         },
         {
           continueCursor: string;
@@ -678,18 +678,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               additional?: Record<string, string | number | boolean>;
               standard?: Record<string, string | number | boolean>;
             };
-            priority?: "low" | "medium" | "high";
-            roadmap?: {
-              createdAt: number;
-              creationTime: number;
-              description?: string;
-              feedbackCount: number;
-              id: string;
-              position: number;
-              status: "planned" | "in_progress" | "shipped";
-              title: string;
-              updatedAt: number;
-            };
             status:
               | "open"
               | "under_review"
@@ -697,13 +685,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "in_progress"
               | "completed"
               | "closed";
-            tags: Array<{
-              color?: string;
-              creationTime: number;
-              id: string;
-              name: string;
-              updatedAt: number;
-            }>;
             title: string;
             updatedAt?: number;
             upvoteCount: number;

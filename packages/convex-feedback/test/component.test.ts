@@ -295,6 +295,35 @@ describe("convex-feedback component", () => {
     expect(roadmapTitles).not.toContain("Should roll back");
   });
 
+  test("lists attached roadmap entries through the public entry shape", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const entryId = await createEntry(testInstance, "Public roadmap entry");
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Public roadmap",
+      status: "planned",
+    });
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor,
+      roadmapId,
+      entryId,
+    });
+
+    const result = await testInstance.query(api.roadmap.listFeedback, {
+      roadmapId,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0]).toMatchObject({
+      id: entryId,
+      title: "Public roadmap entry",
+    });
+    expect(result.page[0]).not.toHaveProperty("priority");
+    expect(result.page[0]).not.toHaveProperty("tags");
+  });
+
   test("tag and roadmap deletion self-schedule beyond 100 entries", async () => {
     const testInstance = setup();
     const actor = { id: "admin-1", isAdmin: true } as const;

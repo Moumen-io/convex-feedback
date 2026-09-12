@@ -462,6 +462,12 @@ function buildFeedbackApi<
       handler: async (ctx) => (await options.actor(ctx))?.isAdmin === true,
     }),
 
+    isAuthenticated: queryGeneric({
+      args: {},
+      returns: v.boolean(),
+      handler: async (ctx) => (await options.actor(ctx)) !== null,
+    }),
+
     listEntries: queryGeneric({
       args: {
         paginationOpts: paginationOptsValidator,
@@ -958,7 +964,6 @@ function buildFeedbackApi<
       },
       returns: paginationResultValidator(roadmapItemValidator),
       handler: async (ctx, args) => {
-        await requireAdminActor(ctx);
         return await ctx.runQuery(component.roadmap.list, {
           ...args,
           paginationOpts: clampPagination(
@@ -973,7 +978,6 @@ function buildFeedbackApi<
       args: { searchQuery: v.string(), limit: v.optional(v.number()) },
       returns: v.array(roadmapItemValidator),
       handler: async (ctx, args) => {
-        await requireAdminActor(ctx);
         return await ctx.runQuery(component.roadmap.search, {
           searchQuery: args.searchQuery,
           limit: clampPositive(args.limit, 10, 50),
@@ -1123,16 +1127,16 @@ function buildFeedbackApi<
         paginationOpts: paginationOptsValidator,
         roadmapId: v.string(),
       },
-      returns: paginationResultValidator(adminEntryValidator),
+      returns: paginationResultValidator(publicEntryValidator),
       handler: async (ctx, args) => {
-        const actor = await requireAdminActor(ctx);
+        const actor = await options.actor(ctx);
         return await ctx.runQuery(component.roadmap.listFeedback, {
           ...args,
           paginationOpts: clampPagination(
             args.paginationOpts,
             config.entries.maxPageSize,
           ),
-          viewerActorId: actor.id,
+          ...(actor === null ? {} : { viewerActorId: actor.id }),
         });
       },
     }),

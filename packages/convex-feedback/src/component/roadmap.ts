@@ -9,13 +9,13 @@ import type { Id } from "./_generated/dataModel.js";
 import { internalMutation, mutation, query } from "./_generated/server.js";
 import {
   normalizeRequiredText,
-  serializeAdminEntry,
+  serializeEntry,
   serializeRoadmapItem,
 } from "./helpers.js";
 import type { MutationCtx } from "./types.js";
 import {
   actorValidator,
-  adminEntryValidator,
+  publicEntryValidator,
   roadmapItemValidator,
   roadmapStatusValidator,
 } from "./model.js";
@@ -469,9 +469,9 @@ export const listFeedback = query({
   args: {
     paginationOpts: paginationOptsValidator,
     roadmapId: v.id("roadmap"),
-    viewerActorId: v.string(),
+    viewerActorId: v.optional(v.string()),
   },
-  returns: paginationResultValidator(adminEntryValidator),
+  returns: paginationResultValidator(publicEntryValidator),
   handler: async (ctx, args) => {
     const result = await ctx.db
       .query("entries")
@@ -482,7 +482,7 @@ export const listFeedback = query({
       ...result,
       page: await Promise.all(
         result.page.map((entry) =>
-          serializeAdminEntry(ctx, entry, args.viewerActorId),
+          serializeEntry(ctx, entry, args.viewerActorId),
         ),
       ),
     };

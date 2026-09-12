@@ -389,6 +389,15 @@ export interface FeedbackPublicApi<
     Name
   >;
 
+  /** Returns whether the current request has an authenticated host actor. */
+  isAuthenticated: FunctionReference<
+    "query",
+    "public",
+    Record<string, never>,
+    boolean,
+    Name
+  >;
+
   /** Returns a cursor-paginated entry list. */
   listEntries: FunctionReference<
     "query",
@@ -591,7 +600,7 @@ export interface FeedbackPublicApi<
     "query",
     "public",
     ListRoadmapFeedbackArgs,
-    PaginationResult<AdminFeedbackEntry>,
+    PaginationResult<FeedbackEntry>,
     Name
   >;
 

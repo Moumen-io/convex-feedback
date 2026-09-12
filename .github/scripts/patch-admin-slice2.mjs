@@ -33,7 +33,7 @@ component = component.replace(
   /^(\s*)primaryTag\?: \{\n([\s\S]*?)^\1\};\n/gm,
   (_match, indent, body) => {
     primaryCount += 1;
-    return `${indent}tags: Array<{\n${body}${indent}>;\n`;
+    return `${indent}tags: Array<{\n${body}${indent}}>;\n`;
   },
 );
 if (primaryCount === 0) {

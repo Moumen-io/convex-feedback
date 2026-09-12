@@ -218,6 +218,9 @@ export type CreateRoadmapArgs = {
   description?: string;
   status: RoadmapStatus;
 };
+export type CreateRoadmapForEntryArgs = CreateRoadmapArgs & {
+  entryId: string;
+};
 export type UpdateRoadmapArgs = {
   roadmapId: string;
   title: string;
@@ -539,6 +542,13 @@ export interface FeedbackPublicApi<
     "mutation",
     "public",
     CreateRoadmapArgs,
+    string | RateLimitResult,
+    Name
+  >;
+  createRoadmapForEntry: FunctionReference<
+    "mutation",
+    "public",
+    CreateRoadmapForEntryArgs,
     string | RateLimitResult,
     Name
   >;

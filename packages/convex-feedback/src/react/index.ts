@@ -447,6 +447,10 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return useMutation(api.createRoadmap);
     },
 
+    useCreateRoadmapForEntry() {
+      return useMutation(api.createRoadmapForEntry);
+    },
+
     useUpdateRoadmap() {
       return useMutation(api.updateRoadmap);
     },

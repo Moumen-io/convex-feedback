@@ -1002,6 +1002,28 @@ function buildFeedbackApi<
       },
     }),
 
+    createRoadmapForEntry: mutationGeneric({
+      args: {
+        title: v.string(),
+        description: v.optional(v.string()),
+        status: roadmapStatusValidator,
+        entryId: v.string(),
+      },
+      returns: idReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.createForEntry, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
     updateRoadmap: mutationGeneric({
       args: {
         roadmapId: v.string(),

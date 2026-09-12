@@ -243,6 +243,58 @@ describe("convex-feedback component", () => {
     expect(searched.map((item) => item.id)).not.toContain(roadmapId);
   });
 
+  test("creates and attaches a roadmap item atomically", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const entryId = await createEntry(testInstance, "Roadmap attachment");
+    const previousRoadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Previous roadmap",
+      status: "planned",
+    });
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor,
+      roadmapId: previousRoadmapId,
+      entryId,
+    });
+
+    const roadmapId = await testInstance.mutation(api.roadmap.createForEntry, {
+      actor,
+      title: "Replacement roadmap",
+      description: "Created with its feedback attachment.",
+      status: "in_progress",
+      entryId,
+    });
+
+    const stored = await testInstance.run(async (ctx) => ({
+      entry: await ctx.db.get("entries", entryId),
+      previous: await ctx.db.get("roadmap", previousRoadmapId),
+      current: await ctx.db.get("roadmap", roadmapId),
+    }));
+    expect(stored.entry?.roadmapId).toBe(roadmapId);
+    expect(stored.previous?.feedbackCount).toBe(0);
+    expect(stored.current?.feedbackCount).toBe(1);
+
+    const missingEntryId = await createEntry(testInstance, "Missing entry");
+    await testInstance.run((ctx) => ctx.db.delete("entries", missingEntryId));
+    await expect(
+      testInstance.mutation(api.roadmap.createForEntry, {
+        actor,
+        title: "Should roll back",
+        status: "planned",
+        entryId: missingEntryId,
+      }),
+    ).rejects.toThrow("Entry not found.");
+
+    const roadmapTitles = await testInstance.run((ctx) =>
+      ctx.db
+        .query("roadmap")
+        .collect()
+        .then((items) => items.map((item) => item.title)),
+    );
+    expect(roadmapTitles).not.toContain("Should roll back");
+  });
+
   test("tag and roadmap deletion self-schedule beyond 100 entries", async () => {
     const testInstance = setup();
     const actor = { id: "admin-1", isAdmin: true } as const;

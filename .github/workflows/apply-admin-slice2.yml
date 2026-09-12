@@ -1,3 +1,4 @@
+# Temporary implementation runner for slice 2. Removed after validation succeeds.
 name: Apply admin slice 2
 
 on:

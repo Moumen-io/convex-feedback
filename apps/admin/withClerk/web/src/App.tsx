@@ -52,24 +52,22 @@ function AuthGate() {
 
 function AdminGate() {
   const { isAuthenticated } = useConvexAuth();
-  const [allowed, setAllowed] = useState<boolean | undefined>();
-  const [error, setError] = useState<string>();
+  const [accessCheck, setAccessCheck] = useState<AccessCheck>({
+    attempt: -1,
+    status: "loading",
+  });
   const [retryCount, setRetryCount] = useState(0);
   useEffect(() => {
-    if (!isAuthenticated) {
-      setAllowed(undefined);
-      setError(undefined);
-      return;
-    }
+    if (!isAuthenticated) return;
     let active = true;
-    setAllowed(undefined);
-    setError(undefined);
     void convex
       .query(anyApi.feedback.isAdmin, {})
       .then((result) => {
         if (active) {
-          setError(undefined);
-          setAllowed(result as boolean);
+          setAccessCheck({
+            attempt: retryCount,
+            status: result ? "allowed" : "denied",
+          });
         }
       })
       .catch((reason: unknown) => {
@@ -78,8 +76,7 @@ function AdminGate() {
           reason instanceof Error
             ? reason.message
             : "Unable to verify admin access.";
-        setError(message);
-        setAllowed(undefined);
+        setAccessCheck({ attempt: retryCount, status: "error", message });
         toast.error(message, {
           action: {
             label: "Retry",
@@ -92,7 +89,10 @@ function AdminGate() {
     };
   }, [isAuthenticated, retryCount]);
 
-  if (error) {
+  if (!isAuthenticated || accessCheck.attempt !== retryCount) {
+    return <LoadingScreen />;
+  }
+  if (accessCheck.status === "error") {
     return (
       <main className="grid min-h-svh place-items-center p-6">
         <div className="flex max-w-sm flex-col items-center gap-3 text-center">
@@ -100,7 +100,7 @@ function AdminGate() {
             <ShieldXIcon className="size-5" />
           </span>
           <h1 className="text-lg font-semibold">Unable to verify access</h1>
-          <p className="text-sm text-muted-foreground">{error}</p>
+          <p className="text-sm text-muted-foreground">{accessCheck.message}</p>
           <Button onClick={() => setRetryCount((value) => value + 1)}>
             Retry
           </Button>
@@ -108,8 +108,8 @@ function AdminGate() {
       </main>
     );
   }
-  if (allowed === undefined) return <LoadingScreen />;
-  if (!allowed) {
+  if (accessCheck.status === "loading" || accessCheck.status === "denied") {
+    if (accessCheck.status === "loading") return <LoadingScreen />;
     return (
       <main className="grid min-h-svh place-items-center p-6">
         <div className="flex max-w-sm flex-col items-center gap-3 text-center">
@@ -128,6 +128,11 @@ function AdminGate() {
   }
   return <AdminShell />;
 }
+
+type AccessCheck =
+  | { attempt: number; status: "loading" }
+  | { attempt: number; status: "allowed" | "denied" }
+  | { attempt: number; status: "error"; message: string };
 
 function AdminShell() {
   const [view, setView] = useState<"inbox" | "roadmap">("inbox");

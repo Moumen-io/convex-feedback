@@ -6,7 +6,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
-import { type DragEvent, useEffect, useState } from "react";
+import { type DragEvent, useState } from "react";
 
 import {
   AlertDialog,
@@ -286,7 +286,11 @@ export function RoadmapView() {
           );
         })}
       </div>
-      <RoadmapEditor open={createOpen} onOpenChange={setCreateOpen} />
+      <RoadmapEditor
+        key={createOpen ? "create-open" : "create-closed"}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+      />
       <RoadmapDetail
         item={selected}
         onOpenChange={(open) => !open && setSelectedId(null)}
@@ -309,11 +313,6 @@ function RoadmapEditor({
   const create = feedbackHooks.useCreateRoadmap();
   const update = feedbackHooks.useUpdateRoadmap();
   const action = useAdminAction();
-
-  useEffect(() => {
-    setTitle(item?.title ?? "");
-    setDescription(item?.description ?? "");
-  }, [item?.description, item?.id, item?.title, open]);
 
   const save = async () => {
     const succeeded = await action.run(
@@ -529,7 +528,12 @@ function RoadmapDetail({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <RoadmapEditor open={editOpen} onOpenChange={setEditOpen} item={item} />
+      <RoadmapEditor
+        key={editOpen ? item.id : "edit-closed"}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        item={item}
+      />
     </>
   );
 }

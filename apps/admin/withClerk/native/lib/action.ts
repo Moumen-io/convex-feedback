@@ -12,7 +12,6 @@ export function useAdminAction() {
   const run = async (
     action: () => Promise<unknown>,
     title: string,
-    retryAction: () => Promise<unknown> = action,
   ): Promise<boolean> => {
     if (pending) return false;
     setPending(true);
@@ -25,7 +24,7 @@ export function useAdminAction() {
         {
           text: "Retry",
           onPress: () => {
-            void run(retryAction, title, retryAction);
+            void run(action, title);
           },
         },
       ]);

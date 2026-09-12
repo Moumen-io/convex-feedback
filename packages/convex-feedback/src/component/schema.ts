@@ -57,6 +57,7 @@ const schema = defineSchema({
     normalizedName: v.string(),
     color: v.optional(v.string()),
     updatedAt: v.number(),
+    deletingAt: v.optional(v.number()),
   }).index("by_normalized_name", ["normalizedName"]),
 
   roadmap: defineTable({
@@ -67,6 +68,7 @@ const schema = defineSchema({
     feedbackCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    deletingAt: v.optional(v.number()),
   })
     .index("by_status_and_position", ["status", "position"])
     .index("by_position", ["position"])

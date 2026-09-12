@@ -1,7 +1,8 @@
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { api } from "../src/component/_generated/api.js";
+import type { Id } from "../src/component/_generated/dataModel.js";
 import schema from "../src/component/schema.js";
 
 const modules = import.meta.glob("../src/component/**/*.ts");
@@ -91,6 +92,15 @@ describe("roadmap ordering", () => {
       nextItemId: secondId,
     });
 
+    expect(position).toBe(100.25);
+
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+
     const ordered = await testInstance.run((ctx) =>
       ctx.db
         .query("roadmap")
@@ -99,7 +109,6 @@ describe("roadmap ordering", () => {
         .collect(),
     );
 
-    expect(position).toBe(1_500_000);
     expect(ordered.map((item) => item._id)).toEqual([
       firstId,
       movingId,
@@ -107,7 +116,91 @@ describe("roadmap ordering", () => {
       thirdId,
     ]);
     expect(ordered.map((item) => item.position)).toEqual([
-      1_000_000, 1_500_000, 2_000_000, 3_000_000,
+      1_000_000, 2_000_000, 3_000_000, 4_000_000,
     ]);
+  });
+
+  test("rejects missing and self-referential neighbors", async () => {
+    const testInstance = setup();
+    const movingId = await createRoadmapItem(testInstance, "Moving");
+    const deletedNeighborId = await createRoadmapItem(
+      testInstance,
+      "Deleted neighbor",
+    );
+
+    await testInstance.run((ctx) =>
+      ctx.db.delete("roadmap", deletedNeighborId),
+    );
+
+    await expect(
+      testInstance.mutation(api.roadmap.move, {
+        actor,
+        roadmapId: movingId,
+        status: "planned",
+        previousItemId: deletedNeighborId,
+      }),
+    ).rejects.toThrow("Previous roadmap item not found.");
+
+    await expect(
+      testInstance.mutation(api.roadmap.move, {
+        actor,
+        roadmapId: movingId,
+        status: "planned",
+        nextItemId: movingId,
+      }),
+    ).rejects.toThrow("Roadmap item cannot be its own neighbor.");
+  });
+
+  test("rebalances stages larger than one background batch", async () => {
+    const testInstance = setup();
+    const itemIds = await testInstance.run(async (ctx) => {
+      const ids: Id<"roadmap">[] = [];
+      for (let index = 0; index < 201; index += 1) {
+        ids.push(
+          await ctx.db.insert("roadmap", {
+            title: `Item ${index}`,
+            status: "planned",
+            position: index === 0 ? 0 : index === 1 ? 5 : index * 10,
+            feedbackCount: 0,
+            createdAt: index,
+            updatedAt: index,
+          }),
+        );
+      }
+      return ids;
+    });
+
+    const position = await testInstance.mutation(api.roadmap.move, {
+      actor,
+      roadmapId: itemIds[2]!,
+      status: "planned",
+      previousItemId: itemIds[0]!,
+      nextItemId: itemIds[1]!,
+    });
+    expect(position).toBe(2.5);
+
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const ordered = await testInstance.run((ctx) =>
+      ctx.db
+        .query("roadmap")
+        .withIndex("by_status_and_position", (q) => q.eq("status", "planned"))
+        .order("asc")
+        .take(250),
+    );
+    expect(ordered).toHaveLength(201);
+    expect(ordered.slice(0, 3).map((item) => item._id)).toEqual([
+      itemIds[0],
+      itemIds[2],
+      itemIds[1],
+    ]);
+    expect(
+      ordered.every((item, index) => item.position === (index + 1) * 1_000_000),
+    ).toBe(true);
   });
 });

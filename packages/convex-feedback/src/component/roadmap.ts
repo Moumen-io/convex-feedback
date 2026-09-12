@@ -5,12 +5,14 @@ import {
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api.js";
+import type { Id } from "./_generated/dataModel.js";
 import { internalMutation, mutation, query } from "./_generated/server.js";
 import {
   normalizeRequiredText,
   serializeAdminEntry,
   serializeRoadmapItem,
 } from "./helpers.js";
+import type { MutationCtx } from "./types.js";
 import {
   actorValidator,
   adminEntryValidator,
@@ -19,8 +21,15 @@ import {
 } from "./model.js";
 
 const POSITION_STEP = 1_000_000;
-const MIN_POSITION_GAP = 1;
+const REBALANCE_GAP_THRESHOLD = 10;
+const rebalanceBatchSize = 100;
 const deletionBatchSize = 100;
+
+type RoadmapCreateArgs = {
+  title: string;
+  description?: string;
+  status: "planned" | "in_progress" | "shipped";
+};
 
 function assertAdmin(actor: { id: string; isAdmin: boolean }): void {
   if (!actor.isAdmin) throw new ConvexError("Admin access is required.");
@@ -43,16 +52,19 @@ export const list = query({
   returns: paginationResultValidator(roadmapItemValidator),
   handler: async (ctx, args) => {
     const status = args.status;
-    const result =
+    const roadmapQuery =
       status === undefined
-        ? await ctx.db
+        ? ctx.db
             .query("roadmap")
-            .withIndex("by_position")
-            .paginate(args.paginationOpts)
-        : await ctx.db
+            .withIndex("by_deleting_at_and_position", (q) =>
+              q.eq("deletingAt", undefined),
+            )
+        : ctx.db
             .query("roadmap")
-            .withIndex("by_status_and_position", (q) => q.eq("status", status))
-            .paginate(args.paginationOpts);
+            .withIndex("by_status_deleting_at_position", (q) =>
+              q.eq("status", status).eq("deletingAt", undefined),
+            );
+    const result = await roadmapQuery.paginate(args.paginationOpts);
     return { ...result, page: result.page.map(serializeRoadmapItem) };
   },
 });
@@ -65,11 +77,32 @@ export const search = query({
     if (searchQuery.length === 0 || args.limit <= 0) return [];
     const items = await ctx.db
       .query("roadmap")
-      .withSearchIndex("search_title", (q) => q.search("title", searchQuery))
+      .withSearchIndex("search_title", (q) =>
+        q.search("title", searchQuery).eq("deletingAt", undefined),
+      )
       .take(Math.min(Math.floor(args.limit), 50));
     return items.map(serializeRoadmapItem);
   },
 });
+
+async function createRoadmapRecord(ctx: MutationCtx, args: RoadmapCreateArgs) {
+  const last = await ctx.db
+    .query("roadmap")
+    .withIndex("by_status_and_position", (q) => q.eq("status", args.status))
+    .order("desc")
+    .first();
+  const description = optionalDescription(args.description);
+  const now = Date.now();
+  return await ctx.db.insert("roadmap", {
+    title: normalizeRequiredText(args.title, "Roadmap title", 160),
+    ...(description === undefined ? {} : { description }),
+    status: args.status,
+    position: (last?.position ?? 0) + POSITION_STEP,
+    feedbackCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
 
 export const create = mutation({
   args: {
@@ -81,23 +114,7 @@ export const create = mutation({
   returns: v.id("roadmap"),
   handler: async (ctx, args) => {
     assertAdmin(args.actor);
-    const last = await ctx.db
-      .query("roadmap")
-      .withIndex("by_status_and_position", (q) => q.eq("status", args.status))
-      .order("desc")
-      .first();
-    const now = Date.now();
-    return await ctx.db.insert("roadmap", {
-      title: normalizeRequiredText(args.title, "Roadmap title", 160),
-      ...(optionalDescription(args.description) === undefined
-        ? {}
-        : { description: optionalDescription(args.description) }),
-      status: args.status,
-      position: (last?.position ?? 0) + POSITION_STEP,
-      feedbackCount: 0,
-      createdAt: now,
-      updatedAt: now,
-    });
+    return await createRoadmapRecord(ctx, args);
   },
 });
 
@@ -148,6 +165,18 @@ export const move = mutation({
         : ctx.db.get("roadmap", args.nextItemId),
     ]);
     if (item === null) throw new ConvexError("Roadmap item not found.");
+    if (
+      args.previousItemId === args.roadmapId ||
+      args.nextItemId === args.roadmapId
+    ) {
+      throw new ConvexError("Roadmap item cannot be its own neighbor.");
+    }
+    if (args.previousItemId !== undefined && previous === null) {
+      throw new ConvexError("Previous roadmap item not found.");
+    }
+    if (args.nextItemId !== undefined && next === null) {
+      throw new ConvexError("Next roadmap item not found.");
+    }
     if (item.deletingAt !== undefined) {
       throw new ConvexError("Roadmap item is being deleted.");
     }
@@ -165,37 +194,13 @@ export const move = mutation({
       throw new ConvexError("Roadmap neighbors are out of order.");
     }
 
-    let previousPosition = previous?.position;
-    let nextPosition = next?.position;
+    const previousPosition = previous?.position;
+    const nextPosition = next?.position;
 
-    if (
+    const shouldScheduleRebalance =
       previous !== null &&
       next !== null &&
-      next.position - previous.position <= MIN_POSITION_GAP
-    ) {
-      const stageItems = await ctx.db
-        .query("roadmap")
-        .withIndex("by_status_and_position", (q) => q.eq("status", args.status))
-        .order("asc")
-        .collect();
-      const rebalancedPositions = new Map<string, number>();
-
-      for (const [index, stageItem] of stageItems.entries()) {
-        const rebalancedPosition = (index + 1) * POSITION_STEP;
-        rebalancedPositions.set(stageItem._id, rebalancedPosition);
-        if (stageItem.position !== rebalancedPosition) {
-          await ctx.db.patch("roadmap", stageItem._id, {
-            position: rebalancedPosition,
-          });
-        }
-      }
-
-      previousPosition = rebalancedPositions.get(previous._id);
-      nextPosition = rebalancedPositions.get(next._id);
-      if (previousPosition === undefined || nextPosition === undefined) {
-        throw new ConvexError("Unable to rebalance roadmap stage.");
-      }
-    }
+      next.position - previous.position <= REBALANCE_GAP_THRESHOLD;
 
     let position: number;
     if (previousPosition !== undefined && nextPosition !== undefined) {
@@ -217,7 +222,93 @@ export const move = mutation({
       position,
       updatedAt: Date.now(),
     });
+    if (shouldScheduleRebalance) {
+      await ctx.scheduler.runAfter(0, internal.roadmap.rebalanceBatch, {
+        status: args.status,
+        rebalanceId: `${args.roadmapId}:${Date.now()}`,
+        phase: "mark",
+        paginationOpts: { cursor: null, numItems: rebalanceBatchSize },
+        offset: 0,
+      });
+    }
     return position;
+  },
+});
+
+export const rebalanceBatch = internalMutation({
+  args: {
+    status: roadmapStatusValidator,
+    rebalanceId: v.string(),
+    phase: v.union(v.literal("mark"), v.literal("rewrite")),
+    paginationOpts: paginationOptsValidator,
+    offset: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (args.phase === "mark") {
+      const result = await ctx.db
+        .query("roadmap")
+        .withIndex("by_status_and_position", (q) => q.eq("status", args.status))
+        .order("asc")
+        .paginate(args.paginationOpts);
+
+      for (const [index, item] of result.page.entries()) {
+        await ctx.db.patch("roadmap", item._id, {
+          rebalanceId: args.rebalanceId,
+          rebalanceRank: args.offset + index,
+        });
+      }
+
+      if (result.isDone) {
+        await ctx.scheduler.runAfter(0, internal.roadmap.rebalanceBatch, {
+          status: args.status,
+          rebalanceId: args.rebalanceId,
+          phase: "rewrite",
+          paginationOpts: { cursor: null, numItems: rebalanceBatchSize },
+          offset: 0,
+        });
+      } else {
+        await ctx.scheduler.runAfter(0, internal.roadmap.rebalanceBatch, {
+          status: args.status,
+          rebalanceId: args.rebalanceId,
+          phase: "mark",
+          paginationOpts: {
+            cursor: result.continueCursor,
+            numItems: rebalanceBatchSize,
+          },
+          offset: args.offset + result.page.length,
+        });
+      }
+      return null;
+    }
+
+    const result = await ctx.db
+      .query("roadmap")
+      .withIndex("by_status_rebalance_rank", (q) =>
+        q.eq("status", args.status).eq("rebalanceId", args.rebalanceId),
+      )
+      .order("asc")
+      .paginate(args.paginationOpts);
+
+    for (const [index, item] of result.page.entries()) {
+      await ctx.db.patch("roadmap", item._id, {
+        position: (args.offset + index + 1) * POSITION_STEP,
+      });
+    }
+
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.roadmap.rebalanceBatch, {
+        status: args.status,
+        rebalanceId: args.rebalanceId,
+        phase: "rewrite",
+        paginationOpts: {
+          cursor: result.continueCursor,
+          numItems: rebalanceBatchSize,
+        },
+        offset: args.offset + result.page.length,
+      });
+    }
+    return null;
   },
 });
 
@@ -284,6 +375,42 @@ export const finalizeRemoval = internalMutation({
   },
 });
 
+async function attachFeedbackRecord(
+  ctx: MutationCtx,
+  roadmapId: Id<"roadmap">,
+  entryId: Id<"entries">,
+): Promise<void> {
+  const [item, entry] = await Promise.all([
+    ctx.db.get("roadmap", roadmapId),
+    ctx.db.get("entries", entryId),
+  ]);
+  if (item === null) throw new ConvexError("Roadmap item not found.");
+  if (item.deletingAt !== undefined) {
+    throw new ConvexError("Roadmap item is being deleted.");
+  }
+  if (entry === null) throw new ConvexError("Entry not found.");
+  if (entry.roadmapId === roadmapId) return;
+
+  const now = Date.now();
+  if (entry.roadmapId !== undefined) {
+    const previous = await ctx.db.get("roadmap", entry.roadmapId);
+    if (previous !== null) {
+      await ctx.db.patch("roadmap", previous._id, {
+        feedbackCount: Math.max(0, previous.feedbackCount - 1),
+        updatedAt: now,
+      });
+    }
+  }
+  await ctx.db.patch("entries", entryId, {
+    roadmapId,
+    updatedAt: now,
+  });
+  await ctx.db.patch("roadmap", roadmapId, {
+    feedbackCount: item.feedbackCount + 1,
+    updatedAt: now,
+  });
+}
+
 export const attachFeedback = mutation({
   args: {
     actor: actorValidator,
@@ -293,35 +420,25 @@ export const attachFeedback = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     assertAdmin(args.actor);
-    const [item, entry] = await Promise.all([
-      ctx.db.get("roadmap", args.roadmapId),
-      ctx.db.get("entries", args.entryId),
-    ]);
-    if (item === null) throw new ConvexError("Roadmap item not found.");
-    if (item.deletingAt !== undefined) {
-      throw new ConvexError("Roadmap item is being deleted.");
-    }
-    if (entry === null) throw new ConvexError("Entry not found.");
-    if (entry.roadmapId === args.roadmapId) return null;
-
-    if (entry.roadmapId !== undefined) {
-      const previous = await ctx.db.get("roadmap", entry.roadmapId);
-      if (previous !== null) {
-        await ctx.db.patch("roadmap", previous._id, {
-          feedbackCount: Math.max(0, previous.feedbackCount - 1),
-          updatedAt: Date.now(),
-        });
-      }
-    }
-    await ctx.db.patch("entries", args.entryId, {
-      roadmapId: args.roadmapId,
-      updatedAt: Date.now(),
-    });
-    await ctx.db.patch("roadmap", args.roadmapId, {
-      feedbackCount: item.feedbackCount + 1,
-      updatedAt: Date.now(),
-    });
+    await attachFeedbackRecord(ctx, args.roadmapId, args.entryId);
     return null;
+  },
+});
+
+export const createForEntry = mutation({
+  args: {
+    actor: actorValidator,
+    title: v.string(),
+    description: v.optional(v.string()),
+    status: roadmapStatusValidator,
+    entryId: v.id("entries"),
+  },
+  returns: v.id("roadmap"),
+  handler: async (ctx, args) => {
+    assertAdmin(args.actor);
+    const roadmapId = await createRoadmapRecord(ctx, args);
+    await attachFeedbackRecord(ctx, roadmapId, args.entryId);
+    return roadmapId;
   },
 });
 

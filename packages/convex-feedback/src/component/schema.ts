@@ -69,12 +69,25 @@ const schema = defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     deletingAt: v.optional(v.number()),
+    rebalanceId: v.optional(v.string()),
+    rebalanceRank: v.optional(v.number()),
   })
     .index("by_status_and_position", ["status", "position"])
+    .index("by_status_deleting_at_position", [
+      "status",
+      "deletingAt",
+      "position",
+    ])
+    .index("by_deleting_at_and_position", ["deletingAt", "position"])
+    .index("by_status_rebalance_rank", [
+      "status",
+      "rebalanceId",
+      "rebalanceRank",
+    ])
     .index("by_position", ["position"])
     .searchIndex("search_title", {
       searchField: "title",
-      filterFields: ["status"],
+      filterFields: ["status", "deletingAt"],
     }),
 
   comments: defineTable({

@@ -217,6 +217,32 @@ describe("convex-feedback component", () => {
     expect(storedEntry?.roadmapId).toBeUndefined();
   });
 
+  test("hides roadmap items from list and search while deletion is pending", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Pending deletion roadmap",
+      status: "planned",
+    });
+
+    await testInstance.mutation(api.roadmap.remove, { actor, roadmapId });
+
+    const [listed, searched] = await Promise.all([
+      testInstance.query(api.roadmap.list, {
+        paginationOpts: { cursor: null, numItems: 10 },
+        status: "planned",
+      }),
+      testInstance.query(api.roadmap.search, {
+        searchQuery: "pending deletion",
+        limit: 10,
+      }),
+    ]);
+
+    expect(listed.page.map((item) => item.id)).not.toContain(roadmapId);
+    expect(searched.map((item) => item.id)).not.toContain(roadmapId);
+  });
+
   test("tag and roadmap deletion self-schedule beyond 100 entries", async () => {
     const testInstance = setup();
     const actor = { id: "admin-1", isAdmin: true } as const;

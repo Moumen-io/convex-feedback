@@ -39,13 +39,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             additional?: Record<string, string | number | boolean>;
             standard?: Record<string, string | number | boolean>;
           };
-          tags: Array<{
-            color?: string;
-            creationTime: number;
-            id: string;
-            name: string;
-            updatedAt: number;
-          }>;
           priority?: "low" | "medium" | "high";
           roadmap?: {
             createdAt: number;
@@ -65,6 +58,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "in_progress"
             | "completed"
             | "closed";
+          tags: Array<{
+            color?: string;
+            creationTime: number;
+            id: string;
+            name: string;
+            updatedAt: number;
+          }>;
           title: string;
           updatedAt?: number;
           upvoteCount: number;
@@ -110,13 +110,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               additional?: Record<string, string | number | boolean>;
               standard?: Record<string, string | number | boolean>;
             };
-            tags: Array<{
-              color?: string;
-              creationTime: number;
-              id: string;
-              name: string;
-              updatedAt: number;
-            }>;
             priority?: "low" | "medium" | "high";
             roadmap?: {
               createdAt: number;
@@ -136,6 +129,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "in_progress"
               | "completed"
               | "closed";
+            tags: Array<{
+              color?: string;
+              creationTime: number;
+              id: string;
+              name: string;
+              updatedAt: number;
+            }>;
             title: string;
             updatedAt?: number;
             upvoteCount: number;
@@ -185,13 +185,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               additional?: Record<string, string | number | boolean>;
               standard?: Record<string, string | number | boolean>;
             };
-            tags: Array<{
-              color?: string;
-              creationTime: number;
-              id: string;
-              name: string;
-              updatedAt: number;
-            }>;
             priority?: "low" | "medium" | "high";
             roadmap?: {
               createdAt: number;
@@ -211,6 +204,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "in_progress"
               | "completed"
               | "closed";
+            tags: Array<{
+              color?: string;
+              creationTime: number;
+              id: string;
+              name: string;
+              updatedAt: number;
+            }>;
             title: string;
             updatedAt?: number;
             upvoteCount: number;
@@ -596,6 +596,19 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         string,
         Name
       >;
+      createForEntry: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin: boolean };
+          description?: string;
+          entryId: string;
+          status: "planned" | "in_progress" | "shipped";
+          title: string;
+        },
+        string,
+        Name
+      >;
       detachFeedback: FunctionReference<
         "mutation",
         "internal",
@@ -665,13 +678,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               additional?: Record<string, string | number | boolean>;
               standard?: Record<string, string | number | boolean>;
             };
-            tags: Array<{
-              color?: string;
-              creationTime: number;
-              id: string;
-              name: string;
-              updatedAt: number;
-            }>;
             priority?: "low" | "medium" | "high";
             roadmap?: {
               createdAt: number;
@@ -691,6 +697,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "in_progress"
               | "completed"
               | "closed";
+            tags: Array<{
+              color?: string;
+              creationTime: number;
+              id: string;
+              name: string;
+              updatedAt: number;
+            }>;
             title: string;
             updatedAt?: number;
             upvoteCount: number;

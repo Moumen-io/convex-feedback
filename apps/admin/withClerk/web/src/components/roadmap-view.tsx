@@ -397,7 +397,9 @@ function RoadmapDetail({
       onOpenChange(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Unable to delete roadmap item",
+        error instanceof Error
+          ? error.message
+          : "Unable to delete roadmap item",
       );
     } finally {
       setDeleting(false);
@@ -422,10 +424,7 @@ function RoadmapDetail({
               <Button variant="outline" onClick={() => setEditOpen(true)}>
                 Edit
               </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
+              <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2Icon data-icon="inline-start" />
                 Delete
               </Button>

@@ -156,6 +156,13 @@ describe("convex-feedback component", () => {
       tagId: revenueTagId,
     });
 
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+
     const stored = await testInstance.run((ctx) =>
       ctx.db.get("entries", entryId),
     );
@@ -198,10 +205,89 @@ describe("convex-feedback component", () => {
       actor,
       roadmapId: firstId,
     });
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
     const storedEntry = await testInstance.run((ctx) =>
       ctx.db.get("entries", entryId),
     );
     expect(storedEntry?.roadmapId).toBeUndefined();
+  });
+
+  test("tag and roadmap deletion self-schedule beyond 100 entries", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const tagId = await testInstance.mutation(api.tags.create, {
+      actor,
+      name: "Bulk cleanup",
+    });
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Bulk cleanup roadmap",
+      status: "planned",
+    });
+
+    const entryIds = await testInstance.run(async (ctx) => {
+      const ids: Id<"entries">[] = [];
+      for (let index = 0; index < 101; index += 1) {
+        ids.push(
+          await ctx.db.insert("entries", {
+            actorId: "bulk-author-" + index,
+            kind: "feedback",
+            status: "open",
+            statusFilter: "open",
+            title: "Bulk entry " + index,
+            body: "Bulk cleanup body",
+            normalizedTitle: "bulk entry " + index,
+            searchText: "Bulk entry " + index + "\nBulk cleanup body",
+            upvoteCount: 0,
+            commentCount: 0,
+            tagIds: [tagId],
+            roadmapId,
+          }),
+        );
+      }
+      await ctx.db.patch("roadmap", roadmapId, { feedbackCount: ids.length });
+      return ids;
+    });
+
+    await testInstance.mutation(api.tags.remove, { actor, tagId });
+    await testInstance.mutation(api.roadmap.remove, { actor, roadmapId });
+
+    const pending = await testInstance.run(async (ctx) => ({
+      tag: await ctx.db.get("tags", tagId),
+      roadmap: await ctx.db.get("roadmap", roadmapId),
+    }));
+    expect(pending.tag?.deletingAt).toEqual(expect.any(Number));
+    expect(pending.roadmap?.deletingAt).toEqual(expect.any(Number));
+
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const cleaned = await testInstance.run(async (ctx) => ({
+      tag: await ctx.db.get("tags", tagId),
+      roadmap: await ctx.db.get("roadmap", roadmapId),
+      entries: await Promise.all(
+        entryIds.map((entryId) => ctx.db.get("entries", entryId)),
+      ),
+    }));
+    expect(cleaned.tag).toBeNull();
+    expect(cleaned.roadmap).toBeNull();
+    expect(
+      cleaned.entries.every(
+        (entry) =>
+          entry !== null &&
+          !entry.tagIds?.includes(tagId) &&
+          entry.roadmapId === undefined,
+      ),
+    ).toBe(true);
   });
 
   test("admin inbox and roadmap lists use cursor pagination", async () => {

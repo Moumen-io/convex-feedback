@@ -32,9 +32,7 @@ export const list = query({
       .query("tags")
       .withIndex("by_normalized_name")
       .collect();
-    return tags
-      .filter((tag) => tag.deletingAt === undefined)
-      .map(serializeTag);
+    return tags.filter((tag) => tag.deletingAt === undefined).map(serializeTag);
   },
 });
 

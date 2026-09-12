@@ -5,6 +5,7 @@ export * from "../../shared/metadata.js";
 export * from "../../shared/theme.js";
 export type * from "../../shared/types/index.js";
 export * from "../shared/ui/primitives.js";
+export * from "../shared/ui/RoadmapScreen.js";
 export * from "./metadata.js";
 export * from "./FeedbackScreen.js";
 export * from "./FeedbackCreateStackLayout.js";

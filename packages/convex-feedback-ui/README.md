@@ -36,6 +36,22 @@ import "convex-feedback-ui/styles.css";
 <FeedbackScreen hooks={feedbackHooks} />;
 ```
 
+Use `RoadmapScreen` for the public roadmap and its attached feedback entries:
+
+```tsx
+import { RoadmapScreen } from "convex-feedback-ui";
+
+<RoadmapScreen
+  hooks={feedbackHooks}
+  onEntryOpen={(entryId) => navigate(`/feedback/${entryId}`)}
+  onUnauthenticated={() => openSignIn()}
+/>;
+```
+
+Roadmap browsing and attached-entry reads work without authentication. The
+`onUnauthenticated` callback is used for create, vote, like, and comment
+actions in the prebuilt screens; the host decides how to present sign-in.
+
 The default stylesheet:
 
 - has no Tailwind dependency;

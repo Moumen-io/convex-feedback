@@ -50,3 +50,7 @@ Use the same prop on `FeedbackStackLayout` for routed navigation.
 
 The existing `FeedbackScreen` remains the self-contained API for conditional
 in-screen navigation.
+
+`RoadmapScreen` is also exported from this entry point for public roadmap
+browsing. Pass `onEntryOpen` for host navigation and `onUnauthenticated` for
+the host's sign-in UI.

@@ -15,3 +15,7 @@ To replace a control with Expo UI, use render-function children on an interactiv
 ```
 
 Containers such as `FeedbackEntry.Content`, `FeedbackForm.Root`, and `Comment.Children` accept arbitrary children, so custom Expo UI fields/buttons can also be placed directly inside the compound layout.
+
+`RoadmapScreen` provides the public roadmap and renders attached entries with
+the same `FeedbackEntry` primitives. Pass `onUnauthenticated` to handle auth
+when an anonymous visitor votes.

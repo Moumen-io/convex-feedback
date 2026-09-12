@@ -6,7 +6,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useState } from "react";
+import { type DragEvent, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -46,15 +46,78 @@ export function RoadmapView() {
   const [selected, setSelected] = useState<RoadmapItem | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  const moveTo = async (item: RoadmapItem, status: RoadmapStatus) => {
+  const moveTo = async (
+    item: RoadmapItem,
+    status: RoadmapStatus,
+    previous?: RoadmapItem,
+    next?: RoadmapItem,
+  ) => {
     try {
-      await move({ roadmapId: item.id, status });
+      await move({
+        roadmapId: item.id,
+        status,
+        previousItemId: previous?.id,
+        nextItemId: next?.id,
+      });
       toast.success(`Moved to ${status.replaceAll("_", " ")}`);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Unable to move item",
       );
     }
+  };
+
+  const getDraggingItem = () =>
+    items?.find((candidate) => candidate.id === draggingId);
+
+  const dropAtEnd = (
+    event: DragEvent<HTMLElement>,
+    status: RoadmapStatus,
+    stageItems: RoadmapItem[],
+  ) => {
+    event.preventDefault();
+    const dragged = getDraggingItem();
+    if (!dragged) return;
+
+    const destinationItems = stageItems.filter(
+      (candidate) => candidate.id !== dragged.id,
+    );
+    void moveTo(dragged, status, destinationItems.at(-1));
+    setDraggingId(null);
+  };
+
+  const dropOnItem = (
+    event: DragEvent<HTMLElement>,
+    dragged: RoadmapItem,
+    target: RoadmapItem,
+    status: RoadmapStatus,
+    stageItems: RoadmapItem[],
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (dragged.id === target.id) {
+      setDraggingId(null);
+      return;
+    }
+
+    const destinationItems = stageItems.filter(
+      (candidate) => candidate.id !== dragged.id,
+    );
+    const targetIndex = destinationItems.findIndex(
+      (candidate) => candidate.id === target.id,
+    );
+    if (targetIndex < 0) return;
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const insertAfter = event.clientY >= bounds.top + bounds.height / 2;
+    const insertIndex = targetIndex + (insertAfter ? 1 : 0);
+    void moveTo(
+      dragged,
+      status,
+      destinationItems[insertIndex - 1],
+      destinationItems[insertIndex],
+    );
+    setDraggingId(null);
   };
 
   return (
@@ -88,32 +151,26 @@ export function RoadmapView() {
       </header>
       <div className="grid min-h-0 flex-1 gap-px overflow-x-auto bg-border lg:grid-cols-3">
         {stages.map((stage) => {
-          const stageItems = items
-            ?.filter((item) => item.status === stage.value)
+          const stageItems = (items ?? [])
+            .filter((item) => item.status === stage.value)
             .sort((a, b) => a.position - b.position);
           return (
             <section
               key={stage.value}
               className="min-w-80 bg-background"
               onDragOver={(event) => event.preventDefault()}
-              onDrop={() => {
-                const item = items?.find(
-                  (candidate) => candidate.id === draggingId,
-                );
-                if (item) void moveTo(item, stage.value);
-                setDraggingId(null);
-              }}
+              onDrop={(event) => dropAtEnd(event, stage.value, stageItems)}
             >
               <div className="sticky top-0 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur">
                 <h2 className="text-sm font-medium">{stage.label}</h2>
-                <Badge variant="secondary">{stageItems?.length ?? 0}</Badge>
+                <Badge variant="secondary">{stageItems.length}</Badge>
               </div>
               <div className="flex flex-col gap-2 p-3">
                 {roadmap.status === "LoadingFirstPage" ? (
                   [0, 1, 2].map((index) => (
                     <Skeleton key={index} className="h-28 w-full" />
                   ))
-                ) : stageItems?.length === 0 ? (
+                ) : stageItems.length === 0 ? (
                   <Empty className="min-h-40">
                     <EmptyHeader>
                       <EmptyTitle>No items</EmptyTitle>
@@ -123,11 +180,31 @@ export function RoadmapView() {
                     </EmptyHeader>
                   </Empty>
                 ) : (
-                  stageItems?.map((item) => (
+                  stageItems.map((item) => (
                     <article
                       key={item.id}
                       draggable
-                      onDragStart={() => setDraggingId(item.id)}
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        setDraggingId(item.id);
+                      }}
+                      onDragEnd={() => setDraggingId(null)}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onDrop={(event) => {
+                        const dragged = getDraggingItem();
+                        if (dragged) {
+                          dropOnItem(
+                            event,
+                            dragged,
+                            item,
+                            stage.value,
+                            stageItems,
+                          );
+                        }
+                      }}
                       className="group rounded-xl border bg-card p-3 shadow-sm transition-transform hover:-translate-y-0.5"
                     >
                       <button

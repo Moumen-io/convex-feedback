@@ -48,6 +48,28 @@ async function invokeQuery<Args extends DefaultFunctionArgs, Result>(
 }
 
 describe("metadata API authorization", () => {
+  test("supports deprecated moderator actor fields with admin precedence", async () => {
+    const legacyApi = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve({ id: "legacy-1", isModerator: true }),
+    });
+    const newFieldWinsApi = exposeFeedbackApi(component, {
+      actor: () =>
+        Promise.resolve({
+          id: "legacy-2",
+          isAdmin: false,
+          isModerator: true,
+        }),
+    });
+
+    const context = {} as GenericQueryCtx<never>;
+    await expect(invokeQuery(legacyApi.isAdmin, context, {})).resolves.toBe(
+      true,
+    );
+    await expect(
+      invokeQuery(newFieldWinsApi.isAdmin, context, {}),
+    ).resolves.toBe(false);
+  });
+
   test("only the host-resolved admin flag reaches getEntry", async () => {
     const adminRunQuery = vi.fn(() => Promise.resolve(null));
     const memberRunQuery = vi.fn(() => Promise.resolve(null));

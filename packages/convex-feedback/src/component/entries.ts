@@ -18,6 +18,7 @@ import {
 } from "./helpers.js";
 import {
   actorValidator,
+  actorIsAdmin,
   entryKindValidator,
   entryPriorityValidator,
   entrySortValidator,
@@ -621,7 +622,7 @@ export const update = mutation({
     if (entry === null) throw new ConvexError("Entry not found.");
 
     const canEdit =
-      args.actor.isAdmin ||
+      actorIsAdmin(args.actor) ||
       (args.editableByAuthor && entry.actorId === args.actor.id);
     if (!canEdit) throw new ConvexError("Not authorized to edit this entry.");
 
@@ -652,7 +653,7 @@ export const setStatus = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!args.actor.isAdmin) {
+    if (!actorIsAdmin(args.actor)) {
       throw new ConvexError("Admin access is required to change status.");
     }
     if ((await ctx.db.get("entries", args.entryId)) === null) {
@@ -675,7 +676,7 @@ export const setPriority = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!args.actor.isAdmin) {
+    if (!actorIsAdmin(args.actor)) {
       throw new ConvexError("Admin access is required to change priority.");
     }
     if ((await ctx.db.get("entries", args.entryId)) === null) {

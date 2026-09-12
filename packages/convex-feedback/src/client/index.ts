@@ -36,6 +36,7 @@ import {
   roadmapItemValidator,
   roadmapStatusValidator,
   similarEntriesValidator,
+  actorIsAdmin,
   type FeedbackActor,
 } from "../component/model.js";
 import type { FeedbackPublicApi } from "./api.js";
@@ -141,6 +142,9 @@ export interface ThrowingFeedbackRateLimitConfig {
    */
   limitAdmins?: boolean;
 
+  /** @deprecated Use `limitAdmins`. */
+  limitModerators?: boolean;
+
   /** Not accepted in throwing mode; select `"return"` to provide a validator. */
   returns?: never;
 }
@@ -183,6 +187,9 @@ export interface ReturningFeedbackRateLimitConfig<
    * @default false
    */
   limitAdmins?: boolean;
+
+  /** @deprecated Use `limitAdmins`. */
+  limitModerators?: boolean;
 }
 
 /**
@@ -325,7 +332,7 @@ function requireActor(actor: FeedbackActor | null): FeedbackActor {
 }
 
 function requireAdmin(actor: FeedbackActor): void {
-  if (!actor.isAdmin) {
+  if (!actorIsAdmin(actor)) {
     throw new ConvexError("Admin permissions are required.");
   }
 }
@@ -357,10 +364,9 @@ async function applyRateLimiter<
     | ReturningFeedbackRateLimitConfig<FeedbackRateLimitReturnValidator>
     | undefined,
 ): Promise<RateLimitResult<ReturnsValidator> | undefined> {
-  if (
-    limiter === undefined ||
-    (actor.isAdmin && rateLimitConfig?.limitAdmins !== true)
-  ) {
+  const limitAdmins =
+    rateLimitConfig?.limitAdmins ?? rateLimitConfig?.limitModerators ?? false;
+  if (limiter === undefined || (actorIsAdmin(actor) && !limitAdmins)) {
     return undefined;
   }
 
@@ -457,7 +463,10 @@ function buildFeedbackApi<
     isAdmin: queryGeneric({
       args: {},
       returns: v.boolean(),
-      handler: async (ctx) => (await options.actor(ctx))?.isAdmin === true,
+      handler: async (ctx) => {
+        const actor = await options.actor(ctx);
+        return actor !== null && actorIsAdmin(actor);
+      },
     }),
 
     isAuthenticated: queryGeneric({
@@ -502,7 +511,9 @@ function buildFeedbackApi<
         return await ctx.runQuery(component.entries.get, {
           entryId: args.entryId,
           ...actorIdFields(actor),
-          ...(actor?.isAdmin === true ? { viewerIsAdmin: true } : {}),
+          ...(actor !== null && actorIsAdmin(actor)
+            ? { viewerIsAdmin: true }
+            : {}),
         });
       },
     }),

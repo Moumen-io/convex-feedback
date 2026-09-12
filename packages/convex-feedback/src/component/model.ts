@@ -46,8 +46,23 @@ export const commentSortValidator = v.union(
 
 export const actorValidator = v.object({
   id: v.string(),
-  isAdmin: v.boolean(),
+  isAdmin: v.optional(v.boolean()),
+  /** @deprecated Use `isAdmin`. */
+  isModerator: v.optional(v.boolean()),
 });
+
+/**
+ * Resolves the current admin flag while keeping the pre-`isAdmin` actor shape
+ * working for existing hosts. The new field wins when both are present.
+ */
+export function actorIsAdmin(actor: {
+  isAdmin?: boolean;
+  isModerator?: boolean;
+}): boolean {
+  return actor.isAdmin === undefined
+    ? actor.isModerator === true
+    : actor.isAdmin === true;
+}
 
 export const roadmapItemValidator = v.object({
   id: v.string(),
@@ -185,7 +200,11 @@ export type CommentSort = Infer<typeof commentSortValidator>;
  *
  * @property isAdmin
  * Whether the actor can perform admin-only actions such as changing entry
- * status or modifying content they do not own.
+ * status or modifying content they do not own. When omitted, the deprecated
+ * `isModerator` field is used.
+ *
+ * @property isModerator
+ * @deprecated Use `isAdmin`.
  */
 export type FeedbackActor = Infer<typeof actorValidator>;
 

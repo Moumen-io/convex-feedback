@@ -138,7 +138,7 @@ The component does not store a user/profile table. Keep display names, avatars, 
 
 ### Admins
 
-Return `isAdmin: true` for actors that may perform admin-only operations such as status changes.
+Return `isAdmin: true` for actors that may perform admin-only operations such as status changes. The deprecated `isModerator` actor field remains accepted for compatibility when `isAdmin` is omitted; if both are present, `isAdmin` takes precedence.
 
 ```ts
 return {
@@ -209,7 +209,7 @@ The groups cover:
 - `editContent`: entry edits, status changes, comment edits, and comment deletion;
 - `reactions`: entry upvotes and comment likes.
 
-Admins bypass all limiters by default. Set `limitAdmins: true` to apply them to admins as well. Admin mutations always require an admin, regardless of rate-limit configuration.
+Admins bypass all limiters by default. Set `limitAdmins: true` to apply them to admins as well. The deprecated `limitModerators` option is accepted when `limitAdmins` is omitted, with `limitAdmins` taking precedence. Admin mutations always require an admin, regardless of rate-limit configuration.
 
 To return a value to the client instead of throwing, use `"return"` behavior and provide its Convex validator. In this mode, `undefined` means the request is allowed; any defined value is returned immediately and the feedback mutation does not run. The validator is required by TypeScript and its inferred type is added to every mutation's result type.
 

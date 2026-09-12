@@ -209,6 +209,24 @@ describe("feedback rate limiting", () => {
     expect(limiter).toHaveBeenCalledWith(expect.anything(), "admin-1");
   });
 
+  test("supports deprecated moderator names for authorization and limits", async () => {
+    const runMutation = vi.fn(() => Promise.resolve(null));
+    const limiter = vi.fn(() => Promise.resolve(undefined));
+    const api = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve({ id: "moderator-1", isModerator: true }),
+      rateLimiters: { editContent: limiter },
+      config: { rateLimiting: { limitModerators: true } },
+    });
+
+    await invokeMutation(api.setEntryStatus, mutationContext(runMutation), {
+      entryId: "entry-1",
+      status: "planned",
+    });
+
+    expect(limiter).toHaveBeenCalledWith(expect.anything(), "moderator-1");
+    expect(runMutation).toHaveBeenCalledOnce();
+  });
+
   test("rejects non-admin status changes before rate limiting", async () => {
     const runMutation = vi.fn();
     const limiter = vi.fn(() => Promise.resolve(undefined));

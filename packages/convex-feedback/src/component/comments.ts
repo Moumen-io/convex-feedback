@@ -14,6 +14,7 @@ import {
 } from "./helpers.js";
 import {
   actorValidator,
+  actorIsAdmin,
   commentSortValidator,
   entryStatusFilterForStatus,
   publicCommentValidator,
@@ -156,7 +157,7 @@ export const update = mutation({
     }
 
     const canEdit =
-      args.actor.isAdmin ||
+      actorIsAdmin(args.actor) ||
       (args.editableByAuthor && comment.actorId === args.actor.id);
     if (!canEdit) throw new ConvexError("Not authorized to edit this comment.");
 
@@ -187,7 +188,7 @@ export const remove = mutation({
     if (comment.deletedAt !== undefined) return null;
 
     const canDelete =
-      args.actor.isAdmin ||
+      actorIsAdmin(args.actor) ||
       (args.deletableByAuthor && comment.actorId === args.actor.id);
     if (!canDelete) {
       throw new ConvexError("Not authorized to delete this comment.");

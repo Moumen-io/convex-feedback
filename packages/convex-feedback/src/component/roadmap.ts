@@ -15,6 +15,7 @@ import {
 import type { MutationCtx } from "./types.js";
 import {
   actorValidator,
+  actorIsAdmin,
   publicEntryValidator,
   roadmapItemValidator,
   roadmapStatusValidator,
@@ -31,8 +32,12 @@ type RoadmapCreateArgs = {
   status: "planned" | "in_progress" | "shipped";
 };
 
-function assertAdmin(actor: { id: string; isAdmin: boolean }): void {
-  if (!actor.isAdmin) throw new ConvexError("Admin access is required.");
+function assertAdmin(actor: {
+  id: string;
+  isAdmin?: boolean;
+  isModerator?: boolean;
+}): void {
+  if (!actorIsAdmin(actor)) throw new ConvexError("Admin access is required.");
 }
 
 function optionalDescription(value: string | undefined): string | undefined {

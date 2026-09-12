@@ -257,7 +257,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           commentId: string;
           deletableByAuthor: boolean;
         },
@@ -275,7 +275,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           body: string;
           commentId: string;
           editableByAuthor: boolean;
@@ -442,7 +442,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           entryId: string;
           priority: "low" | "medium" | "high" | null;
         },
@@ -453,7 +453,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           entryId: string;
           status:
             | "open"
@@ -537,7 +537,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           body: string;
           editableByAuthor: boolean;
           entryId: string;
@@ -554,7 +554,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           entryId: string;
           roadmapId: string;
         },
@@ -565,7 +565,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           description?: string;
           status: "planned" | "in_progress" | "shipped";
           title: string;
@@ -577,7 +577,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           description?: string;
           entryId: string;
           status: "planned" | "in_progress" | "shipped";
@@ -589,7 +589,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       detachFeedback: FunctionReference<
         "mutation",
         "internal",
-        { actor: { id: string; isAdmin: boolean }; entryId: string },
+        {
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
+          entryId: string;
+        },
         null,
         Name
       >;
@@ -676,7 +679,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           nextItemId?: string;
           previousItemId?: string;
           roadmapId: string;
@@ -688,7 +691,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       remove: FunctionReference<
         "mutation",
         "internal",
-        { actor: { id: string; isAdmin: boolean }; roadmapId: string },
+        {
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
+          roadmapId: string;
+        },
         null,
         Name
       >;
@@ -713,7 +719,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          actor: { id: string; isAdmin: boolean };
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
           description?: string;
           roadmapId: string;
           title: string;

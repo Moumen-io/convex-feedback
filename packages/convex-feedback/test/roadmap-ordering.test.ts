@@ -115,6 +115,17 @@ describe("roadmap ordering", () => {
     expect(ordered.page.map((item) => item.position)).toEqual([
       1_000_000, 2_000_000, 3_000_000, 4_000_000,
     ]);
+
+    const stored = await testInstance.run((ctx) =>
+      ctx.db
+        .query("roadmap")
+        .withIndex("by_status_and_position", (q) => q.eq("status", "planned"))
+        .order("asc")
+        .collect(),
+    );
+    expect(stored.map((item) => item.position)).toEqual([
+      1_000_000, 2_000_000, 3_000_000, 4_000_000,
+    ]);
   });
 
   test("rejects missing and self-referential neighbors", async () => {

@@ -78,6 +78,21 @@ async function resetRebalance(
   }
 }
 
+async function assertNoRebalancePromotion(
+  ctx: MutationCtx,
+  statuses: RoadmapStatus[],
+): Promise<void> {
+  for (const status of new Set(statuses)) {
+    const state = await getRebalanceState(ctx, status);
+    if (
+      state?.activeGeneration !== undefined &&
+      state.activeGeneration === state.visibleGeneration
+    ) {
+      throw new ConvexError("Roadmap is being rebalanced. Please retry.");
+    }
+  }
+}
+
 async function scheduleRebalance(
   ctx: MutationCtx,
   status: RoadmapStatus,
@@ -116,10 +131,7 @@ export const list = query({
     const status = args.status;
     const state =
       status === undefined ? null : await getRebalanceState(ctx, status);
-    const visibleGeneration =
-      state?.activeGeneration === undefined
-        ? state?.visibleGeneration
-        : undefined;
+    const visibleGeneration = state?.visibleGeneration;
     const roadmapQuery =
       status !== undefined && visibleGeneration !== undefined
         ? ctx.db
@@ -171,6 +183,7 @@ export const search = query({
 });
 
 async function createRoadmapRecord(ctx: MutationCtx, args: RoadmapCreateArgs) {
+  await assertNoRebalancePromotion(ctx, [args.status]);
   await resetRebalance(ctx, [args.status]);
   const last = await ctx.db
     .query("roadmap")
@@ -280,6 +293,7 @@ export const move = mutation({
       throw new ConvexError("Roadmap neighbors are out of order.");
     }
 
+    await assertNoRebalancePromotion(ctx, [item.status, args.status]);
     await resetRebalance(ctx, [item.status, args.status]);
 
     const previousPosition = previous?.position;
@@ -324,7 +338,11 @@ export const rebalanceBatch = internalMutation({
   args: {
     status: roadmapStatusValidator,
     rebalanceId: v.string(),
-    phase: v.union(v.literal("mark"), v.literal("rewrite")),
+    phase: v.union(
+      v.literal("mark"),
+      v.literal("rewrite"),
+      v.literal("promote"),
+    ),
     paginationOpts: paginationOptsValidator,
     offset: v.number(),
   },
@@ -382,26 +400,47 @@ export const rebalanceBatch = internalMutation({
       .paginate(args.paginationOpts);
 
     for (const [index, item] of result.page.entries()) {
-      await ctx.db.patch("roadmap", item._id, {
-        rebalancePosition: (args.offset + index + 1) * POSITION_STEP,
-      });
+      const position = (args.offset + index + 1) * POSITION_STEP;
+      if (args.phase === "rewrite") {
+        await ctx.db.patch("roadmap", item._id, {
+          rebalancePosition: position,
+        });
+      } else {
+        if (item.rebalancePosition === undefined) {
+          throw new ConvexError("Roadmap rebalance is incomplete.");
+        }
+        await ctx.db.patch("roadmap", item._id, {
+          position: item.rebalancePosition,
+        });
+      }
     }
 
     if (!result.isDone) {
       await ctx.scheduler.runAfter(0, internal.roadmap.rebalanceBatch, {
         status: args.status,
         rebalanceId: args.rebalanceId,
-        phase: "rewrite",
+        phase: args.phase,
         paginationOpts: {
           cursor: result.continueCursor,
           numItems: rebalanceBatchSize,
         },
         offset: args.offset + result.page.length,
       });
-    } else {
+    } else if (args.phase === "rewrite") {
       await ctx.db.patch("roadmapRebalances", state._id, {
         visibleGeneration: args.rebalanceId,
+      });
+      await ctx.scheduler.runAfter(0, internal.roadmap.rebalanceBatch, {
+        status: args.status,
+        rebalanceId: args.rebalanceId,
+        phase: "promote",
+        paginationOpts: { cursor: null, numItems: rebalanceBatchSize },
+        offset: 0,
+      });
+    } else {
+      await ctx.db.patch("roadmapRebalances", state._id, {
         activeGeneration: undefined,
+        visibleGeneration: undefined,
       });
     }
     return null;
@@ -416,6 +455,7 @@ export const remove = mutation({
     const item = await ctx.db.get("roadmap", args.roadmapId);
     if (item === null || item.deletingAt !== undefined) return null;
 
+    await assertNoRebalancePromotion(ctx, [item.status]);
     await resetRebalance(ctx, [item.status]);
     await ctx.db.patch("roadmap", args.roadmapId, { deletingAt: Date.now() });
     await ctx.scheduler.runAfter(0, internal.roadmap.removeBatch, {

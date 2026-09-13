@@ -1,11 +1,15 @@
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { AuthView, UserButton } from "@clerk/expo/native";
 import { tokenCache } from "@clerk/expo/token-cache";
-import { ConvexReactClient, useConvexAuth } from "convex/react";
+import {
+  ConvexReactClient,
+  useConvexAuth,
+  useQuery_experimental,
+} from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { anyApi } from "convex/server";
 import { Stack } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -43,52 +47,10 @@ function AdminGate() {
   const clerk = useAuth({ treatPendingAsSignedOut: false });
   const convexAuth = useConvexAuth();
   const [authOpen, setAuthOpen] = useState(false);
-  const [allowed, setAllowed] = useState<boolean | undefined>();
-  const [accessError, setAccessError] = useState<string>();
   const [retryCount, setRetryCount] = useState(0);
-
-  useEffect(() => {
-    if (!convexAuth.isAuthenticated) {
-      setAllowed(undefined);
-      setAccessError(undefined);
-      return;
-    }
-    let active = true;
-    setAllowed(undefined);
-    setAccessError(undefined);
-    void convex
-      .query(anyApi.feedback.isAdmin, {})
-      .then((result) => {
-        if (!active) return;
-        setAccessError(undefined);
-        setAllowed(result as boolean);
-      })
-      .catch((reason: unknown) => {
-        if (!active) return;
-        setAccessError(
-          reason instanceof Error
-            ? reason.message
-            : "Unable to verify admin access.",
-        );
-        setAllowed(undefined);
-        Alert.alert(
-          "Unable to verify access",
-          reason instanceof Error
-            ? reason.message
-            : "Unable to verify admin access.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Retry",
-              onPress: () => setRetryCount((value) => value + 1),
-            },
-          ],
-        );
-      });
-    return () => {
-      active = false;
-    };
-  }, [convexAuth.isAuthenticated, retryCount]);
+  const retry = useCallback(() => {
+    setRetryCount((value) => value + 1);
+  }, []);
 
   const loading = !clerk.isLoaded || convexAuth.isLoading;
 
@@ -110,41 +72,8 @@ function AdminGate() {
             onPress={() => setAuthOpen(true)}
           />
         </Centered>
-      ) : accessError ? (
-        <Centered>
-          <Text style={styles.title}>Unable to verify access</Text>
-          <Text style={styles.body}>{accessError}</Text>
-          <Button
-            title="Retry"
-            color={adminTheme.primary}
-            onPress={() => setRetryCount((value) => value + 1)}
-          />
-        </Centered>
-      ) : allowed === undefined ? (
-        <Centered>
-          <ActivityIndicator color={adminTheme.primary} />
-        </Centered>
-      ) : !allowed ? (
-        <Centered>
-          <Text style={styles.title}>Admin access required</Text>
-          <Text style={styles.body}>
-            The host actor resolver did not grant this account admin access.
-          </Text>
-          <UserButton />
-        </Centered>
       ) : (
-        <Stack
-          screenOptions={{
-            headerShadowVisible: false,
-            contentStyle: { backgroundColor: adminTheme.background },
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="feedback/[entryId]"
-            options={{ title: "Feedback", presentation: "modal" }}
-          />
-        </Stack>
+        <AdminAccessCheck key={retryCount} onRetry={retry} />
       )}
       <Modal
         visible={authOpen}
@@ -155,6 +84,67 @@ function AdminGate() {
         <AuthView onDismiss={() => setAuthOpen(false)} />
       </Modal>
     </View>
+  );
+}
+
+function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
+  const accessCheck = useQuery_experimental({
+    query: anyApi.feedback.isAdmin,
+    args: {},
+  });
+  const errorMessage =
+    accessCheck.status === "error"
+      ? accessCheck.error.message
+      : undefined;
+
+  useEffect(() => {
+    if (errorMessage === undefined) return;
+    Alert.alert("Unable to verify access", errorMessage, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Retry", onPress: onRetry },
+    ]);
+  }, [errorMessage, onRetry]);
+
+  if (accessCheck.status === "pending") {
+    return (
+      <Centered>
+        <ActivityIndicator color={adminTheme.primary} />
+      </Centered>
+    );
+  }
+  if (accessCheck.status === "error") {
+    return (
+      <Centered>
+        <Text style={styles.title}>Unable to verify access</Text>
+        <Text style={styles.body}>{errorMessage}</Text>
+        <Button title="Retry" color={adminTheme.primary} onPress={onRetry} />
+      </Centered>
+    );
+  }
+  if (!accessCheck.data) {
+    return (
+      <Centered>
+        <Text style={styles.title}>Admin access required</Text>
+        <Text style={styles.body}>
+          The host actor resolver did not grant this account admin access.
+        </Text>
+        <UserButton />
+      </Centered>
+    );
+  }
+  return (
+    <Stack
+      screenOptions={{
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: adminTheme.background },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="feedback/[entryId]"
+        options={{ title: "Feedback", presentation: "modal" }}
+      />
+    </Stack>
   );
 }
 

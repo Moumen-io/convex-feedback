@@ -1,10 +1,14 @@
 import { ClerkProvider, SignIn, UserButton, useAuth } from "@clerk/react";
-import { ConvexReactClient, useConvexAuth } from "convex/react";
+import {
+  ConvexReactClient,
+  useConvexAuth,
+  useQuery_experimental,
+} from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { anyApi } from "convex/server";
 import { InboxIcon, MapIcon, ShieldXIcon } from "lucide-react";
 import { ThemeProvider } from "next-themes";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { InboxView } from "@/components/inbox";
@@ -52,46 +56,33 @@ function AuthGate() {
 
 function AdminGate() {
   const { isAuthenticated } = useConvexAuth();
-  const [accessCheck, setAccessCheck] = useState<AccessCheck>({
-    attempt: -1,
-    status: "loading",
-  });
   const [retryCount, setRetryCount] = useState(0);
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    let active = true;
-    void convex
-      .query(anyApi.feedback.isAdmin, {})
-      .then((result) => {
-        if (active) {
-          setAccessCheck({
-            attempt: retryCount,
-            status: result ? "allowed" : "denied",
-          });
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!active) return;
-        const message =
-          reason instanceof Error
-            ? reason.message
-            : "Unable to verify admin access.";
-        setAccessCheck({ attempt: retryCount, status: "error", message });
-        toast.error(message, {
-          action: {
-            label: "Retry",
-            onClick: () => setRetryCount((value) => value + 1),
-          },
-        });
-      });
-    return () => {
-      active = false;
-    };
-  }, [isAuthenticated, retryCount]);
+  const retry = useCallback(() => {
+    setRetryCount((value) => value + 1);
+  }, []);
 
-  if (!isAuthenticated || accessCheck.attempt !== retryCount) {
-    return <LoadingScreen />;
-  }
+  if (!isAuthenticated) return <LoadingScreen />;
+  return <AdminAccessCheck key={retryCount} onRetry={retry} />;
+}
+
+function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
+  const accessCheck = useQuery_experimental({
+    query: anyApi.feedback.isAdmin,
+    args: {},
+  });
+  const errorMessage =
+    accessCheck.status === "error"
+      ? accessCheck.error.message
+      : undefined;
+
+  useEffect(() => {
+    if (errorMessage === undefined) return;
+    toast.error(errorMessage, {
+      action: { label: "Retry", onClick: onRetry },
+    });
+  }, [errorMessage, onRetry]);
+
+  if (accessCheck.status === "pending") return <LoadingScreen />;
   if (accessCheck.status === "error") {
     return (
       <main className="grid min-h-svh place-items-center p-6">
@@ -100,16 +91,13 @@ function AdminGate() {
             <ShieldXIcon className="size-5" />
           </span>
           <h1 className="text-lg font-semibold">Unable to verify access</h1>
-          <p className="text-sm text-muted-foreground">{accessCheck.message}</p>
-          <Button onClick={() => setRetryCount((value) => value + 1)}>
-            Retry
-          </Button>
+          <p className="text-sm text-muted-foreground">{errorMessage}</p>
+          <Button onClick={onRetry}>Retry</Button>
         </div>
       </main>
     );
   }
-  if (accessCheck.status === "loading" || accessCheck.status === "denied") {
-    if (accessCheck.status === "loading") return <LoadingScreen />;
+  if (!accessCheck.data) {
     return (
       <main className="grid min-h-svh place-items-center p-6">
         <div className="flex max-w-sm flex-col items-center gap-3 text-center">
@@ -128,11 +116,6 @@ function AdminGate() {
   }
   return <AdminShell />;
 }
-
-type AccessCheck =
-  | { attempt: number; status: "loading" }
-  | { attempt: number; status: "allowed" | "denied" }
-  | { attempt: number; status: "error"; message: string };
 
 function AdminShell() {
   const [view, setView] = useState<"inbox" | "roadmap">("inbox");

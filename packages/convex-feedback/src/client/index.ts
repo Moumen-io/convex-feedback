@@ -610,6 +610,7 @@ function buildFeedbackApi<
     updateEntry: mutationGeneric({
       args: {
         entryId: v.string(),
+        kind: v.optional(entryKindValidator),
         title: v.string(),
         body: v.string(),
       },
@@ -626,6 +627,7 @@ function buildFeedbackApi<
         return await ctx.runMutation(component.entries.update, {
           actor,
           entryId: args.entryId,
+          ...(args.kind === undefined ? {} : { kind: args.kind }),
           title: args.title,
           body: args.body,
           editableByAuthor: config.entries.editableByAuthor,

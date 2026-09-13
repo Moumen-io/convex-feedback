@@ -541,6 +541,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           body: string;
           editableByAuthor: boolean;
           entryId: string;
+          kind?: "feedback" | "feature_request" | "bug_report";
           maxBodyLength: number;
           maxTitleLength: number;
           title: string;

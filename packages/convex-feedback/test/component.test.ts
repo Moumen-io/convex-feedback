@@ -96,6 +96,40 @@ describe("convex-feedback component", () => {
     expect(entry?.viewerHasUpvoted).toBe(true);
   });
 
+  test("only admins can change an entry kind", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance);
+    const updateArgs = {
+      entryId,
+      title: "Updated title",
+      body: "Updated body.",
+      editableByAuthor: true,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    };
+
+    await expect(
+      testInstance.mutation(api.entries.update, {
+        ...updateArgs,
+        actor: { id: "author-1" },
+        kind: "bug_report",
+      }),
+    ).rejects.toThrow("Admin access is required to change entry kind.");
+
+    await testInstance.mutation(api.entries.update, {
+      ...updateArgs,
+      actor: { id: "admin-1", isAdmin: true },
+      kind: "bug_report",
+    });
+
+    const updated = await testInstance.query(api.entries.get, { entryId });
+    expect(updated).toMatchObject({
+      kind: "bug_report",
+      title: "Updated title",
+      body: "Updated body.",
+    });
+  });
+
   test("admin priority stays private from public entries", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance, "Admin triage target");

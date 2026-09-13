@@ -158,6 +158,9 @@ export type UpdateEntryArgs = {
   /** Entry to update. */
   entryId: string;
 
+  /** Optional replacement category. Omit to keep the current category. */
+  kind?: EntryKind;
+
   /** Complete replacement title. */
   title: string;
 

@@ -1,13 +1,20 @@
-import type { EntryPriority, EntryStatus } from "convex-feedback";
+import type {
+  AdminFeedbackEntry,
+  EntryKind,
+  EntryPriority,
+  EntryStatus,
+  RoadmapItem,
+} from "convex-feedback";
 import {
   CheckIcon,
+  ChevronUp,
   CornerDownRightIcon,
   MessageSquareIcon,
+  PencilIcon,
   PlusIcon,
   SearchIcon,
-  ThumbsUpIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +62,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useAdminAction } from "@/lib/action";
@@ -74,22 +82,38 @@ const priorityItems = [
   { label: "Medium", value: "medium" },
   { label: "High", value: "high" },
 ];
+const kindItems: { label: string; value: EntryKind }[] = [
+  { label: "Feedback", value: "feedback" },
+  { label: "Feature request", value: "feature_request" },
+  { label: "Bug report", value: "bug_report" },
+];
 
 export function FeedbackSheet({
   entryId,
   onClose,
+  onOpenRoadmap,
 }: {
   entryId: string | null;
   onClose: () => void;
+  onOpenRoadmap: (roadmapId: string, roadmapItem?: RoadmapItem) => void;
 }) {
   const entry = feedbackHooks.useAdminEntry(entryId);
   const setStatus = feedbackHooks.useSetEntryStatus();
   const setPriority = feedbackHooks.useSetEntryPriority();
   const detachRoadmap = feedbackHooks.useDetachFeedbackFromRoadmap();
   const action = useAdminAction();
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
-    <Sheet open={entryId !== null} onOpenChange={(open) => !open && onClose()}>
+    <Sheet
+      open={entryId !== null}
+      onOpenChange={(open) => {
+        if (!open) {
+          setEditOpen(false);
+          onClose();
+        }
+      }}
+    >
       <SheetContent className="w-full sm:max-w-2xl">
         {entry === undefined || entry === null ? (
           <div className="flex flex-col gap-4 p-5">
@@ -105,12 +129,22 @@ export function FeedbackSheet({
                   {entry.kind.replaceAll("_", " ")}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  #{entry.id.slice(-6)}
+                  #{entry.id}
                 </span>
               </div>
-              <SheetTitle className="text-xl leading-tight">
-                {entry.title}
-              </SheetTitle>
+              <div className="flex items-start justify-between gap-3 pr-8">
+                <SheetTitle className="text-xl leading-tight">
+                  {entry.title}
+                </SheetTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditOpen(true)}
+                >
+                  <PencilIcon data-icon="inline-start" />
+                  Edit
+                </Button>
+              </div>
               <SheetDescription>
                 Submitted {new Date(entry.creationTime).toLocaleDateString()}
               </SheetDescription>
@@ -164,10 +198,7 @@ export function FeedbackSheet({
                   {entry.body}
                 </p>
                 <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <ThumbsUpIcon className="size-3" />
-                    {entry.upvoteCount} upvotes
-                  </span>
+                  <AdminEntryUpvote entry={entry} />
                   <span className="inline-flex items-center gap-1">
                     <MessageSquareIcon className="size-3" />
                     {entry.commentCount} comments
@@ -183,40 +214,202 @@ export function FeedbackSheet({
                       Attach this signal to one deliverable.
                     </p>
                   </div>
-                  {entry.roadmap && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={action.pending}
-                      onClick={() =>
-                        void action.run(
-                          () => detachRoadmap({ entryId: entry.id }),
-                          "Roadmap item detached",
-                        )
-                      }
-                    >
-                      Detach
-                    </Button>
-                  )}
                 </div>
                 {entry.roadmap ? (
                   <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
-                    <span>{entry.roadmap.title}</span>
-                    <Badge variant="secondary">
-                      {entry.roadmap.status.replaceAll("_", " ")}
-                    </Badge>
+                    <Button
+                      variant="link"
+                      className="min-w-0 justify-start truncate px-0 font-normal"
+                      onClick={() =>
+                        onOpenRoadmap(entry.roadmap!.id, entry.roadmap)
+                      }
+                    >
+                      <span className="truncate">{entry.roadmap.title}</span>
+                    </Button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge variant="secondary">
+                        {entry.roadmap.status.replaceAll("_", " ")}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={action.pending}
+                        onClick={() =>
+                          void action.run(
+                            () => detachRoadmap({ entryId: entry.id }),
+                            "Roadmap item detached",
+                          )
+                        }
+                      >
+                        Detach
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <RoadmapSelector entryId={entry.id} />
                 )}
               </section>
               <Separator />
-              <Discussion entryId={entry.id} />
+              <Discussion
+                entryId={entry.id}
+                commentCount={entry.commentCount}
+              />
             </div>
           </>
         )}
       </SheetContent>
+      {entry && (
+        <EntryEditorDialog
+          key={editOpen ? entry.id : "entry-edit-closed"}
+          entry={entry}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
     </Sheet>
+  );
+}
+
+function AdminEntryUpvote({ entry }: { entry: AdminFeedbackEntry }) {
+  const setUpvote = feedbackHooks.useSetEntryUpvote();
+  const action = useAdminAction();
+  const active = entry.viewerHasUpvoted;
+
+  return (
+    <Button
+      variant={active ? "default" : "secondary"}
+      size="sm"
+      disabled={action.pending}
+      aria-pressed={active}
+      aria-label={active ? "Remove entry upvote" : "Upvote entry"}
+      onClick={() =>
+        void action.run(
+          () => setUpvote({ entryId: entry.id, desiredState: !active }),
+          active ? "Upvote removed" : "Entry upvoted",
+        )
+      }
+    >
+      <ChevronUp data-icon="inline-start" />
+      {active ? "Upvoted" : "Upvote"}
+      <span>{entry.upvoteCount}</span>
+    </Button>
+  );
+}
+
+export function EntryEditorDialog({
+  entry,
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  entry: AdminFeedbackEntry | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated?: (entryId: string) => void;
+}) {
+  const [title, setTitle] = useState(entry?.title ?? "");
+  const [body, setBody] = useState(entry?.body ?? "");
+  const [kind, setKind] = useState<EntryKind>(entry?.kind ?? "feedback");
+  const create = feedbackHooks.useCreateEntry();
+  const update = feedbackHooks.useUpdateEntry();
+  const action = useAdminAction();
+  const isCreate = entry === null;
+
+  const save = async () => {
+    let createdEntryId: string | undefined;
+    const succeeded = await action.run(
+      async () => {
+        if (entry) {
+          await update({ entryId: entry.id, kind, title, body });
+        } else {
+          createdEntryId = await create({ kind, title, body });
+        }
+      },
+      isCreate ? "Entry created" : "Entry updated",
+    );
+    if (succeeded) {
+      onOpenChange(false);
+      if (createdEntryId) onCreated?.(createdEntryId);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => !action.pending && onOpenChange(nextOpen)}
+    >
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{isCreate ? "Create entry" : "Edit entry"}</DialogTitle>
+          <DialogDescription>
+            {isCreate
+              ? "Capture a new customer signal for the inbox."
+              : "Update the entry details, including its category."}
+          </DialogDescription>
+        </DialogHeader>
+        <FieldGroup>
+          <Field>
+            <FieldLabel>Kind</FieldLabel>
+            <Select
+              items={kindItems}
+              value={kind}
+              disabled={action.pending}
+              onValueChange={(next) => {
+                if (next) setKind(next as EntryKind);
+              }}
+            >
+              <SelectTrigger className="w-full" aria-label="Change entry kind">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false}>
+                <SelectGroup>
+                  {kindItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="feedback-entry-title">Title</FieldLabel>
+            <Input
+              id="feedback-entry-title"
+              autoFocus={isCreate}
+              value={title}
+              disabled={action.pending}
+              onChange={(event) => setTitle(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="feedback-entry-body">Description</FieldLabel>
+            <Textarea
+              id="feedback-entry-body"
+              value={body}
+              disabled={action.pending}
+              onChange={(event) => setBody(event.target.value)}
+            />
+          </Field>
+        </FieldGroup>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            disabled={action.pending}
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={!title.trim() || !body.trim() || action.pending}
+            onClick={() => void save()}
+          >
+            {action.pending && <Spinner data-icon="inline-start" />}
+            {isCreate ? "Create entry" : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -424,15 +617,78 @@ function CreateRoadmapDialog({
   );
 }
 
-function Discussion({ entryId }: { entryId: string }) {
+function Discussion({
+  entryId,
+  commentCount,
+}: {
+  entryId: string;
+  commentCount: number;
+}) {
   const comments = feedbackHooks.useComments({ entryId, sort: "oldest" });
+  const createComment = feedbackHooks.useCreateComment();
+  const action = useAdminAction();
+  const [body, setBody] = useState("");
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!body.trim()) return;
+    const succeeded = await action.run(
+      () => createComment({ entryId, body }),
+      "Comment added",
+    );
+    if (succeeded) setBody("");
+  };
+
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium">Discussion</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-medium">Discussion</h2>
+        <Badge variant="secondary">{commentCount}</Badge>
+      </div>
+      <form
+        className="flex flex-col gap-2"
+        onSubmit={(event) => void submit(event)}
+      >
+        <FieldGroup>
+          <Field>
+            <FieldLabel className="sr-only" htmlFor="new-comment">
+              Add a comment
+            </FieldLabel>
+            <Textarea
+              id="new-comment"
+              value={body}
+              disabled={action.pending}
+              onChange={(event) => setBody(event.target.value)}
+              placeholder="Add a comment…"
+              rows={3}
+            />
+          </Field>
+        </FieldGroup>
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!body.trim() || action.pending}
+          >
+            {action.pending && <Spinner data-icon="inline-start" />}
+            Add comment
+          </Button>
+        </div>
+      </form>
       {comments.status === "LoadingFirstPage" ? (
         <p className="text-sm text-muted-foreground">Loading comments…</p>
       ) : comments.results.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No comments yet.</p>
+        commentCount === 0 ? (
+          <p className="text-sm text-muted-foreground">No comments yet.</p>
+        ) : (
+          <div className="rounded-lg border border-dashed p-3">
+            <p className="text-sm text-muted-foreground">
+              {commentCount}{" "}
+              {commentCount === 1 ? "comment is" : "comments are"} recorded, but
+              no top-level messages are available.
+            </p>
+          </div>
+        )
       ) : (
         comments.results.map((comment) => (
           <AdminCommentBranch
@@ -456,22 +712,174 @@ function Discussion({ entryId }: { entryId: string }) {
   );
 }
 
+type AdminComment = ReturnType<
+  typeof feedbackHooks.useComments
+>["results"][number];
+
 function AdminCommentBranch({
   entryId,
   comment,
 }: {
   entryId: string;
-  comment: ReturnType<typeof feedbackHooks.useComments>["results"][number];
+  comment: AdminComment;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState(comment.body ?? "");
+  const [replying, setReplying] = useState(false);
+  const [replyBody, setReplyBody] = useState("");
+  const updateComment = feedbackHooks.useUpdateComment();
+  const createComment = feedbackHooks.useCreateComment();
+  const editAction = useAdminAction();
+  const replyAction = useAdminAction();
+
+  const saveEdit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editBody.trim()) return;
+    const succeeded = await editAction.run(
+      () => updateComment({ commentId: comment.id, body: editBody }),
+      "Comment updated",
+    );
+    if (succeeded) setEditing(false);
+  };
+
+  const submitReply = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!replyBody.trim()) return;
+    const succeeded = await replyAction.run(
+      () =>
+        createComment({
+          entryId,
+          parentCommentId: comment.id,
+          body: replyBody,
+        }),
+      "Reply added",
+    );
+    if (succeeded) {
+      setReplyBody("");
+      setReplying(false);
+      setExpanded(true);
+    }
+  };
+
   return (
     <div className="flex gap-2 text-sm">
       <CornerDownRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground">{comment.actorId}</p>
-        <p className="mt-1 whitespace-pre-wrap">
-          {comment.body ?? "Comment deleted"}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            {comment.actorId} ·{" "}
+            {new Date(comment.creationTime).toLocaleString()}
+          </p>
+          {comment.body !== null && (
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                variant="link"
+                size="xs"
+                className="h-auto px-0"
+                onClick={() => {
+                  setEditBody(comment.body ?? "");
+                  setEditing((value) => !value);
+                }}
+              >
+                Edit
+              </Button>
+              <Button
+                variant="link"
+                size="xs"
+                className="h-auto px-0"
+                onClick={() => setReplying((value) => !value)}
+              >
+                Reply
+              </Button>
+            </div>
+          )}
+        </div>
+        {editing ? (
+          <form
+            className="mt-2 flex flex-col gap-2"
+            onSubmit={(event) => void saveEdit(event)}
+          >
+            <FieldGroup>
+              <Field>
+                <FieldLabel className="sr-only" htmlFor={`edit-${comment.id}`}>
+                  Edit comment
+                </FieldLabel>
+                <Textarea
+                  id={`edit-${comment.id}`}
+                  value={editBody}
+                  disabled={editAction.pending}
+                  onChange={(event) => setEditBody(event.target.value)}
+                  rows={3}
+                />
+              </Field>
+            </FieldGroup>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={editAction.pending}
+                onClick={() => setEditing(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!editBody.trim() || editAction.pending}
+              >
+                {editAction.pending && <Spinner data-icon="inline-start" />}
+                Save
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <p className="mt-1 whitespace-pre-wrap">
+            {comment.body ?? "Comment deleted"}
+          </p>
+        )}
+        {replying && comment.body !== null && (
+          <form
+            className="mt-3 flex flex-col gap-2 border-l pl-3"
+            onSubmit={(event) => void submitReply(event)}
+          >
+            <FieldGroup>
+              <Field>
+                <FieldLabel className="sr-only" htmlFor={`reply-${comment.id}`}>
+                  Reply to comment
+                </FieldLabel>
+                <Textarea
+                  id={`reply-${comment.id}`}
+                  value={replyBody}
+                  disabled={replyAction.pending}
+                  onChange={(event) => setReplyBody(event.target.value)}
+                  placeholder="Write a reply…"
+                  rows={2}
+                />
+              </Field>
+            </FieldGroup>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={replyAction.pending}
+                onClick={() => setReplying(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!replyBody.trim() || replyAction.pending}
+              >
+                {replyAction.pending && <Spinner data-icon="inline-start" />}
+                Reply
+              </Button>
+            </div>
+          </form>
+        )}
         {comment.replyCount > 0 && (
           <>
             <Button

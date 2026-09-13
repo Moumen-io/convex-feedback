@@ -1,4 +1,5 @@
 import { ClerkProvider, SignIn, UserButton, useAuth } from "@clerk/react";
+import type { RoadmapItem } from "convex-feedback";
 import {
   ConvexReactClient,
   useConvexAuth,
@@ -117,10 +118,38 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
 
 function AdminShell() {
   const [view, setView] = useState<"inbox" | "roadmap">("inbox");
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(
+    null,
+  );
+  const [selectedRoadmapItem, setSelectedRoadmapItem] =
+    useState<RoadmapItem | null>(null);
   const nav = [
     { value: "inbox" as const, label: "Inbox", icon: InboxIcon },
     { value: "roadmap" as const, label: "Roadmap", icon: MapIcon },
   ];
+
+  const openEntry = (entryId: string) => {
+    setView("inbox");
+    setSelectedEntryId(entryId);
+    setSelectedRoadmapId(null);
+    setSelectedRoadmapItem(null);
+  };
+
+  const openRoadmap = (roadmapId: string, roadmapItem?: RoadmapItem) => {
+    setView("roadmap");
+    setSelectedRoadmapId(roadmapId);
+    setSelectedRoadmapItem(roadmapItem ?? null);
+    setSelectedEntryId(null);
+  };
+
+  const changeView = (nextView: "inbox" | "roadmap") => {
+    setView(nextView);
+    setSelectedEntryId(null);
+    setSelectedRoadmapId(null);
+    setSelectedRoadmapItem(null);
+  };
+
   return (
     <main className="grid min-h-svh bg-background md:grid-cols-[13rem_minmax(0,1fr)]">
       <aside className="flex items-center justify-between border-b bg-sidebar px-3 py-3 md:flex-col md:items-stretch md:border-r md:border-b-0 md:py-4">
@@ -136,7 +165,7 @@ function AdminShell() {
               key={value}
               variant={view === value ? "secondary" : "ghost"}
               className="justify-start"
-              onClick={() => setView(value)}
+              onClick={() => changeView(value)}
             >
               <Icon data-icon="inline-start" />{" "}
               <span className="hidden sm:inline">{label}</span>
@@ -149,8 +178,21 @@ function AdminShell() {
         </div>
       </aside>
       <div className="flex min-h-0 min-w-0 flex-col md:h-svh">
-        {view === "inbox" && <InboxView />}
-        {view === "roadmap" && <RoadmapView />}
+        {view === "inbox" && (
+          <InboxView
+            entryId={selectedEntryId}
+            onEntryIdChange={setSelectedEntryId}
+            onOpenRoadmap={openRoadmap}
+          />
+        )}
+        {view === "roadmap" && (
+          <RoadmapView
+            selectedId={selectedRoadmapId}
+            selectedItem={selectedRoadmapItem}
+            onSelectedIdChange={setSelectedRoadmapId}
+            onOpenEntry={openEntry}
+          />
+        )}
       </div>
     </main>
   );

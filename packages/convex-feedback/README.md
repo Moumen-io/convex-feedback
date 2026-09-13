@@ -445,7 +445,7 @@ The wrapper exposes:
 | `findSimilarEntries`    | query    | Exact + similar duplicate suggestions                |
 | `isAuthenticated`       | query    | Whether the current request has an actor             |
 | `createEntry`           | mutation | Create feedback                                      |
-| `updateEntry`           | mutation | Edit author-owned or admin-managed feedback          |
+| `updateEntry`           | mutation | Edit feedback; admins may also change its kind       |
 | `setEntryStatus`        | mutation | Admin workflow status change                         |
 | `setEntryUpvote`        | mutation | Idempotently set entry upvote state                  |
 | `listComments`          | query    | One paginated direct-child comment level             |

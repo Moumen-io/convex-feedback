@@ -48,16 +48,26 @@ const stages: { value: RoadmapStatus; label: string }[] = [
   { value: "shipped", label: "Shipped" },
 ];
 
-export function RoadmapView() {
+export function RoadmapView({
+  selectedId,
+  selectedItem,
+  onSelectedIdChange,
+  onOpenEntry,
+}: {
+  selectedId: string | null;
+  selectedItem: RoadmapItem | null;
+  onSelectedIdChange: (roadmapId: string | null) => void;
+  onOpenEntry: (entryId: string) => void;
+}) {
   const roadmap = feedbackHooks.useRoadmap();
   const items = roadmap.results;
   const move = feedbackHooks.useMoveRoadmapItem();
   const moveAction = useAdminAction();
   const [createOpen, setCreateOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const selected =
-    items?.find((candidate) => candidate.id === selectedId) ?? null;
+    items?.find((candidate) => candidate.id === selectedId) ??
+    (selectedItem?.id === selectedId ? selectedItem : null);
 
   const moveTo = async (
     item: RoadmapItem,
@@ -157,7 +167,7 @@ export function RoadmapView() {
           </Button>
         </div>
       </header>
-      <div className="grid min-h-0 flex-1 gap-px overflow-x-auto bg-border lg:grid-cols-3">
+      <div className="grid min-h-0 flex-1 auto-cols-[minmax(20rem,1fr)] grid-flow-col gap-px overflow-x-auto bg-border lg:grid-cols-3 lg:grid-flow-row">
         {stages.map((stage) => {
           const stageItems = (items ?? [])
             .filter((item) => item.status === stage.value)
@@ -165,122 +175,124 @@ export function RoadmapView() {
           return (
             <section
               key={stage.value}
-              className="min-w-80 bg-background"
+              className="flex min-h-0 min-w-80 flex-col bg-background"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => dropAtEnd(event, stage.value, stageItems)}
             >
-              <div className="sticky top-0 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur">
+              <div className="flex shrink-0 items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur">
                 <h2 className="text-sm font-medium">{stage.label}</h2>
                 <Badge variant="secondary">{stageItems.length}</Badge>
               </div>
-              <div className="flex flex-col gap-2 p-3">
-                {roadmap.status === "LoadingFirstPage" ? (
-                  [0, 1, 2].map((index) => (
-                    <Skeleton key={index} className="h-28 w-full" />
-                  ))
-                ) : stageItems.length === 0 ? (
-                  <Empty className="min-h-40">
-                    <EmptyHeader>
-                      <EmptyTitle>No items</EmptyTitle>
-                      <EmptyDescription>
-                        Drag an item here or create one.
-                      </EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                ) : (
-                  stageItems.map((item) => (
-                    <article
-                      key={item.id}
-                      draggable
-                      onDragStart={(event) => {
-                        event.dataTransfer.effectAllowed = "move";
-                        setDraggingId(item.id);
-                      }}
-                      onDragEnd={() => setDraggingId(null)}
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                      }}
-                      onDrop={(event) => {
-                        const dragged = getDraggingItem();
-                        if (dragged) {
-                          dropOnItem(
-                            event,
-                            dragged,
-                            item,
-                            stage.value,
-                            stageItems,
-                          );
-                        }
-                      }}
-                      className="group rounded-xl border bg-card p-3 shadow-sm transition-transform hover:-translate-y-0.5"
-                    >
-                      <button
-                        type="button"
-                        className="w-full text-left"
-                        onClick={() => setSelectedId(item.id)}
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="flex flex-col gap-2 p-3">
+                  {roadmap.status === "LoadingFirstPage" ? (
+                    [0, 1, 2].map((index) => (
+                      <Skeleton key={index} className="h-28 w-full" />
+                    ))
+                  ) : stageItems.length === 0 ? (
+                    <Empty className="min-h-40">
+                      <EmptyHeader>
+                        <EmptyTitle>No items</EmptyTitle>
+                        <EmptyDescription>
+                          Drag an item here or create one.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                  ) : (
+                    stageItems.map((item) => (
+                      <article
+                        key={item.id}
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.effectAllowed = "move";
+                          setDraggingId(item.id);
+                        }}
+                        onDragEnd={() => setDraggingId(null)}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                        onDrop={(event) => {
+                          const dragged = getDraggingItem();
+                          if (dragged) {
+                            dropOnItem(
+                              event,
+                              dragged,
+                              item,
+                              stage.value,
+                              stageItems,
+                            );
+                          }
+                        }}
+                        className="group rounded-xl border bg-card p-3 shadow-sm transition-transform hover:-translate-y-0.5"
                       >
-                        <span className="flex items-start gap-2">
-                          <GripVerticalIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                          <span className="font-medium leading-5">
-                            {item.title}
+                        <button
+                          type="button"
+                          className="w-full text-left"
+                          onClick={() => onSelectedIdChange(item.id)}
+                        >
+                          <span className="flex items-start gap-2">
+                            <GripVerticalIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                            <span className="font-medium leading-5">
+                              {item.title}
+                            </span>
                           </span>
-                        </span>
-                        {item.description && (
-                          <span className="mt-2 line-clamp-2 block text-sm text-muted-foreground">
-                            {item.description}
+                          {item.description && (
+                            <span className="mt-2 line-clamp-2 block text-sm text-muted-foreground">
+                              {item.description}
+                            </span>
+                          )}
+                          <span className="mt-3 block text-xs text-muted-foreground">
+                            {item.feedbackCount} linked{" "}
+                            {item.feedbackCount === 1 ? "entry" : "entries"}
                           </span>
-                        )}
-                        <span className="mt-3 block text-xs text-muted-foreground">
-                          {item.feedbackCount} linked{" "}
-                          {item.feedbackCount === 1 ? "entry" : "entries"}
-                        </span>
-                      </button>
-                      <div className="mt-3 flex justify-end gap-1 opacity-70 transition-opacity group-hover:opacity-100">
-                        {stage.value !== "planned" && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Move to previous stage"
-                            disabled={moveAction.pending}
-                            onClick={() =>
-                              void moveTo(
-                                item,
-                                stages[
-                                  stages.findIndex(
-                                    (value) => value.value === stage.value,
-                                  ) - 1
-                                ]!.value,
-                              )
-                            }
-                          >
-                            <ArrowLeftIcon />
-                          </Button>
-                        )}
-                        {stage.value !== "shipped" && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Move to next stage"
-                            disabled={moveAction.pending}
-                            onClick={() =>
-                              void moveTo(
-                                item,
-                                stages[
-                                  stages.findIndex(
-                                    (value) => value.value === stage.value,
-                                  ) + 1
-                                ]!.value,
-                              )
-                            }
-                          >
-                            <ArrowRightIcon />
-                          </Button>
-                        )}
-                      </div>
-                    </article>
-                  ))
-                )}
+                        </button>
+                        <div className="mt-3 flex justify-end gap-1 opacity-70 transition-opacity group-hover:opacity-100">
+                          {stage.value !== "planned" && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Move to previous stage"
+                              disabled={moveAction.pending}
+                              onClick={() =>
+                                void moveTo(
+                                  item,
+                                  stages[
+                                    stages.findIndex(
+                                      (value) => value.value === stage.value,
+                                    ) - 1
+                                  ]!.value,
+                                )
+                              }
+                            >
+                              <ArrowLeftIcon />
+                            </Button>
+                          )}
+                          {stage.value !== "shipped" && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Move to next stage"
+                              disabled={moveAction.pending}
+                              onClick={() =>
+                                void moveTo(
+                                  item,
+                                  stages[
+                                    stages.findIndex(
+                                      (value) => value.value === stage.value,
+                                    ) + 1
+                                  ]!.value,
+                                )
+                              }
+                            >
+                              <ArrowRightIcon />
+                            </Button>
+                          )}
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
               </div>
             </section>
           );
@@ -293,7 +305,8 @@ export function RoadmapView() {
       />
       <RoadmapDetail
         item={selected}
-        onOpenChange={(open) => !open && setSelectedId(null)}
+        onOpenChange={(open) => !open && onSelectedIdChange(null)}
+        onOpenEntry={onOpenEntry}
       />
     </section>
   );
@@ -391,9 +404,11 @@ function RoadmapEditor({
 function RoadmapDetail({
   item,
   onOpenChange,
+  onOpenEntry,
 }: {
   item: RoadmapItem | null;
   onOpenChange: (open: boolean) => void;
+  onOpenEntry: (entryId: string) => void;
 }) {
   const feedback = feedbackHooks.useRoadmapFeedback(item?.id);
   const detach = feedbackHooks.useDetachFeedbackFromRoadmap();
@@ -467,7 +482,13 @@ function RoadmapDetail({
                 key={entry.id}
                 className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm"
               >
-                <span className="truncate">{entry.title}</span>
+                <Button
+                  variant="ghost"
+                  className="min-w-0 justify-start truncate px-1 text-left font-normal"
+                  onClick={() => onOpenEntry(entry.id)}
+                >
+                  <span className="truncate">{entry.title}</span>
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"

@@ -609,6 +609,7 @@ export const update = mutation({
   args: {
     actor: actorValidator,
     entryId: v.id("entries"),
+    kind: v.optional(entryKindValidator),
     title: v.string(),
     body: v.string(),
     editableByAuthor: v.boolean(),
@@ -625,6 +626,11 @@ export const update = mutation({
       actorIsAdmin(args.actor) ||
       (args.editableByAuthor && entry.actorId === args.actor.id);
     if (!canEdit) throw new ConvexError("Not authorized to edit this entry.");
+    if (args.kind !== undefined && args.kind !== entry.kind) {
+      if (!actorIsAdmin(args.actor)) {
+        throw new ConvexError("Admin access is required to change entry kind.");
+      }
+    }
 
     const title = normalizeRequiredText(
       args.title,
@@ -634,6 +640,7 @@ export const update = mutation({
     const body = normalizeRequiredText(args.body, "Body", args.maxBodyLength);
 
     await ctx.db.patch("entries", args.entryId, {
+      kind: args.kind ?? entry.kind,
       title,
       body,
       normalizedTitle: normalizeTitle(title),

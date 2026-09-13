@@ -8,13 +8,14 @@ import {
 } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { anyApi } from "convex/server";
-import { Stack } from "expo-router";
+import { NativeStackNavigationOptions, Stack } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Button,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -175,17 +176,18 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function modalScreenOptions(title: string) {
+function modalScreenOptions(title: string): NativeStackNavigationOptions {
+  const isIos = Platform.OS === "ios";
+
   return {
     title,
-    presentation: "formSheet" as const,
+    presentation: isIos ? "formSheet" : "modal",
     headerShown: true,
+    headerTransparent: true,
     headerBackVisible: false,
     contentStyle: { backgroundColor: "transparent" },
-    sheetAllowedDetents: [0.88, 1],
-    sheetInitialDetentIndex: 1,
+    sheetAllowedDetents: [0.65, 1],
     sheetGrabberVisible: true,
-    sheetLargestUndimmedDetentIndex: "last" as const,
   };
 }
 

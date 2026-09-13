@@ -7,6 +7,7 @@ export default function InboxLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
+        headerTransparent: true,
         headerBackButtonDisplayMode: "minimal",
         headerTintColor: adminTheme.text,
         contentStyle: { backgroundColor: adminTheme.background },

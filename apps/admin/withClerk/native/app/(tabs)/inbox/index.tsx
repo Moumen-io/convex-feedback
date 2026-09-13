@@ -161,7 +161,7 @@ export default function InboxScreen() {
           }}
           onEndReachedThreshold={0.4}
           keyExtractor={(entry) => entry.id}
-          contentContainerStyle={
+          style={
             entries.length === 0
               ? [
                   styles.emptyList,
@@ -174,11 +174,21 @@ export default function InboxScreen() {
               : [
                   styles.list,
                   {
-                    paddingBottom: 12,
+                    paddingBottom: 24,
                     paddingLeft: 12 + insets.left,
                     paddingRight: 12 + insets.right,
+                    borderRadius: 24,
+                    overflow: "hidden",
                   },
                 ]
+          }
+          contentContainerStyle={
+            entries.length === 0
+              ? styles.emptyList
+              : {
+                  borderRadius: 24,
+                  overflow: "hidden",
+                }
           }
           ListEmptyComponent={
             page.status === "Exhausted" ? (

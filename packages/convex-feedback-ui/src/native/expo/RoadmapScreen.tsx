@@ -1,5 +1,4 @@
 import { Stack, useRouter } from "expo-router";
-import { useHeaderHeight } from "expo-router/build/react-navigation/elements";
 import { useRef, useState } from "react";
 import type { SearchBarCommands } from "react-native-screens";
 
@@ -16,6 +15,7 @@ import type {
   RoadmapAndroidToolbarIcons,
   RoadmapStackScreenOptions,
 } from "./types.js";
+import { useStackHeaderHeight } from "./useStackHeaderHeight.js";
 
 interface RoadmapScreenWithStack {
   /** Enables the current Expo Router stack integration. @default true */
@@ -24,6 +24,10 @@ interface RoadmapScreenWithStack {
   StackOptions?: RoadmapStackScreenOptions;
   /** Android image source for the toolbar back action. */
   androidToolbarIcons?: RoadmapAndroidToolbarIcons;
+  /** Explicit top inset for a transparent stack header. Defaults to the native-stack context. */
+  topInset?: number;
+  /** Explicit bottom inset for a host navigation bar. Defaults to the safe area. */
+  bottomInset?: number;
 }
 
 interface RoadmapScreenWithoutStack {
@@ -82,9 +86,11 @@ function StackedRoadmapScreen({
     mutedColor,
     borderColor,
     dangerColor,
+    topInset,
+    bottomInset,
   } = props;
   const { messages, theme } = useFeedbackUi();
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useStackHeaderHeight();
   const headerTransparent = props.StackOptions?.headerTransparent ?? true;
   const [query, setQuery] = useState("");
   const searchRef = useRef<SearchBarCommands>(null);
@@ -134,7 +140,8 @@ function StackedRoadmapScreen({
         query={query}
         onQueryChange={setQuery}
         showBoardHeader={false}
-        boardTopInset={headerTransparent ? headerHeight : 0}
+        topInset={topInset ?? (headerTransparent ? headerHeight : 0)}
+        bottomInset={bottomInset}
         onEntryOpen={onEntryOpen}
         onUnauthenticated={onUnauthenticated}
         primaryColor={primaryColor}

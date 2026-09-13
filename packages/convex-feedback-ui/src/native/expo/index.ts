@@ -19,6 +19,7 @@ export * from "./FeedbackStackLayout.js";
 export * from "./FeedbackRoutes.js";
 export * from "./RoadmapScreen.js";
 export * from "./RoadmapStackLayout.js";
+export * from "./useStackHeaderHeight.js";
 export * from "./RoadmapRoutes.js";
 export * from "./routes.js";
 export type * from "./types.js";

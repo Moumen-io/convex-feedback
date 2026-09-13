@@ -136,7 +136,9 @@ export interface RoadmapScreenContentProps extends Pick<
   /** Renders the inline title/search header for non-Stack usage. @default true */
   showBoardHeader?: boolean;
   /** Extra top space reserved for a transparent native stack header. */
-  boardTopInset?: number;
+  topInset?: number;
+  /** Bottom space reserved for a host navigation bar. Defaults to the safe area. */
+  bottomInset?: number;
 }
 
 /** Shared screen content used by direct native and Expo Stack integrations. */
@@ -147,7 +149,8 @@ export function RoadmapScreenContent({
   query,
   onQueryChange,
   showBoardHeader = true,
-  boardTopInset,
+  topInset,
+  bottomInset,
   ...colors
 }: RoadmapScreenContentProps) {
   const [selected, setSelected] = useState<RoadmapItem | null>(null);
@@ -161,7 +164,8 @@ export function RoadmapScreenContent({
           query={query}
           onQueryChange={onQueryChange}
           showHeader={showBoardHeader}
-          boardTopInset={boardTopInset}
+          topInset={topInset}
+          bottomInset={bottomInset}
         />
       ) : (
         <RoadmapDetailPage
@@ -182,18 +186,21 @@ export function RoadmapBoardContent({
   query: controlledQuery,
   onQueryChange,
   showHeader = true,
-  boardTopInset = 0,
+  topInset = 0,
+  bottomInset,
 }: {
   pageSize: number;
   onItemOpen: (item: RoadmapItem) => void;
   query?: string;
   onQueryChange?: (query: string) => void;
   showHeader?: boolean;
-  boardTopInset?: number;
+  topInset?: number;
+  bottomInset?: number;
 }) {
   const { hooks } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const insets = useSafeAreaInsets();
+  const resolvedBottomInset = bottomInset ?? insets.bottom;
   const [internalQuery, setInternalQuery] = useState("");
   const query = controlledQuery ?? internalQuery;
   const setQuery = onQueryChange ?? setInternalQuery;
@@ -246,7 +253,8 @@ export function RoadmapBoardContent({
           }))}
           emptyLabel={messages.roadmap.emptyStage}
           loading={loading}
-          topInset={boardTopInset}
+          topInset={topInset}
+          bottomInset={resolvedBottomInset}
           onItemOpen={onItemOpen}
           renderItem={({ item, onOpen }) => (
             <RoadmapCard item={item} onOpen={onOpen} />
@@ -260,7 +268,7 @@ export function RoadmapBoardContent({
           <View
             style={{
               alignItems: "center",
-              paddingBottom: insets.bottom + theme.spacing,
+              paddingBottom: resolvedBottomInset + theme.spacing,
             }}
           >
             <Button

@@ -31,6 +31,8 @@ export function RoadmapStackLayout({
   boardOptions,
   itemOptions,
   androidToolbarIcons = {},
+  topInset,
+  bottomInset,
   primaryColor,
   primaryForeground,
   backgroundColor,
@@ -91,6 +93,8 @@ export function RoadmapStackLayout({
           entryPageSize,
           onEntryOpen,
           boardHeaderTransparent,
+          topInset,
+          bottomInset,
         }}
       >
         <Stack>

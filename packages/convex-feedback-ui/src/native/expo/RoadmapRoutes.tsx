@@ -1,5 +1,4 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useHeaderHeight } from "expo-router/build/react-navigation/elements";
 import { useRef, useState } from "react";
 import { ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,12 +11,13 @@ import {
   RoadmapBoardContent,
   RoadmapItemContent,
 } from "../shared/ui/RoadmapScreen.js";
-import { useRoutedRoadmap } from "./RoutedRoadmapContext.js";
 import {
   parseRoadmapRouteItem,
   roadmapRouteHref,
   roadmapRouteParams,
 } from "./routes.js";
+import { useRoutedRoadmap } from "./RoutedRoadmapContext.js";
+import { useStackHeaderHeight } from "./useStackHeaderHeight.js";
 
 export function RoadmapBoardScreen() {
   const { messages, theme } = useFeedbackUi();
@@ -27,9 +27,11 @@ export function RoadmapBoardScreen() {
     androidToolbarIcons,
     pageSize,
     boardHeaderTransparent,
+    topInset,
+    bottomInset,
   } = useRoutedRoadmap();
   const router = useRouter();
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useStackHeaderHeight();
   const [query, setQuery] = useState("");
   const searchRef = useRef<SearchBarCommands>(null);
 
@@ -47,7 +49,8 @@ export function RoadmapBoardScreen() {
           query={query}
           onQueryChange={setQuery}
           showHeader={false}
-          boardTopInset={boardHeaderTransparent ? headerHeight : 0}
+          topInset={topInset ?? (boardHeaderTransparent ? headerHeight : 0)}
+          bottomInset={bottomInset}
           onItemOpen={(item) => {
             searchRef.current?.blur();
             router.push(

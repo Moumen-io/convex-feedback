@@ -60,6 +60,8 @@ export interface RoadmapBoardProps {
   renderItem: (args: RoadmapBoardItemRenderArgs) => ReactElement | null;
   /** Extra top space reserved for a transparent native stack header. */
   topInset?: number;
+  /** Bottom space reserved for a host navigation bar. Defaults to the safe area. */
+  bottomInset?: number;
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
 }
@@ -127,10 +129,12 @@ export function RoadmapBoard({
   onItemOpen,
   renderItem,
   topInset = 0,
+  bottomInset,
   style,
   contentContainerStyle,
 }: RoadmapBoardProps) {
   const insets = useSafeAreaInsets();
+  const resolvedBottomInset = bottomInset ?? insets.bottom;
   const { theme } = useFeedbackUi();
   const resolvedColors = colors
     ? {
@@ -178,7 +182,7 @@ export function RoadmapBoard({
           paddingLeft: 16 + insets.left,
           paddingRight: 16 + insets.right,
           paddingTop: 12 + topInset,
-          paddingBottom: 16 + insets.bottom,
+          paddingBottom: 16 + resolvedBottomInset,
         },
         contentContainerStyle,
       ]}
@@ -224,7 +228,7 @@ export function RoadmapBoard({
               keyExtractor={(item) => item.id}
               contentContainerStyle={[
                 styles.cards,
-                { paddingBottom: 16 + insets.bottom },
+                { paddingBottom: 16 + resolvedBottomInset },
               ]}
               ListEmptyComponent={
                 <Text

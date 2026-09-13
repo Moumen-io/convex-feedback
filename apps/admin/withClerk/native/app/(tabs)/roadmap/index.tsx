@@ -1,14 +1,14 @@
 import type { RoadmapStatus } from "convex-feedback";
 import { Stack, useRouter } from "expo-router";
-import { useHeaderHeight } from "expo-router/build/react-navigation/elements";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
   RoadmapBoard,
   RoadmapBoardCard,
+  useStackHeaderHeight,
   useFeedbackBody,
   useFeedbackUi,
-} from "convex-feedback-ui/native";
+} from "convex-feedback-ui/expo";
 
 import { adminTheme } from "@/constants/AdminTheme";
 import { useAdminAction } from "@/lib/action";
@@ -23,7 +23,7 @@ const stages: { value: RoadmapStatus }[] = [
 
 export default function RoadmapScreen() {
   const router = useRouter();
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useStackHeaderHeight();
   const { hooks } = useFeedbackBody();
   const { messages } = useFeedbackUi();
   const roadmap = hooks.useRoadmap();

@@ -123,6 +123,10 @@ export interface RoadmapStackLayoutProps extends RoadmapScreenProps {
   itemOptions?: RoadmapStackScreenOptions;
   /** Android image sources for toolbar actions. iOS continues to use SF Symbols. */
   androidToolbarIcons?: RoadmapAndroidToolbarIcons;
+  /** Explicit top inset for a transparent stack header. Defaults to the native-stack context. */
+  topInset?: number;
+  /** Explicit bottom inset for a host navigation bar. Defaults to the safe area. */
+  bottomInset?: number;
 }
 
 export interface RoutedFeedbackContextValue {
@@ -140,4 +144,6 @@ export interface RoutedRoadmapContextValue {
   entryPageSize: number;
   onEntryOpen?: RoadmapScreenProps["onEntryOpen"];
   boardHeaderTransparent: boolean;
+  topInset?: number;
+  bottomInset?: number;
 }

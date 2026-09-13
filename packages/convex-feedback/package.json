@@ -41,7 +41,8 @@
   },
   "scripts": {
     "codegen": "npx convex codegen --component-dir ./src/component",
-    "build": "tsc -p tsconfig.build.json",
+    "clean": "node scripts/clean-dist.js",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
     "build:codegen": "npm run codegen && npm run build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src test",

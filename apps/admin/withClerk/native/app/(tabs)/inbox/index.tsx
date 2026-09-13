@@ -1,25 +1,21 @@
-import type {
-  AdminFeedbackEntry,
-  EntryKind,
-  EntryPriority,
-  EntryStatus,
-} from "convex-feedback";
-import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import type { AdminFeedbackEntry } from "convex-feedback";
+import { Stack, useRouter } from "expo-router";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { SearchBarCommands } from "react-native-screens";
 
 import { adminTheme } from "@/constants/AdminTheme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { feedbackHooks } from "@/lib/feedback";
+import { useToolbarIcon } from "@/lib/native-toolbar";
 
 const kinds = ["all", "feedback", "feature_request", "bug_report"] as const;
 const statuses = [
@@ -33,12 +29,26 @@ const statuses = [
 ] as const;
 const priorities = ["all", "high", "medium", "low"] as const;
 
-function nextValue<T extends string>(values: readonly T[], current: T): T {
-  return values[(values.indexOf(current) + 1) % values.length]!;
+function formatFilterValue(value: string): string {
+  return value === "all" ? "All" : value.replaceAll("_", " ");
+}
+
+function searchText(event: unknown): string {
+  const value = event as { nativeEvent?: { text?: unknown } };
+  return typeof value.nativeEvent?.text === "string"
+    ? value.nativeEvent.text
+    : "";
 }
 
 export default function InboxScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const searchRef = useRef<SearchBarCommands>(null);
+  const addIcon = useToolbarIcon("plus", "add");
+  const filterIcon = useToolbarIcon(
+    "line.3.horizontal.decrease",
+    "filter_list",
+  );
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<(typeof kinds)[number]>("all");
   const [status, setStatus] = useState<(typeof statuses)[number]>("all");
@@ -46,9 +56,9 @@ export default function InboxScreen() {
   const debounced = useDebouncedValue(search, 300);
   const filters = useMemo(
     () => ({
-      ...(kind === "all" ? {} : { kinds: [kind as EntryKind] }),
-      ...(status === "all" ? {} : { status: status as EntryStatus }),
-      ...(priority === "all" ? {} : { priority: priority as EntryPriority }),
+      ...(kind === "all" ? {} : { kinds: [kind] }),
+      ...(status === "all" ? {} : { status }),
+      ...(priority === "all" ? {} : { priority }),
     }),
     [kind, priority, status],
   );
@@ -62,40 +72,88 @@ export default function InboxScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Inbox</Text>
-        <Text style={styles.subtitle}>Triage customer signals</Text>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search feedback"
-          placeholderTextColor={adminTheme.muted}
-          style={styles.search}
-        />
-      </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filters}
-      >
-        <Filter
-          label={`Kind · ${kind.replaceAll("_", " ")}`}
-          onPress={() => setKind(nextValue(kinds, kind))}
-        />
-        <Filter
-          label={`Status · ${status.replaceAll("_", " ")}`}
-          onPress={() => setStatus(nextValue(statuses, status))}
-        />
-        <Filter
-          label={`Priority · ${priority}`}
-          onPress={() => setPriority(nextValue(priorities, priority))}
-        />
-      </ScrollView>
+      <Stack.SearchBar
+        ref={searchRef}
+        placement="stacked"
+        placeholder="Search feedback"
+        onChangeText={(event) => setSearch(searchText(event))}
+        onCancelButtonPress={() => {
+          setSearch("");
+          searchRef.current?.clearText();
+        }}
+        obscureBackground={false}
+        textColor={adminTheme.text}
+        tintColor={adminTheme.primary}
+      />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={addIcon}
+          variant="prominent"
+          accessibilityLabel="Add feedback"
+          onPress={() => router.push("/feedback/new")}
+          tintColor={adminTheme.primary}
+        >
+          New feedback
+        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Menu
+          icon={filterIcon}
+          title="Filters"
+          accessibilityLabel="Filters"
+          tintColor={adminTheme.text}
+        >
+          <Stack.Toolbar.Menu
+            title="Kind"
+            accessibilityLabel="Kind"
+            tintColor={adminTheme.text}
+          >
+            {kinds.map((value) => (
+              <Stack.Toolbar.MenuAction
+                key={`kind-${value}`}
+                isOn={kind === value}
+                onPress={() => setKind(value)}
+              >
+                {formatFilterValue(value)}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu
+            title="Status"
+            accessibilityLabel="Status"
+            tintColor={adminTheme.text}
+          >
+            {statuses.map((value) => (
+              <Stack.Toolbar.MenuAction
+                key={`status-${value}`}
+                isOn={status === value}
+                onPress={() => setStatus(value)}
+              >
+                {formatFilterValue(value)}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu
+            title="Priority"
+            accessibilityLabel="Priority"
+            tintColor={adminTheme.text}
+          >
+            {priorities.map((value) => (
+              <Stack.Toolbar.MenuAction
+                key={`priority-${value}`}
+                isOn={priority === value}
+                onPress={() => setPriority(value)}
+              >
+                {formatFilterValue(value)}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       {page.status === "LoadingFirstPage" ? (
         <ActivityIndicator style={styles.loader} color={adminTheme.primary} />
       ) : (
         <FlatList
           data={entries}
+          contentInsetAdjustmentBehavior="automatic"
           onEndReached={() => {
             if (page.status === "CanLoadMore") {
               page.loadMore(feedbackHooks.pageSizes.entries);
@@ -104,7 +162,23 @@ export default function InboxScreen() {
           onEndReachedThreshold={0.4}
           keyExtractor={(entry) => entry.id}
           contentContainerStyle={
-            entries.length === 0 ? styles.emptyList : styles.list
+            entries.length === 0
+              ? [
+                  styles.emptyList,
+                  {
+                    paddingBottom: 24,
+                    paddingLeft: 24 + insets.left,
+                    paddingRight: 24 + insets.right,
+                  },
+                ]
+              : [
+                  styles.list,
+                  {
+                    paddingBottom: 12,
+                    paddingLeft: 12 + insets.left,
+                    paddingRight: 12 + insets.right,
+                  },
+                ]
           }
           ListEmptyComponent={
             page.status === "Exhausted" ? (
@@ -135,14 +209,6 @@ export default function InboxScreen() {
         />
       )}
     </View>
-  );
-}
-
-function Filter({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.filter}>
-      <Text style={styles.filterText}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -181,47 +247,13 @@ function EntryRow({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: adminTheme.background },
-  header: { gap: 4, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 12 },
-  title: {
-    color: adminTheme.text,
-    fontSize: 28,
-    fontWeight: "700",
-    letterSpacing: -0.6,
-  },
-  subtitle: { color: adminTheme.muted, fontSize: 14 },
-  search: {
-    marginTop: 12,
-    height: 44,
-    borderWidth: 1,
-    borderColor: adminTheme.border,
-    borderRadius: 12,
-    backgroundColor: adminTheme.surface,
-    color: adminTheme.text,
-    paddingHorizontal: 14,
-    fontSize: 15,
-  },
-  filters: { gap: 8, paddingHorizontal: 18, paddingBottom: 12 },
-  filter: {
-    borderWidth: 1,
-    borderColor: adminTheme.border,
-    borderRadius: 999,
-    backgroundColor: adminTheme.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  filterText: {
-    color: adminTheme.text,
-    fontSize: 12,
-    textTransform: "capitalize",
-  },
   loader: { flex: 1 },
   pageLoader: { paddingVertical: 20 },
-  list: { paddingHorizontal: 12, paddingBottom: 120 },
+  list: { paddingTop: 8 },
   emptyList: {
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 30,
   },
   empty: { color: adminTheme.muted, textAlign: "center" },
   entry: {

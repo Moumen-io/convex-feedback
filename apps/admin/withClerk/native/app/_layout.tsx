@@ -19,6 +19,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { adminTheme } from "@/constants/AdminTheme";
 
@@ -60,35 +61,37 @@ function AdminGate() {
   const loading = !clerk.isLoaded || convexAuth.isLoading;
 
   return (
-    <View style={styles.root}>
-      {loading ? (
-        <Centered>
-          <ActivityIndicator color={adminTheme.primary} />
-        </Centered>
-      ) : !clerk.isSignedIn || !convexAuth.isAuthenticated ? (
-        <Centered>
-          <Text style={styles.title}>Convex Feedback Admin</Text>
-          <Text style={styles.body}>
-            Sign in with an admin account to continue.
-          </Text>
-          <Button
-            title="Sign in"
-            color={adminTheme.primary}
-            onPress={() => setAuthOpen(true)}
-          />
-        </Centered>
-      ) : (
-        <AdminAccessCheck key={retryCount} onRetry={retry} />
-      )}
-      <Modal
-        visible={authOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setAuthOpen(false)}
-      >
-        <AuthView onDismiss={() => setAuthOpen(false)} />
-      </Modal>
-    </View>
+    <SafeAreaProvider>
+      <View style={styles.root}>
+        {loading ? (
+          <Centered>
+            <ActivityIndicator color={adminTheme.primary} />
+          </Centered>
+        ) : !clerk.isSignedIn || !convexAuth.isAuthenticated ? (
+          <Centered>
+            <Text style={styles.title}>Convex Feedback Admin</Text>
+            <Text style={styles.body}>
+              Sign in with an admin account to continue.
+            </Text>
+            <Button
+              title="Sign in"
+              color={adminTheme.primary}
+              onPress={() => setAuthOpen(true)}
+            />
+          </Centered>
+        ) : (
+          <AdminAccessCheck key={retryCount} onRetry={retry} />
+        )}
+        <Modal
+          visible={authOpen}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setAuthOpen(false)}
+        >
+          <AuthView onDismiss={() => setAuthOpen(false)} />
+        </Modal>
+      </View>
+    </SafeAreaProvider>
   );
 }
 
@@ -142,13 +145,48 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
         contentStyle: { backgroundColor: adminTheme.background },
       }}
     >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="feedback/[entryId]"
-        options={{ title: "Feedback", presentation: "modal" }}
+        options={modalScreenOptions("Feedback")}
+      />
+      <Stack.Screen
+        name="feedback/new"
+        options={modalScreenOptions("New feedback")}
+      />
+      <Stack.Screen
+        name="feedback/[entryId]/edit"
+        options={modalScreenOptions("Edit feedback")}
+      />
+      <Stack.Screen
+        name="roadmap/new"
+        options={modalScreenOptions("New roadmap item")}
+      />
+      <Stack.Screen
+        name="roadmap/[roadmapId]"
+        options={modalScreenOptions("Roadmap item")}
+      />
+      <Stack.Screen
+        name="roadmap/[roadmapId]/edit"
+        options={modalScreenOptions("Edit roadmap item")}
       />
     </Stack>
   );
+}
+
+function modalScreenOptions(title: string) {
+  return {
+    title,
+    presentation: "formSheet" as const,
+    headerShown: true,
+    headerBackVisible: false,
+    contentStyle: { backgroundColor: "transparent" },
+    sheetAllowedDetents: [0.88, 1],
+    sheetInitialDetentIndex: 1,
+    sheetGrabberVisible: true,
+    sheetLargestUndimmedDetentIndex: "last" as const,
+  };
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

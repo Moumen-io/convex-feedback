@@ -1,5 +1,5 @@
 import type { EntryPriority, EntryStatus } from "convex-feedback";
-import { useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -10,207 +10,372 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { adminTheme } from "@/constants/AdminTheme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useAdminAction } from "@/lib/action";
 import { feedbackHooks } from "@/lib/feedback";
+import { useToolbarIcon } from "@/lib/native-toolbar";
+import { roadmapRouteParams } from "@/lib/roadmap-route";
 
-const statuses: EntryStatus[] = [
-  "open",
-  "under_review",
-  "planned",
-  "in_progress",
-  "completed",
-  "closed",
+const statuses: { value: EntryStatus; label: string }[] = [
+  { value: "open", label: "Open" },
+  { value: "under_review", label: "Under review" },
+  { value: "planned", label: "Planned" },
+  { value: "in_progress", label: "In progress" },
+  { value: "completed", label: "Completed" },
+  { value: "closed", label: "Closed" },
 ];
-const priorities: (EntryPriority | null)[] = [null, "low", "medium", "high"];
+const priorities: { value: EntryPriority | null; label: string }[] = [
+  { value: null, label: "None" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+];
 
-function next<T>(values: T[], current: T): T {
-  return values[(values.indexOf(current) + 1) % values.length]!;
+function displayValue(value: string): string {
+  return value.replaceAll("_", " ");
 }
 
 export default function FeedbackDetailScreen() {
   const { entryId } = useLocalSearchParams<{ entryId: string }>();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const entry = feedbackHooks.useAdminEntry(entryId);
   const setStatus = feedbackHooks.useSetEntryStatus();
   const setPriority = feedbackHooks.useSetEntryPriority();
+  const setEntryUpvote = feedbackHooks.useSetEntryUpvote();
   const attachRoadmap = feedbackHooks.useAttachFeedbackToRoadmap();
   const detachRoadmap = feedbackHooks.useDetachFeedbackFromRoadmap();
   const createRoadmapForEntry = feedbackHooks.useCreateRoadmapForEntry();
   const action = useAdminAction();
+  const upvoteAction = useAdminAction();
   const [roadmapSearch, setRoadmapSearch] = useState("");
   const debouncedSearch = useDebouncedValue(roadmapSearch, 300);
   const roadmapResults = feedbackHooks.useSearchRoadmap(debouncedSearch);
-
-  if (entry === undefined)
-    return (
-      <ActivityIndicator style={styles.loader} color={adminTheme.primary} />
-    );
-  if (entry === null)
-    return (
-      <View style={styles.center}>
-        <Text>Feedback not found.</Text>
-      </View>
-    );
+  const closeIcon = useToolbarIcon("xmark", "close");
+  const statusIcon = useToolbarIcon("checkmark.circle", "check_circle");
+  const priorityIcon = useToolbarIcon("flag", "flag");
+  const editIcon = useToolbarIcon("pencil", "edit");
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.badges}>
-        <Text style={styles.badge}>{entry.kind.replaceAll("_", " ")}</Text>
-        <Text style={styles.identifier}>#{entry.id.slice(-6)}</Text>
-      </View>
-      <Text style={styles.title}>{entry.title}</Text>
-      <Text style={styles.body}>{entry.body}</Text>
-      <Text style={styles.stats}>
-        {entry.upvoteCount} upvotes · {entry.commentCount} comments
-      </Text>
-      <View style={styles.divider} />
-      <Text style={styles.sectionTitle}>Triage</Text>
-      <View style={styles.controls}>
-        <Control
-          label="Status"
-          value={entry.status.replaceAll("_", " ")}
-          disabled={action.pending}
-          onPress={() =>
-            void action.run(
-              () =>
-                setStatus({
-                  entryId: entry.id,
-                  status: next(statuses, entry.status),
-                }),
-              "Could not update status",
-            )
-          }
-        />
-        <Control
-          label="Priority"
-          value={entry.priority ?? "none"}
-          disabled={action.pending}
-          onPress={() =>
-            void action.run(
-              () =>
-                setPriority({
-                  entryId: entry.id,
-                  priority: next(priorities, entry.priority ?? null),
-                }),
-              "Could not update priority",
-            )
-          }
-        />
-      </View>
-      <View style={styles.divider} />
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Roadmap</Text>
-        {entry.roadmap && (
-          <Pressable
+    <>
+      <Stack.Screen options={{ title: entry?.title ?? "Feedback" }} />
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          icon={closeIcon}
+          accessibilityLabel="Close feedback details"
+          onPress={() => router.back()}
+          tintColor={adminTheme.text}
+        >
+          Close
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      {entry && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu
+            icon={statusIcon}
+            title="Status"
+            accessibilityLabel="Change status"
             disabled={action.pending}
-            onPress={() =>
-              void action.run(
-                () => detachRoadmap({ entryId: entry.id }),
-                "Could not detach roadmap item",
-              )
-            }
+            tintColor={adminTheme.text}
           >
-            <Text style={styles.delete}>Detach</Text>
-          </Pressable>
-        )}
-      </View>
-      {entry.roadmap ? (
-        <View style={styles.roadmapAttached}>
-          <Text style={styles.controlValue}>{entry.roadmap.title}</Text>
-          <Text style={styles.label}>
-            {entry.roadmap.status.replaceAll("_", " ")}
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.roadmapSearch}>
-          <TextInput
-            editable={!action.pending}
-            value={roadmapSearch}
-            onChangeText={setRoadmapSearch}
-            placeholder="Search roadmap items"
-            placeholderTextColor={adminTheme.muted}
-            style={styles.input}
-          />
-          {(roadmapResults ?? []).map((item) => (
-            <Pressable
-              key={item.id}
-              style={styles.result}
-              disabled={action.pending}
-              onPress={() =>
-                void action.run(
-                  () =>
-                    attachRoadmap({ entryId: entry.id, roadmapId: item.id }),
-                  "Could not attach roadmap item",
-                )
-              }
-            >
-              <Text style={styles.resultTitle}>{item.title}</Text>
-              <Text style={styles.label}>
-                {item.status.replaceAll("_", " ")}
-              </Text>
-            </Pressable>
-          ))}
-          {!!debouncedSearch.trim() &&
-            debouncedSearch.trim() === roadmapSearch.trim() &&
-            roadmapResults?.length === 0 && (
-              <Pressable
-                style={styles.create}
+            {statuses.map(({ value, label }) => (
+              <Stack.Toolbar.MenuAction
+                key={value}
+                isOn={entry.status === value}
+                disabled={action.pending}
+                onPress={() =>
+                  void action.run(
+                    () => setStatus({ entryId: entry.id, status: value }),
+                    "Could not update status",
+                  )
+                }
+              >
+                {label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu
+            icon={priorityIcon}
+            title="Priority"
+            accessibilityLabel="Change priority"
+            disabled={action.pending}
+            tintColor={adminTheme.text}
+          >
+            {priorities.map(({ value, label }) => (
+              <Stack.Toolbar.MenuAction
+                key={value ?? "none"}
+                isOn={(entry.priority ?? null) === value}
                 disabled={action.pending}
                 onPress={() =>
                   void action.run(
                     () =>
-                      createRoadmapForEntry({
+                      setPriority({
                         entryId: entry.id,
-                        title: debouncedSearch.trim(),
-                        status: "planned",
+                        priority: value,
                       }),
-                    "Could not create roadmap item",
+                    "Could not update priority",
                   )
                 }
               >
-                <Text style={styles.createText}>
-                  Create “{roadmapSearch.trim()}”
-                </Text>
+                {label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Button
+            icon={editIcon}
+            accessibilityLabel="Edit feedback"
+            onPress={() =>
+              router.push({
+                pathname: "/feedback/[entryId]/edit",
+                params: { entryId: entry.id },
+              })
+            }
+            tintColor={adminTheme.primary}
+          >
+            Edit
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      )}
+      {entry === undefined ? (
+        <ActivityIndicator style={styles.loader} color={adminTheme.primary} />
+      ) : entry === null ? (
+        <View style={styles.center}>
+          <Text style={styles.body}>Feedback not found.</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.screen}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingLeft: 20 + insets.left,
+              paddingRight: 20 + insets.right,
+              paddingBottom: 20,
+            },
+          ]}
+        >
+          <View style={styles.badges}>
+            <Text style={styles.badge}>{displayValue(entry.kind)}</Text>
+            <Text selectable style={styles.identifier}>
+              #{entry.id}
+            </Text>
+          </View>
+          <Text style={styles.title}>{entry.title}</Text>
+          <Text style={styles.body}>{entry.body}</Text>
+          <Text style={styles.stats}>{entry.commentCount} comments</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              entry.viewerHasUpvoted ? "Remove entry upvote" : "Upvote entry"
+            }
+            accessibilityState={{
+              disabled: upvoteAction.pending,
+              selected: entry.viewerHasUpvoted,
+            }}
+            disabled={upvoteAction.pending}
+            style={({ pressed }) => [
+              styles.upvoteButton,
+              entry.viewerHasUpvoted && styles.upvoteButtonActive,
+              pressed && styles.pressed,
+              upvoteAction.pending && styles.disabled,
+            ]}
+            onPress={() =>
+              void upvoteAction.run(
+                () =>
+                  setEntryUpvote({
+                    entryId: entry.id,
+                    desiredState: !entry.viewerHasUpvoted,
+                  }),
+                "Could not update entry upvote",
+              )
+            }
+          >
+            <Text
+              style={[
+                styles.upvoteText,
+                entry.viewerHasUpvoted && styles.upvoteTextActive,
+              ]}
+            >
+              {entry.viewerHasUpvoted ? "▲ Upvoted" : "▲ Upvote"}
+            </Text>
+            <Text
+              style={[
+                styles.upvoteCount,
+                entry.viewerHasUpvoted && styles.upvoteTextActive,
+              ]}
+            >
+              {entry.upvoteCount}
+            </Text>
+          </Pressable>
+          <View style={styles.divider} />
+          <Text style={styles.sectionTitle}>Triage</Text>
+          <View style={styles.controls}>
+            <InfoControl label="Status" value={displayValue(entry.status)} />
+            <InfoControl label="Priority" value={entry.priority ?? "None"} />
+          </View>
+          <Text style={styles.hint}>
+            Use the Status and Priority menus in the native header to update
+            triage.
+          </Text>
+          <View style={styles.divider} />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Roadmap</Text>
+            {entry.roadmap && (
+              <Pressable
+                disabled={action.pending}
+                onPress={() =>
+                  void action.run(
+                    () => detachRoadmap({ entryId: entry.id }),
+                    "Could not detach roadmap item",
+                  )
+                }
+              >
+                <Text style={styles.delete}>Detach</Text>
               </Pressable>
             )}
-        </View>
+          </View>
+          {entry.roadmap ? (
+            <View style={styles.roadmapAttached}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.roadmapLink,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() =>
+                  router.push({
+                    pathname: "/roadmap/[roadmapId]",
+                    params: roadmapRouteParams(entry.roadmap!),
+                  })
+                }
+              >
+                <Text style={styles.controlValue}>{entry.roadmap.title}</Text>
+                <Text style={styles.label}>
+                  {displayValue(entry.roadmap.status)}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.roadmapSearch}>
+              <TextInput
+                editable={!action.pending}
+                value={roadmapSearch}
+                onChangeText={setRoadmapSearch}
+                placeholder="Search roadmap items"
+                placeholderTextColor={adminTheme.muted}
+                style={styles.input}
+              />
+              {(roadmapResults ?? []).map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={styles.result}
+                  disabled={action.pending}
+                  onPress={() =>
+                    void action.run(
+                      () =>
+                        attachRoadmap({
+                          entryId: entry.id,
+                          roadmapId: item.id,
+                        }),
+                      "Could not attach roadmap item",
+                    )
+                  }
+                >
+                  <Text style={styles.resultTitle}>{item.title}</Text>
+                  <Text style={styles.label}>{displayValue(item.status)}</Text>
+                </Pressable>
+              ))}
+              {!!debouncedSearch.trim() &&
+                debouncedSearch.trim() === roadmapSearch.trim() &&
+                roadmapResults?.length === 0 && (
+                  <Pressable
+                    style={styles.create}
+                    disabled={action.pending}
+                    onPress={() =>
+                      void action.run(
+                        () =>
+                          createRoadmapForEntry({
+                            entryId: entry.id,
+                            title: debouncedSearch.trim(),
+                            status: "planned",
+                          }),
+                        "Could not create roadmap item",
+                      )
+                    }
+                  >
+                    <Text style={styles.createText}>
+                      Create “{roadmapSearch.trim()}”
+                    </Text>
+                  </Pressable>
+                )}
+            </View>
+          )}
+          <View style={styles.divider} />
+          <Discussion entryId={entry.id} />
+        </ScrollView>
       )}
-      <View style={styles.divider} />
-      <Discussion entryId={entry.id} />
-    </ScrollView>
+    </>
   );
 }
 
-function Control({
-  label,
-  value,
-  disabled,
-  onPress,
-}: {
-  label: string;
-  value: string;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
+function InfoControl({ label, value }: { label: string; value: string }) {
   return (
-    <Pressable
-      disabled={disabled}
-      style={[styles.control, disabled && styles.disabled]}
-      onPress={onPress}
-    >
+    <View style={styles.control}>
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.controlValue}>{value}</Text>
-    </Pressable>
+    </View>
   );
 }
 
 function Discussion({ entryId }: { entryId: string }) {
   const comments = feedbackHooks.useComments({ entryId, sort: "oldest" });
+  const createComment = feedbackHooks.useCreateComment();
+  const commentAction = useAdminAction();
+  const [body, setBody] = useState("");
+
   return (
     <View style={styles.discussion}>
       <Text style={styles.sectionTitle}>Discussion</Text>
+      <View style={styles.commentComposer}>
+        <TextInput
+          editable={!commentAction.pending}
+          multiline
+          numberOfLines={3}
+          onChangeText={setBody}
+          placeholder="Add a comment"
+          placeholderTextColor={adminTheme.muted}
+          style={styles.commentInput}
+          textAlignVertical="top"
+          value={body}
+        />
+        <Pressable
+          accessibilityRole="button"
+          disabled={commentAction.pending || body.trim().length === 0}
+          style={({ pressed }) => [
+            styles.commentSubmit,
+            (commentAction.pending || body.trim().length === 0) &&
+              styles.disabled,
+            pressed && styles.pressed,
+          ]}
+          onPress={() => {
+            const trimmedBody = body.trim();
+            if (trimmedBody.length === 0) return;
+            void commentAction.run(async () => {
+              await createComment({ entryId, body: trimmedBody });
+              setBody("");
+            }, "Could not add comment");
+          }}
+        >
+          {commentAction.pending ? (
+            <ActivityIndicator color={adminTheme.primary} />
+          ) : (
+            <Text style={styles.commentSubmitText}>Comment</Text>
+          )}
+        </Pressable>
+      </View>
       {comments.status === "LoadingFirstPage" ? (
         <Text style={styles.label}>Loading comments…</Text>
       ) : comments.results.length === 0 ? (
@@ -244,6 +409,26 @@ function AdminCommentBranch({
   comment: ReturnType<typeof feedbackHooks.useComments>["results"][number];
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [replying, setReplying] = useState(false);
+  const [replyBody, setReplyBody] = useState("");
+  const setCommentLike = feedbackHooks.useSetCommentLike();
+  const createComment = feedbackHooks.useCreateComment();
+  const likeAction = useAdminAction();
+  const replyAction = useAdminAction();
+
+  const toggleLike = () => {
+    if (likeAction.pending) return;
+    void likeAction.run(
+      () =>
+        setCommentLike({
+          commentId: comment.id,
+          desiredState: !comment.viewerHasLiked,
+        }),
+      comment.viewerHasLiked
+        ? "Could not remove comment like"
+        : "Could not like comment",
+    );
+  };
 
   return (
     <View style={styles.comment}>
@@ -251,6 +436,103 @@ function AdminCommentBranch({
       <Text style={styles.commentBody}>
         {comment.body ?? "Comment deleted"}
       </Text>
+      <View style={styles.commentActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            comment.viewerHasLiked ? "Remove comment like" : "Like comment"
+          }
+          accessibilityState={{
+            disabled: likeAction.pending,
+            selected: comment.viewerHasLiked,
+          }}
+          disabled={likeAction.pending}
+          style={({ pressed }) => [
+            styles.commentAction,
+            comment.viewerHasLiked && styles.commentActionActive,
+            pressed && styles.pressed,
+            likeAction.pending && styles.disabled,
+          ]}
+          onPress={toggleLike}
+        >
+          <Text
+            style={[
+              styles.commentActionText,
+              comment.viewerHasLiked && styles.commentActionTextActive,
+            ]}
+          >
+            {comment.viewerHasLiked ? "♥" : "♡"} {comment.likeCount}
+          </Text>
+        </Pressable>
+        {comment.body !== null && (
+          <Pressable
+            accessibilityRole="button"
+            disabled={replyAction.pending}
+            style={({ pressed }) => [
+              styles.commentAction,
+              pressed && styles.pressed,
+              replyAction.pending && styles.disabled,
+            ]}
+            onPress={() => setReplying((value) => !value)}
+          >
+            <Text style={styles.commentActionText}>Reply</Text>
+          </Pressable>
+        )}
+      </View>
+      {replying && (
+        <View style={styles.replyComposer}>
+          <TextInput
+            editable={!replyAction.pending}
+            multiline
+            numberOfLines={2}
+            onChangeText={setReplyBody}
+            placeholder="Write a reply"
+            placeholderTextColor={adminTheme.muted}
+            style={styles.replyInput}
+            textAlignVertical="top"
+            value={replyBody}
+          />
+          <View style={styles.replyComposerActions}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={replyAction.pending || replyBody.trim().length === 0}
+              style={({ pressed }) => [
+                styles.commentSubmit,
+                (replyAction.pending || replyBody.trim().length === 0) &&
+                  styles.disabled,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => {
+                const trimmedBody = replyBody.trim();
+                if (trimmedBody.length === 0) return;
+                void replyAction.run(async () => {
+                  await createComment({
+                    entryId,
+                    parentCommentId: comment.id,
+                    body: trimmedBody,
+                  });
+                  setReplyBody("");
+                  setReplying(false);
+                  setExpanded(true);
+                }, "Could not add reply");
+              }}
+            >
+              {replyAction.pending ? (
+                <ActivityIndicator color={adminTheme.primary} />
+              ) : (
+                <Text style={styles.commentSubmitText}>Reply</Text>
+              )}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={replyAction.pending}
+              onPress={() => setReplying(false)}
+            >
+              <Text style={styles.replyCancel}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
       {comment.replyCount > 0 && (
         <>
           <Pressable onPress={() => setExpanded((value) => !value)}>
@@ -335,7 +617,7 @@ function LoadMoreButton({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: adminTheme.background },
-  content: { gap: 12, padding: 20, paddingBottom: 60 },
+  content: { gap: 12, paddingTop: 20 },
   loader: { flex: 1, backgroundColor: adminTheme.background },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   badges: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -349,7 +631,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "capitalize",
   },
-  identifier: { color: adminTheme.muted, fontSize: 12 },
+  identifier: { flex: 1, color: adminTheme.muted, fontSize: 12 },
   title: {
     color: adminTheme.text,
     fontSize: 24,
@@ -358,6 +640,25 @@ const styles = StyleSheet.create({
   },
   body: { color: adminTheme.muted, fontSize: 15, lineHeight: 23 },
   stats: { color: adminTheme.muted, fontSize: 12 },
+  upvoteButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: adminTheme.border,
+    borderRadius: 999,
+    backgroundColor: adminTheme.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  upvoteButtonActive: {
+    borderColor: adminTheme.primary,
+    backgroundColor: adminTheme.primarySoft,
+  },
+  upvoteText: { color: adminTheme.text, fontSize: 13, fontWeight: "700" },
+  upvoteTextActive: { color: adminTheme.primary },
+  upvoteCount: { color: adminTheme.muted, fontSize: 13, fontWeight: "700" },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: adminTheme.border,
@@ -371,7 +672,8 @@ const styles = StyleSheet.create({
   },
   controls: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   control: {
-    width: "48%",
+    minWidth: "48%",
+    flexGrow: 1,
     gap: 4,
     borderWidth: 1,
     borderColor: adminTheme.border,
@@ -387,12 +689,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textTransform: "capitalize",
   },
+  hint: { color: adminTheme.muted, fontSize: 12, lineHeight: 18 },
   roadmapAttached: {
-    gap: 5,
     borderRadius: 12,
     backgroundColor: adminTheme.primarySoft,
     padding: 14,
   },
+  roadmapLink: { gap: 5 },
+  pressed: { opacity: 0.7 },
   roadmapSearch: { gap: 8 },
   input: {
     height: 44,
@@ -420,6 +724,26 @@ const styles = StyleSheet.create({
   createText: { color: adminTheme.primary, fontWeight: "700" },
   delete: { color: adminTheme.danger, fontWeight: "600" },
   discussion: { gap: 8 },
+  commentComposer: { gap: 8 },
+  commentInput: {
+    minHeight: 84,
+    borderWidth: 1,
+    borderColor: adminTheme.border,
+    borderRadius: 12,
+    backgroundColor: adminTheme.surface,
+    color: adminTheme.text,
+    padding: 12,
+  },
+  commentSubmit: {
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-start",
+    minHeight: 38,
+    borderRadius: 10,
+    backgroundColor: adminTheme.primarySoft,
+    paddingHorizontal: 14,
+  },
+  commentSubmitText: { color: adminTheme.primary, fontWeight: "700" },
   comment: {
     gap: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -427,6 +751,41 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   commentBody: { color: adminTheme.text, fontSize: 14, lineHeight: 20 },
+  commentActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  commentAction: {
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+  },
+  commentActionActive: { backgroundColor: adminTheme.primarySoft },
+  commentActionText: {
+    color: adminTheme.muted,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  commentActionTextActive: { color: adminTheme.primary },
+  replyComposer: { gap: 8, marginTop: 4 },
+  replyInput: {
+    minHeight: 68,
+    borderWidth: 1,
+    borderColor: adminTheme.border,
+    borderRadius: 10,
+    backgroundColor: adminTheme.surface,
+    color: adminTheme.text,
+    padding: 10,
+  },
+  replyComposerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  replyCancel: { color: adminTheme.muted, fontSize: 12, fontWeight: "600" },
   replyToggle: { color: adminTheme.primary, fontSize: 12, fontWeight: "600" },
   replies: {
     gap: 4,

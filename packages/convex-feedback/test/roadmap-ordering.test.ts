@@ -71,6 +71,32 @@ describe("roadmap ordering", () => {
     expect(item?.position).toBe(1_000_000);
   });
 
+  test("paginates roadmap items across component-safe cursors", async () => {
+    const testInstance = setup();
+    const itemIds = [
+      await createRoadmapItem(testInstance, "First"),
+      await createRoadmapItem(testInstance, "Second"),
+      await createRoadmapItem(testInstance, "Third"),
+    ];
+
+    const firstPage = await testInstance.query(api.roadmap.list, {
+      status: "planned",
+      paginationOpts: { cursor: null, numItems: 2 },
+    });
+    const secondPage = await testInstance.query(api.roadmap.list, {
+      status: "planned",
+      paginationOpts: {
+        cursor: firstPage.continueCursor,
+        numItems: 2,
+      },
+    });
+
+    expect(firstPage.page.map((item) => item.id)).toEqual(itemIds.slice(0, 2));
+    expect(secondPage.page.map((item) => item.id)).toEqual(itemIds.slice(2));
+    expect(firstPage.isDone).toBe(false);
+    expect(secondPage.isDone).toBe(true);
+  });
+
   test("rebalances a stage when neighboring positions become too close", async () => {
     const testInstance = setup();
     const firstId = await createRoadmapItem(testInstance, "First");

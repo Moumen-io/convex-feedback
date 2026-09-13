@@ -1,3 +1,4 @@
+import { paginator } from "convex-helpers/server/pagination";
 import {
   paginationOptsValidator,
   paginationResultValidator,
@@ -21,6 +22,7 @@ import {
   roadmapStatusValidator,
 } from "./model.js";
 import type { RoadmapStatus } from "./model.js";
+import schema from "./schema.js";
 
 const POSITION_STEP = 1_000_000;
 const REBALANCE_GAP_THRESHOLD = 10;
@@ -128,13 +130,14 @@ export const list = query({
   },
   returns: paginationResultValidator(roadmapItemValidator),
   handler: async (ctx, args) => {
+    const db = paginator(ctx.db, schema);
     const status = args.status;
     const state =
       status === undefined ? null : await getRebalanceState(ctx, status);
     const visibleGeneration = state?.visibleGeneration;
     const roadmapQuery =
       status !== undefined && visibleGeneration !== undefined
-        ? ctx.db
+        ? db
             .query("roadmap")
             .withIndex("by_status_deleting_at_rebalance_id_position", (q) =>
               q
@@ -143,12 +146,12 @@ export const list = query({
                 .eq("rebalanceId", visibleGeneration),
             )
         : status === undefined
-          ? ctx.db
+          ? db
               .query("roadmap")
               .withIndex("by_deleting_at_and_position", (q) =>
                 q.eq("deletingAt", undefined),
               )
-          : ctx.db
+          : db
               .query("roadmap")
               .withIndex("by_status_deleting_at_position", (q) =>
                 q.eq("status", status).eq("deletingAt", undefined),
@@ -348,11 +351,12 @@ export const rebalanceBatch = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const db = paginator(ctx.db, schema);
     const state = await getRebalanceState(ctx, args.status);
     if (state?.activeGeneration !== args.rebalanceId) return null;
 
     if (args.phase === "mark") {
-      const result = await ctx.db
+      const result = await db
         .query("roadmap")
         .withIndex("by_status_deleting_at_position", (q) =>
           q.eq("status", args.status).eq("deletingAt", undefined),
@@ -391,7 +395,7 @@ export const rebalanceBatch = internalMutation({
       return null;
     }
 
-    const result = await ctx.db
+    const result = await db
       .query("roadmap")
       .withIndex("by_status_rebalance_rank", (q) =>
         q.eq("status", args.status).eq("rebalanceId", args.rebalanceId),
@@ -610,7 +614,8 @@ export const listFeedback = query({
   },
   returns: paginationResultValidator(publicEntryValidator),
   handler: async (ctx, args) => {
-    const result = await ctx.db
+    const db = paginator(ctx.db, schema);
+    const result = await db
       .query("entries")
       .withIndex("by_roadmap_id", (q) => q.eq("roadmapId", args.roadmapId))
       .order("desc")

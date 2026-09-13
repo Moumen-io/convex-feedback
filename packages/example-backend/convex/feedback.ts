@@ -40,7 +40,7 @@ export const {
 
     return {
       id: identity.tokenIdentifier,
-      isAdmin: false,
+      isAdmin: true,
     };
   },
   config: {

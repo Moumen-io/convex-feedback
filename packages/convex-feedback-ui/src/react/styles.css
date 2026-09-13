@@ -228,6 +228,12 @@
   margin: 5px 0 3px;
   font-size: 1rem;
 }
+:where(.cf-board) :where(.cf-roadmap-entry__content .cf-entry__title) {
+  overflow: hidden;
+  display: -webkit-box;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
 :where(.cf-board) :where(.cf-entry__body) {
   margin: 0;
   color: var(--cf-muted);

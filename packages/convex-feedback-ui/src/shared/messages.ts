@@ -22,11 +22,12 @@ export const englishFeedbackMessages: FeedbackMessages = {
       shipped: "Shipped",
     },
     linkedEntries: (count) =>
-      `${count} linked ${count === 1 ? "entry" : "entries"}`,
+      `${count} ${count === 1 ? "feedback item" : "feedback items"}`,
+    emptyStage: "Nothing here yet.",
     noItems: "No roadmap items yet.",
     noSearchResults: "No matching roadmap items found.",
-    attachedFeedback: "Feedback behind this item",
-    noAttachedFeedback: "No feedback attached yet.",
+    attachedFeedback: "Feedback",
+    noAttachedFeedback: "No feedback yet.",
   },
   kinds: {
     feedback: "Feedback",

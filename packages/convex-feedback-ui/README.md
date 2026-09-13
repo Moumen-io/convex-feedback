@@ -324,7 +324,9 @@ export { RoadmapItemScreen as default } from "convex-feedback-ui/expo";
 Use `onEntryOpen` on `RoadmapStackLayout` when attached feedback should push
 the host application's routed feedback detail page. The roadmap item page
 uses the existing entry-card and entry-detail implementations when no host
-entry route is supplied.
+entry route is supplied. The board title and search field are rendered by the
+Expo Router Stack, and `RoadmapBoard` is exported from the native entry points
+for sharing the admin-style stage layout with custom cards.
 
 ## Diagnostic metadata
 

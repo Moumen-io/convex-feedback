@@ -53,8 +53,12 @@ in-screen navigation.
 
 `RoadmapScreen` is also exported from this entry point for public roadmap
 browsing. It uses the current Expo Router stack by default, including its
-toolbar back action; pass `useStack={false}` for the plain React Native
-implementation. Pass `onEntryOpen` for host navigation and
+native Stack title, search bar, and toolbar back action; pass `useStack={false}`
+for the plain React Native implementation. Pass `onEntryOpen` for host navigation and
 `onUnauthenticated` for the host's sign-in UI. For real Expo Router pages, use
 `RoadmapStackLayout` with `RoadmapBoardScreen` and `RoadmapItemScreen`, just
 as the routed feedback integration uses its own stack layout.
+
+The routed entry page includes an explicit Stack back action so navigation into
+feedback from a roadmap item remains reversible even when the host uses nested
+Expo Router stacks.

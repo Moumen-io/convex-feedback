@@ -183,6 +183,8 @@ export interface FeedbackScreenEntryCardProps {
   hooks: FeedbackHooks;
   /** Callback when the EntryCard is opened. */
   onOpen: () => void;
+  /** Optional line limit for the entry title in compact lists. */
+  titleNumberOfLines?: number;
 }
 
 export interface FeedbackScreenEntryModalProps {

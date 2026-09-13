@@ -85,6 +85,9 @@ describe("UI contracts", () => {
     expect(messages.roadmap.statuses.planned).toBe(
       englishFeedbackMessages.roadmap.statuses.planned,
     );
-    expect(messages.roadmap.linkedEntries(2)).toBe("2 linked entries");
+    expect(messages.roadmap.linkedEntries(2)).toBe("2 feedback items");
+    expect(messages.roadmap.emptyStage).toBe(
+      englishFeedbackMessages.roadmap.emptyStage,
+    );
   });
 });

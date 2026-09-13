@@ -1,5 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useRef, useState } from "react";
 import { ActivityIndicator } from "react-native";
+import type { SearchBarCommands } from "react-native-screens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider.js";
@@ -20,21 +22,50 @@ export function RoadmapBoardScreen() {
   const { messages, theme } = useFeedbackUi();
   const { routes, colors, androidToolbarIcons, pageSize } = useRoutedRoadmap();
   const router = useRouter();
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<SearchBarCommands>(null);
 
   return (
     <>
+      <Stack.Screen
+        options={{
+          headerTitle: messages.roadmap.title,
+          headerBackVisible: false,
+        }}
+      />
       <FeedbackBoard.Root {...colors}>
         <RoadmapBoardContent
           pageSize={pageSize}
-          onItemOpen={(item) =>
+          query={query}
+          onQueryChange={setQuery}
+          showHeader={false}
+          onItemOpen={(item) => {
+            searchRef.current?.blur();
             router.push(
               roadmapRouteHref(routes.item, roadmapRouteParams(item)),
               { relativeToDirectory: true },
-            )
-          }
+            );
+          }}
         />
       </FeedbackBoard.Root>
 
+      <Stack.SearchBar
+        ref={searchRef}
+        placeholder={messages.roadmap.searchPlaceholder}
+        onChangeText={(event) =>
+          setQuery(
+            (event as unknown as { nativeEvent: { text: string } }).nativeEvent
+              .text,
+          )
+        }
+        obscureBackground={false}
+        allowToolbarIntegration
+        hideNavigationBar={false}
+        textColor={theme.colors.text}
+      />
+      <Stack.Toolbar placement="bottom">
+        <Stack.Toolbar.SearchBarSlot />
+      </Stack.Toolbar>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           hidden={!router.canGoBack()}
@@ -61,7 +92,7 @@ export function RoadmapItemScreen() {
   }>();
   const { hooks } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
-  const { colors, androidToolbarIcons, entryPageSize, onEntryOpen } =
+  const { routes, colors, androidToolbarIcons, entryPageSize, onEntryOpen } =
     useRoutedRoadmap();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -84,7 +115,9 @@ export function RoadmapItemScreen() {
     <>
       {item ? (
         <>
-          <Stack.Screen options={{ headerTitle: item.title }} />
+          <Stack.Screen
+            options={{ headerTitle: item.title, headerBackVisible: false }}
+          />
           <FeedbackBoard.Root {...colors}>
             <FeedbackBoard.List
               style={{
@@ -115,14 +148,19 @@ export function RoadmapItemScreen() {
 
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
-          hidden={!router.canGoBack()}
           icon={
             process.env.EXPO_OS === "ios"
               ? "chevron.backward"
               : androidToolbarIcons.back
           }
           accessibilityLabel={messages.entry.back}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace(roadmapRouteHref(routes.board));
+            }
+          }}
           tintColor={theme.colors.text}
         >
           {messages.entry.back}

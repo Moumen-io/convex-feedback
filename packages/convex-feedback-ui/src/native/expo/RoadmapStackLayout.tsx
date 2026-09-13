@@ -54,7 +54,6 @@ export function RoadmapStackLayout({
   };
   const defaults: NativeStackNavigationOptions = {
     headerShown: true,
-    headerTransparent: true,
     headerShadowVisible: true,
     headerBackButtonDisplayMode: "minimal",
     headerTintColor: textColor ?? resolvedTheme.colors.text,

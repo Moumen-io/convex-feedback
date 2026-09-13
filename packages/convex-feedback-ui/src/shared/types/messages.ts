@@ -54,8 +54,11 @@ export interface FeedbackMessages {
     /** Display labels for each roadmap stage. */
     statuses: Record<RoadmapStatus, string>;
 
-    /** Formats the number of feedback entries attached to an item. */
+    /** Formats the number of feedback items attached to an item. */
     linkedEntries: (count: number) => string;
+
+    /** Empty-state copy for a roadmap stage column. */
+    emptyStage: string;
 
     /** Empty-state copy when the roadmap has no items. */
     noItems: string;
@@ -63,7 +66,7 @@ export interface FeedbackMessages {
     /** Empty-state copy when a search produces no results. */
     noSearchResults: string;
 
-    /** Heading for feedback attached to a roadmap item. */
+    /** Heading for feedback shown on a roadmap item. */
     attachedFeedback: string;
 
     /** Empty-state copy when an item has no attached feedback. */

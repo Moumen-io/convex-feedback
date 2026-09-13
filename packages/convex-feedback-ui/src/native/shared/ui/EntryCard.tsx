@@ -10,6 +10,7 @@ export function EntryCard({
   entry,
   hooks,
   onOpen,
+  titleNumberOfLines,
 }: FeedbackScreenEntryCardProps) {
   const { isAuthenticated, onUnauthenticated } = useFeedbackBody();
   const setUpvote = hooks.useSetEntryUpvote();
@@ -46,7 +47,7 @@ export function EntryCard({
           <FeedbackEntry.Kind />
           <FeedbackEntry.Status />
         </View>
-        <FeedbackEntry.Title />
+        <FeedbackEntry.Title numberOfLines={titleNumberOfLines} />
         <FeedbackEntry.Body numberOfLines={3} />
         <FeedbackEntry.CommentCount />
       </Pressable>

@@ -1,13 +1,6 @@
 import type { RoadmapItem, RoadmapStatus } from "convex-feedback";
 import { useState, type PropsWithChildren } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -24,6 +17,7 @@ import { collectNativeMetadata } from "../metadata.js";
 import { Button } from "./Button.js";
 import { EntryCard } from "./EntryCard.js";
 import { EntryDetail } from "./EntryDetail.js";
+import { RoadmapBoard, RoadmapBoardCard } from "./RoadmapBoard.js";
 import { FeedbackBoard } from "./primitives.js";
 
 const stages: readonly { value: RoadmapStatus }[] = [
@@ -110,7 +104,7 @@ export function RoadmapScreen({
       renderActor={renderActor}
       onUnauthenticated={onUnauthenticated}
     >
-      <RoadmapScreenInner
+      <RoadmapScreenContent
         pageSize={pageSize}
         entryPageSize={entryPageSize}
         onEntryOpen={onEntryOpen}
@@ -120,21 +114,51 @@ export function RoadmapScreen({
   );
 }
 
-function RoadmapScreenInner({
+export interface RoadmapScreenContentProps extends Pick<
+  RoadmapScreenProps,
+  | "onEntryOpen"
+  | "onUnauthenticated"
+  | "primaryColor"
+  | "primaryForeground"
+  | "backgroundColor"
+  | "surfaceColor"
+  | "textColor"
+  | "mutedColor"
+  | "borderColor"
+  | "dangerColor"
+> {
+  pageSize: number;
+  entryPageSize: number;
+  /** Controlled search value used by Expo Router's native Stack.SearchBar. */
+  query?: string;
+  /** Controlled search setter used by Expo Router's native Stack.SearchBar. */
+  onQueryChange?: (query: string) => void;
+  /** Renders the inline title/search header for non-Stack usage. @default true */
+  showBoardHeader?: boolean;
+}
+
+/** Shared screen content used by direct native and Expo Stack integrations. */
+export function RoadmapScreenContent({
   pageSize,
   entryPageSize,
   onEntryOpen,
+  query,
+  onQueryChange,
+  showBoardHeader = true,
   ...colors
-}: Omit<RoadmapScreenProps, "hooks" | "pageSize" | "entryPageSize"> & {
-  pageSize: number;
-  entryPageSize: number;
-}) {
+}: RoadmapScreenContentProps) {
   const [selected, setSelected] = useState<RoadmapItem | null>(null);
 
   return (
     <FeedbackBoard.Root {...colors}>
       {selected === null ? (
-        <RoadmapBoardContent pageSize={pageSize} onItemOpen={setSelected} />
+        <RoadmapBoardContent
+          pageSize={pageSize}
+          onItemOpen={setSelected}
+          query={query}
+          onQueryChange={onQueryChange}
+          showHeader={showBoardHeader}
+        />
       ) : (
         <RoadmapDetailPage
           item={selected}
@@ -151,14 +175,22 @@ function RoadmapScreenInner({
 export function RoadmapBoardContent({
   pageSize,
   onItemOpen,
+  query: controlledQuery,
+  onQueryChange,
+  showHeader = true,
 }: {
   pageSize: number;
   onItemOpen: (item: RoadmapItem) => void;
+  query?: string;
+  onQueryChange?: (query: string) => void;
+  showHeader?: boolean;
 }) {
   const { hooks } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const insets = useSafeAreaInsets();
-  const [query, setQuery] = useState("");
+  const [internalQuery, setInternalQuery] = useState("");
+  const query = controlledQuery ?? internalQuery;
+  const setQuery = onQueryChange ?? setInternalQuery;
   const roadmap = hooks.useRoadmap();
   const search = hooks.useSearchRoadmap(query);
   const searching = query.trim().length > 0;
@@ -171,27 +203,27 @@ export function RoadmapBoardContent({
     <View
       style={[styles.boardScreen, { backgroundColor: theme.colors.background }]}
     >
-      <FeedbackBoard.Header
-        style={[
-          styles.boardHeader,
-          { paddingTop: Math.max(theme.spacing, insets.top + 12) },
-        ]}
-      >
-        <FeedbackBoard.Title>{messages.roadmap.title}</FeedbackBoard.Title>
-        <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
-          {messages.roadmap.subtitle}
-        </Text>
-        <FeedbackBoard.Search
-          value={query}
-          onValueChange={setQuery}
-          placeholder={messages.roadmap.searchPlaceholder}
-          accessibilityLabel={messages.roadmap.searchPlaceholder}
-        />
-      </FeedbackBoard.Header>
+      {showHeader && (
+        <FeedbackBoard.Header
+          style={[
+            styles.boardHeader,
+            { paddingTop: Math.max(theme.spacing, insets.top + 12) },
+          ]}
+        >
+          <FeedbackBoard.Title>{messages.roadmap.title}</FeedbackBoard.Title>
+          <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
+            {messages.roadmap.subtitle}
+          </Text>
+          <FeedbackBoard.Search
+            value={query}
+            onValueChange={setQuery}
+            placeholder={messages.roadmap.searchPlaceholder}
+            accessibilityLabel={messages.roadmap.searchPlaceholder}
+          />
+        </FeedbackBoard.Header>
+      )}
 
-      {loading ? (
-        <RoadmapLoadingBoard />
-      ) : items.length === 0 ? (
+      {!loading && items.length === 0 ? (
         <FeedbackBoard.State>
           <Text style={[styles.stateText, { color: theme.colors.mutedText }]}>
             {searching
@@ -200,7 +232,27 @@ export function RoadmapBoardContent({
           </Text>
         </FeedbackBoard.State>
       ) : (
-        <RoadmapColumns items={items} onItemOpen={onItemOpen} />
+        <RoadmapBoard
+          items={items}
+          stages={stages.map((stage) => ({
+            ...stage,
+            label: messages.roadmap.statuses[stage.value],
+          }))}
+          colors={{
+            background: theme.colors.background,
+            surface: theme.colors.surface,
+            text: theme.colors.text,
+            muted: theme.colors.mutedText,
+            border: theme.colors.border,
+            primary: theme.colors.primary,
+          }}
+          emptyLabel={messages.roadmap.emptyStage}
+          loading={loading}
+          onItemOpen={onItemOpen}
+          renderItem={({ item, onOpen }) => (
+            <RoadmapCard item={item} onOpen={onOpen} />
+          )}
+        />
       )}
 
       {!searching &&
@@ -265,12 +317,7 @@ export function RoadmapItemContent({
   return (
     <View style={styles.detailContent}>
       <View style={styles.detailIntro}>
-        <View style={styles.detailMetaRow}>
-          <RoadmapStatusBadge status={item.status} />
-          <Text style={[styles.detailCount, { color: theme.colors.mutedText }]}>
-            {messages.roadmap.linkedEntries(item.feedbackCount)}
-          </Text>
-        </View>
+        <RoadmapStatusBadge status={item.status} />
         <Text style={[styles.detailTitle, { color: theme.colors.text }]}>
           {item.title}
         </Text>
@@ -305,6 +352,7 @@ export function RoadmapItemContent({
               key={entry.id}
               entry={entry}
               hooks={hooks}
+              titleNumberOfLines={1}
               onOpen={() => openEntry(entry.id)}
             />
           ))}
@@ -368,146 +416,6 @@ function RoadmapDetailPage({
   );
 }
 
-function RoadmapColumns({
-  items,
-  onItemOpen,
-}: {
-  items: readonly RoadmapItem[];
-  onItemOpen: (item: RoadmapItem) => void;
-}) {
-  const { messages, theme } = useFeedbackUi();
-  const insets = useSafeAreaInsets();
-
-  return (
-    <ScrollView
-      horizontal
-      style={styles.columnsScroll}
-      contentInsetAdjustmentBehavior="automatic"
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[
-        styles.columnsContent,
-        {
-          paddingLeft: theme.spacing + insets.left,
-          paddingRight: theme.spacing + insets.right,
-          paddingBottom: insets.bottom + theme.spacing * 2,
-        },
-      ]}
-    >
-      {stages.map((stage) => {
-        const stageItems = items
-          .filter((item) => item.status === stage.value)
-          .sort((a, b) => a.position - b.position);
-
-        return (
-          <View
-            key={stage.value}
-            style={[
-              styles.column,
-              {
-                borderColor: theme.colors.border,
-                backgroundColor: theme.colors.surfaceMuted,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.columnHeader,
-                { borderColor: theme.colors.border },
-              ]}
-            >
-              <View style={styles.columnHeading}>
-                <RoadmapStatusBadge status={stage.value} />
-                <Text
-                  style={[styles.columnTitle, { color: theme.colors.text }]}
-                >
-                  {messages.roadmap.statuses[stage.value]}
-                </Text>
-              </View>
-              <Text
-                style={[styles.columnCount, { color: theme.colors.mutedText }]}
-              >
-                {stageItems.length}
-              </Text>
-            </View>
-            <ScrollView
-              style={styles.columnList}
-              nestedScrollEnabled
-              contentInsetAdjustmentBehavior="never"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.columnItems}
-            >
-              {stageItems.length === 0 ? (
-                <Text
-                  style={[
-                    styles.emptyColumn,
-                    { color: theme.colors.mutedText },
-                  ]}
-                >
-                  {messages.roadmap.noItems}
-                </Text>
-              ) : (
-                stageItems.map((item) => (
-                  <RoadmapCard
-                    key={item.id}
-                    item={item}
-                    onOpen={() => onItemOpen(item)}
-                  />
-                ))
-              )}
-            </ScrollView>
-          </View>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
-function RoadmapLoadingBoard() {
-  const { messages, theme } = useFeedbackUi();
-  const insets = useSafeAreaInsets();
-
-  return (
-    <ScrollView
-      horizontal
-      style={styles.columnsScroll}
-      contentInsetAdjustmentBehavior="automatic"
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[
-        styles.columnsContent,
-        {
-          paddingLeft: theme.spacing + insets.left,
-          paddingRight: theme.spacing + insets.right,
-          paddingBottom: insets.bottom + theme.spacing * 2,
-        },
-      ]}
-    >
-      {stages.map((stage) => (
-        <View
-          key={stage.value}
-          style={[
-            styles.column,
-            {
-              borderColor: theme.colors.border,
-              backgroundColor: theme.colors.surfaceMuted,
-            },
-          ]}
-        >
-          <View
-            style={[styles.columnHeader, { borderColor: theme.colors.border }]}
-          >
-            <Text style={[styles.columnTitle, { color: theme.colors.text }]}>
-              {messages.roadmap.statuses[stage.value]}
-            </Text>
-          </View>
-          <View style={styles.loadingColumn}>
-            <ActivityIndicator color={theme.colors.primary} />
-          </View>
-        </View>
-      ))}
-    </ScrollView>
-  );
-}
-
 function RoadmapCard({
   item,
   onOpen,
@@ -518,24 +426,13 @@ function RoadmapCard({
   const { messages, theme } = useFeedbackUi();
 
   return (
-    <Pressable
-      accessibilityRole="button"
+    <RoadmapBoardCard
+      colors={{ border: theme.colors.border, surface: theme.colors.surface }}
       accessibilityLabel={item.title}
       onPress={onOpen}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.surface,
-        },
-        pressed && styles.pressed,
-      ]}
     >
       <View style={styles.cardMeta}>
         <RoadmapStatusBadge status={item.status} />
-        <Text style={[styles.cardCount, { color: theme.colors.mutedText }]}>
-          {messages.roadmap.linkedEntries(item.feedbackCount)}
-        </Text>
       </View>
       <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
         {item.title}
@@ -551,7 +448,7 @@ function RoadmapCard({
       <Text style={[styles.cardLink, { color: theme.colors.primary }]}>
         {messages.entry.open} ›
       </Text>
-    </Pressable>
+    </RoadmapBoardCard>
   );
 }
 
@@ -587,50 +484,11 @@ const styles = StyleSheet.create({
   },
   subtitle: { fontSize: 14, lineHeight: 20 },
   stateText: { textAlign: "center" },
-  columnsScroll: { flex: 1 },
-  columnsContent: { gap: 12, alignItems: "stretch", paddingTop: 4 },
-  column: {
-    width: 306,
-    minHeight: 400,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 18,
-    overflow: "hidden",
-  },
-  columnHeader: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-  },
-  columnHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
-  columnTitle: { fontSize: 14, fontWeight: "700" },
-  columnCount: { fontSize: 12, fontWeight: "700" },
-  columnItems: { gap: 10, padding: 10 },
-  columnList: { flex: 1 },
-  emptyColumn: {
-    fontSize: 13,
-    lineHeight: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 26,
-    textAlign: "center",
-  },
-  loadingColumn: { flex: 1, alignItems: "center", justifyContent: "center" },
-  card: {
-    gap: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    padding: 14,
-  },
-  pressed: { opacity: 0.7 },
   cardMeta: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 8,
   },
-  cardCount: { fontSize: 11, fontWeight: "600" },
   cardTitle: { fontSize: 16, fontWeight: "700", lineHeight: 21 },
   cardDescription: { fontSize: 13, lineHeight: 19 },
   cardLink: { fontSize: 13, fontWeight: "700" },
@@ -650,13 +508,6 @@ const styles = StyleSheet.create({
   detailToolbar: { paddingHorizontal: 18, paddingBottom: 10 },
   detailContent: { gap: 18 },
   detailIntro: { gap: 10 },
-  detailMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  detailCount: { fontSize: 12, fontWeight: "600" },
   detailTitle: { fontSize: 26, fontWeight: "800", lineHeight: 31 },
   detailDescription: { fontSize: 15, lineHeight: 23 },
   sectionTitle: { fontSize: 18, fontWeight: "800" },

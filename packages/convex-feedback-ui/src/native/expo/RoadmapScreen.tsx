@@ -1,9 +1,16 @@
 import { Stack, useRouter } from "expo-router";
+import { useRef, useState } from "react";
+import type { SearchBarCommands } from "react-native-screens";
 
-import { mergeFeedbackMessages } from "../../shared/messages.js";
-import { mergeFeedbackTheme } from "../../shared/theme.js";
-import { RoadmapScreen as NativeRoadmapScreen } from "../shared/ui/RoadmapScreen.js";
+import { useFeedbackUi } from "../../shared/context/FeedbackProvider.js";
+import type { mergeFeedbackMessages } from "../../shared/messages.js";
+import type { mergeFeedbackTheme } from "../../shared/theme.js";
 import type { RoadmapScreenProps } from "../../shared/types/index.js";
+import {
+  RoadmapProvider,
+  RoadmapScreen as NativeRoadmapScreen,
+  RoadmapScreenContent,
+} from "../shared/ui/RoadmapScreen.js";
 import type {
   RoadmapAndroidToolbarIcons,
   RoadmapStackScreenOptions,
@@ -32,16 +39,52 @@ export type ExpoRoadmapScreenProps = RoadmapScreenProps &
  * `RoadmapStackLayout` when the board and item detail should be separate
  * discovered Expo Router pages.
  */
-export function RoadmapScreen({
-  useStack = true,
-  StackOptions,
-  androidToolbarIcons = {},
-  ...props
-}: ExpoRoadmapScreenProps) {
-  if (!useStack) return <NativeRoadmapScreen {...props} />;
+export function RoadmapScreen(props: ExpoRoadmapScreenProps) {
+  if (props.useStack === false) {
+    return <NativeRoadmapScreen {...props} />;
+  }
 
-  const messages = mergeFeedbackMessages(props.messages);
-  const theme = mergeFeedbackTheme(props.theme);
+  return (
+    <RoadmapProvider
+      hooks={props.hooks}
+      messages={props.messages}
+      theme={props.theme}
+      unstyled={props.unstyled}
+      commentSort={props.commentSort}
+      maxCommentDepth={props.maxCommentDepth}
+      transformComments={props.transformComments}
+      renderActor={props.renderActor}
+      onUnauthenticated={props.onUnauthenticated}
+    >
+      <StackedRoadmapScreen props={props} />
+    </RoadmapProvider>
+  );
+}
+
+function StackedRoadmapScreen({
+  props,
+}: {
+  props: RoadmapScreenWithStack & RoadmapScreenProps;
+}) {
+  const {
+    androidToolbarIcons = {},
+    hooks,
+    pageSize,
+    entryPageSize,
+    onEntryOpen,
+    onUnauthenticated,
+    primaryColor,
+    primaryForeground,
+    backgroundColor,
+    surfaceColor,
+    textColor,
+    mutedColor,
+    borderColor,
+    dangerColor,
+  } = props;
+  const { messages, theme } = useFeedbackUi();
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<SearchBarCommands>(null);
 
   return (
     <>
@@ -49,23 +92,56 @@ export function RoadmapScreen({
         options={{
           headerTitle: messages.roadmap.title,
           headerShown: true,
-          headerTransparent: true,
+          headerTransparent: false,
           headerShadowVisible: true,
           headerBackButtonDisplayMode: "minimal",
           headerBackVisible: false,
-          headerTintColor: props.textColor ?? theme.colors.text,
+          headerTintColor: textColor ?? theme.colors.text,
           contentStyle: {
-            backgroundColor: props.backgroundColor ?? theme.colors.background,
+            backgroundColor: backgroundColor ?? theme.colors.background,
           },
-          ...StackOptions,
+          ...props.StackOptions,
         }}
       />
+      <Stack.SearchBar
+        ref={searchRef}
+        placeholder={messages.roadmap.searchPlaceholder}
+        onChangeText={(event) =>
+          setQuery(
+            (event as unknown as { nativeEvent: { text: string } }).nativeEvent
+              .text,
+          )
+        }
+        obscureBackground={false}
+        allowToolbarIntegration
+        hideNavigationBar={false}
+        textColor={theme.colors.text}
+      />
+      <Stack.Toolbar placement="bottom">
+        <Stack.Toolbar.SearchBarSlot />
+      </Stack.Toolbar>
       <RoadmapToolbar
         androidToolbarIcons={androidToolbarIcons}
         messages={messages}
         theme={theme}
       />
-      <NativeRoadmapScreen {...props} />
+      <RoadmapScreenContent
+        pageSize={pageSize ?? hooks.pageSizes.roadmap}
+        entryPageSize={entryPageSize ?? hooks.pageSizes.entries}
+        query={query}
+        onQueryChange={setQuery}
+        showBoardHeader={false}
+        onEntryOpen={onEntryOpen}
+        onUnauthenticated={onUnauthenticated}
+        primaryColor={primaryColor}
+        primaryForeground={primaryForeground}
+        backgroundColor={backgroundColor}
+        surfaceColor={surfaceColor}
+        textColor={textColor}
+        mutedColor={mutedColor}
+        borderColor={borderColor}
+        dangerColor={dangerColor}
+      />
     </>
   );
 }

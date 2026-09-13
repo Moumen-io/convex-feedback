@@ -20,3 +20,8 @@ Containers such as `FeedbackEntry.Content`, `FeedbackForm.Root`, and `Comment.Ch
 and renders attached entries with the existing `EntryCard` and `EntryDetail`
 views. Pass `onUnauthenticated` to handle auth when an anonymous visitor votes
 or comments.
+
+The exported `RoadmapBoard` is the reusable admin-style horizontal board
+layout. Supply ordered stages, colors, and a `renderItem` callback to share the
+same column scrolling behavior while customizing cards for an admin or public
+surface.

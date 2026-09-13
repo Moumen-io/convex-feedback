@@ -215,9 +215,6 @@ function RoadmapCard({
         <span className="cf-roadmap-status">
           {messages.roadmap.statuses[item.status]}
         </span>
-        <span className="cf-roadmap-card__count">
-          {messages.roadmap.linkedEntries(item.feedbackCount)}
-        </span>
       </span>
       <strong className="cf-roadmap-card__title">{item.title}</strong>
       {item.description && (
@@ -261,9 +258,6 @@ function RoadmapDetail({
         <div className="cf-roadmap-card__meta">
           <span className="cf-roadmap-status">
             {messages.roadmap.statuses[item.status]}
-          </span>
-          <span className="cf-roadmap-card__count">
-            {messages.roadmap.linkedEntries(item.feedbackCount)}
           </span>
         </div>
         <h2 className="cf-board__title">{item.title}</h2>
@@ -338,6 +332,7 @@ function RoadmapEntry({
           onToggle={toggle}
         />
         <FeedbackEntry.Content
+          className="cf-roadmap-entry__content"
           onClick={() => onOpen?.(entry.id)}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {

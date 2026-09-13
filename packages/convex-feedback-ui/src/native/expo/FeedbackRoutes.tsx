@@ -173,23 +173,46 @@ export function FeedbackEntryScreen() {
 function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
   const { hooks } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
-  const { colors, androidToolbarIcons } = useRoutedFeedback();
+  const { routes, colors, androidToolbarIcons } = useRoutedFeedback();
   const modal = useRoutedFeedbackModal();
   const router = useRouter();
   const entry = hooks.useEntry(entryId);
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace(feedbackRouteHref(routes.board));
+    }
+  };
+
   return (
     <>
-      {entry && <Stack.Screen options={{ headerTitle: entry.title }} />}
+      <Stack.Screen
+        options={{
+          headerTitle: entry?.title ?? messages.board.title,
+          headerBackVisible: false,
+        }}
+      />
       <FeedbackBoard.Root {...colors}>
         <FeedbackBoard.List style={{ padding: theme.spacing }}>
-          <EntryDetail
-            entryId={entryId}
-            hideBackButton
-            onBack={() => router.back()}
-          />
+          <EntryDetail entryId={entryId} hideBackButton onBack={goBack} />
         </FeedbackBoard.List>
       </FeedbackBoard.Root>
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "chevron.backward"
+              : androidToolbarIcons.back
+          }
+          accessibilityLabel={messages.entry.back}
+          onPress={goBack}
+          tintColor={theme.colors.text}
+        >
+          {messages.entry.back}
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
       {modal && (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button

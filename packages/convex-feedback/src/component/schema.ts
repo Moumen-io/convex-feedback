@@ -62,6 +62,7 @@ const schema = defineSchema({
     deletingAt: v.optional(v.number()),
     rebalanceId: v.optional(v.string()),
     rebalanceRank: v.optional(v.number()),
+    rebalancePosition: v.optional(v.number()),
   })
     .index("by_status_and_position", ["status", "position"])
     .index("by_status_deleting_at_position", [
@@ -75,11 +76,24 @@ const schema = defineSchema({
       "rebalanceId",
       "rebalanceRank",
     ])
+    .index("by_status_deleting_at_rebalance_id_position", [
+      "status",
+      "deletingAt",
+      "rebalanceId",
+      "rebalancePosition",
+    ])
     .index("by_position", ["position"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["status", "deletingAt"],
     }),
+
+  roadmapRebalances: defineTable({
+    status: roadmapStatusValidator,
+    nextGeneration: v.number(),
+    visibleGeneration: v.optional(v.string()),
+    activeGeneration: v.optional(v.string()),
+  }).index("by_status", ["status"]),
 
   comments: defineTable({
     entryId: v.id("entries"),

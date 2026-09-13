@@ -1,7 +1,7 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
 
-import { api } from "../src/component/_generated/api.js";
+import { api, internal } from "../src/component/_generated/api.js";
 import type { Id } from "../src/component/_generated/dataModel.js";
 import schema from "../src/component/schema.js";
 
@@ -101,21 +101,18 @@ describe("roadmap ordering", () => {
       vi.useRealTimers();
     }
 
-    const ordered = await testInstance.run((ctx) =>
-      ctx.db
-        .query("roadmap")
-        .withIndex("by_status_and_position", (q) => q.eq("status", "planned"))
-        .order("asc")
-        .collect(),
-    );
+    const ordered = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: null, numItems: 10 },
+      status: "planned",
+    });
 
-    expect(ordered.map((item) => item._id)).toEqual([
+    expect(ordered.page.map((item) => item.id)).toEqual([
       firstId,
       movingId,
       secondId,
       thirdId,
     ]);
-    expect(ordered.map((item) => item.position)).toEqual([
+    expect(ordered.page.map((item) => item.position)).toEqual([
       1_000_000, 2_000_000, 3_000_000, 4_000_000,
     ]);
   });
@@ -186,21 +183,233 @@ describe("roadmap ordering", () => {
       vi.useRealTimers();
     }
 
-    const ordered = await testInstance.run((ctx) =>
-      ctx.db
-        .query("roadmap")
-        .withIndex("by_status_and_position", (q) => q.eq("status", "planned"))
-        .order("asc")
-        .take(250),
-    );
-    expect(ordered).toHaveLength(201);
-    expect(ordered.slice(0, 3).map((item) => item._id)).toEqual([
+    const ordered = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: null, numItems: 250 },
+      status: "planned",
+    });
+    expect(ordered.page).toHaveLength(201);
+    expect(ordered.page.slice(0, 3).map((item) => item.id)).toEqual([
       itemIds[0],
       itemIds[2],
       itemIds[1],
     ]);
     expect(
-      ordered.every((item, index) => item.position === (index + 1) * 1_000_000),
+      ordered.page.every(
+        (item, index) => item.position === (index + 1) * 1_000_000,
+      ),
     ).toBe(true);
+  });
+
+  test("keeps live reads stable until the replacement generation completes", async () => {
+    const testInstance = setup();
+    await testInstance.run(async (ctx) => {
+      const ids: Id<"roadmap">[] = [];
+      for (let index = 0; index < 150; index += 1) {
+        ids.push(
+          await ctx.db.insert("roadmap", {
+            title: `Item ${index}`,
+            status: "planned",
+            position: index === 0 ? 0 : index === 1 ? 5 : index * 10,
+            feedbackCount: 0,
+            createdAt: index,
+            updatedAt: index,
+          }),
+        );
+      }
+      await ctx.db.insert("roadmapRebalances", {
+        status: "planned",
+        nextGeneration: 1,
+        activeGeneration: "1",
+      });
+      return ids;
+    });
+
+    const generation = "1";
+    vi.useFakeTimers();
+    try {
+      const liveBefore = await testInstance.query(api.roadmap.list, {
+        paginationOpts: { cursor: null, numItems: 250 },
+        status: "planned",
+      });
+      const firstMarkPage = await testInstance.run((ctx) =>
+        ctx.db
+          .query("roadmap")
+          .withIndex("by_status_deleting_at_position", (q) =>
+            q.eq("status", "planned").eq("deletingAt", undefined),
+          )
+          .order("asc")
+          .paginate({ cursor: null, numItems: 100, maximumRowsRead: 100 }),
+      );
+      expect(firstMarkPage.page).toHaveLength(100);
+
+      await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+        status: "planned",
+        rebalanceId: generation,
+        phase: "mark",
+        paginationOpts: {
+          cursor: null,
+          numItems: 100,
+          maximumRowsRead: 100,
+        },
+        offset: 0,
+      });
+      await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+        status: "planned",
+        rebalanceId: generation,
+        phase: "mark",
+        paginationOpts: {
+          cursor: firstMarkPage.continueCursor,
+          numItems: 100,
+          maximumRowsRead: 100,
+        },
+        offset: firstMarkPage.page.length,
+      });
+      await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+        status: "planned",
+        rebalanceId: generation,
+        phase: "rewrite",
+        paginationOpts: {
+          cursor: null,
+          numItems: 100,
+          maximumRowsRead: 100,
+        },
+        offset: 0,
+      });
+
+      const stateDuringRewrite = await testInstance.run((ctx) =>
+        ctx.db
+          .query("roadmapRebalances")
+          .withIndex("by_status", (q) => q.eq("status", "planned"))
+          .first(),
+      );
+      expect(stateDuringRewrite?.activeGeneration).toBe(generation);
+      const liveDuringRewrite = await testInstance.query(api.roadmap.list, {
+        paginationOpts: { cursor: null, numItems: 250 },
+        status: "planned",
+      });
+      expect(liveDuringRewrite.page).toEqual(liveBefore.page);
+
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+      const completed = await testInstance.query(api.roadmap.list, {
+        paginationOpts: { cursor: null, numItems: 250 },
+        status: "planned",
+      });
+      expect(completed.page).toHaveLength(150);
+      expect(
+        completed.page.every(
+          (item, index) => item.position === (index + 1) * 1_000_000,
+        ),
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("supersedes stale mark and rewrite generations per status", async () => {
+    const testInstance = setup();
+    const itemIds = await testInstance.run(async (ctx) => {
+      const positions = [0, 5, 10, 15];
+      const ids: Id<"roadmap">[] = [];
+      for (const [index, position] of positions.entries()) {
+        ids.push(
+          await ctx.db.insert("roadmap", {
+            title: `Item ${index}`,
+            status: "planned",
+            position,
+            feedbackCount: 0,
+            createdAt: index,
+            updatedAt: index,
+          }),
+        );
+      }
+      return ids;
+    });
+
+    await testInstance.mutation(api.roadmap.move, {
+      actor,
+      roadmapId: itemIds[2]!,
+      status: "planned",
+      previousItemId: itemIds[0]!,
+      nextItemId: itemIds[1]!,
+    });
+    const firstState = await testInstance.run((ctx) =>
+      ctx.db
+        .query("roadmapRebalances")
+        .withIndex("by_status", (q) => q.eq("status", "planned"))
+        .first(),
+    );
+    const firstGeneration = firstState?.activeGeneration;
+    expect(firstGeneration).toEqual(expect.any(String));
+    if (firstGeneration === undefined) {
+      throw new Error("First rebalance was not scheduled");
+    }
+
+    await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+      status: "planned",
+      rebalanceId: firstGeneration,
+      phase: "mark",
+      paginationOpts: { cursor: null, numItems: 10 },
+      offset: 0,
+    });
+
+    await testInstance.mutation(api.roadmap.move, {
+      actor,
+      roadmapId: itemIds[3]!,
+      status: "planned",
+      previousItemId: itemIds[2]!,
+      nextItemId: itemIds[1]!,
+    });
+    const secondState = await testInstance.run((ctx) =>
+      ctx.db
+        .query("roadmapRebalances")
+        .withIndex("by_status", (q) => q.eq("status", "planned"))
+        .first(),
+    );
+    const secondGeneration = secondState?.activeGeneration;
+    expect(secondGeneration).toEqual(expect.any(String));
+    expect(secondGeneration).not.toBe(firstGeneration);
+
+    const liveBeforeStaleJobs = await testInstance.run((ctx) =>
+      Promise.all(itemIds.map((itemId) => ctx.db.get("roadmap", itemId))),
+    );
+    await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+      status: "planned",
+      rebalanceId: firstGeneration,
+      phase: "mark",
+      paginationOpts: { cursor: null, numItems: 10 },
+      offset: 0,
+    });
+    await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+      status: "planned",
+      rebalanceId: firstGeneration,
+      phase: "rewrite",
+      paginationOpts: { cursor: null, numItems: 10 },
+      offset: 0,
+    });
+    const liveAfterStaleJobs = await testInstance.run((ctx) =>
+      Promise.all(itemIds.map((itemId) => ctx.db.get("roadmap", itemId))),
+    );
+    expect(liveAfterStaleJobs).toEqual(liveBeforeStaleJobs);
+
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const completed = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: null, numItems: 10 },
+      status: "planned",
+    });
+    expect(completed.page.map((item) => item.id)).toEqual([
+      itemIds[0],
+      itemIds[2],
+      itemIds[3],
+      itemIds[1],
+    ]);
+    expect(completed.page.map((item) => item.position)).toEqual([
+      1_000_000, 2_000_000, 3_000_000, 4_000_000,
+    ]);
   });
 });

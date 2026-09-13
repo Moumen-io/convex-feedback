@@ -144,6 +144,7 @@ export async function serializeEntry(
 
 export function serializeRoadmapItem(
   item: DataModel["roadmap"]["document"],
+  position = item.position,
 ): RoadmapItem {
   return {
     id: item._id,
@@ -153,7 +154,7 @@ export function serializeRoadmapItem(
       ? {}
       : { description: item.description }),
     status: item.status,
-    position: item.position,
+    position,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     feedbackCount: item.feedbackCount,

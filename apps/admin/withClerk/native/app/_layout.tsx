@@ -93,9 +93,7 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
     args: {},
   });
   const errorMessage =
-    accessCheck.status === "error"
-      ? accessCheck.error.message
-      : undefined;
+    accessCheck.status === "error" ? accessCheck.error.message : undefined;
 
   useEffect(() => {
     if (errorMessage === undefined) return;

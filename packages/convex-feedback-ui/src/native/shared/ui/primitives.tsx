@@ -54,6 +54,7 @@ export type BoardRootProps = PropsWithChildren<FeedbackColorProps>;
 
 function BoardRoot({
   primaryColor,
+  primaryForeground,
   backgroundColor,
   surfaceColor,
   textColor,
@@ -65,6 +66,7 @@ function BoardRoot({
   const colorOverrides = useMemo(
     () => ({
       ...(primaryColor === undefined ? {} : { primary: primaryColor }),
+      ...(primaryForeground === undefined ? {} : { primaryForeground }),
       ...(backgroundColor === undefined ? {} : { background: backgroundColor }),
       ...(surfaceColor === undefined ? {} : { surface: surfaceColor }),
       ...(textColor === undefined ? {} : { text: textColor }),
@@ -78,6 +80,7 @@ function BoardRoot({
       dangerColor,
       mutedColor,
       primaryColor,
+      primaryForeground,
       surfaceColor,
       textColor,
     ],

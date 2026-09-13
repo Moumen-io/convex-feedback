@@ -1,6 +1,6 @@
 "use client";
 
-import type { RoadmapItem } from "convex-feedback";
+import type { RoadmapItem, RoadmapStatus } from "convex-feedback";
 import { useState } from "react";
 
 import {
@@ -11,6 +11,12 @@ import { allowAuthenticatedAction } from "../shared/helpers.js";
 import type { RoadmapScreenProps } from "../shared/types/index.js";
 import { FeedbackActionError, useFeedbackAction } from "./action.js";
 import { FeedbackBoard, FeedbackEntry } from "./primitives.js";
+
+const stages: readonly { value: RoadmapStatus }[] = [
+  { value: "planned" },
+  { value: "in_progress" },
+  { value: "shipped" },
+];
 
 export function RoadmapScreen({
   hooks,
@@ -25,6 +31,7 @@ export function RoadmapScreen({
 }: RoadmapScreenProps) {
   const resolvedPageSize = pageSize ?? hooks.pageSizes.roadmap;
   const resolvedEntryPageSize = entryPageSize ?? hooks.pageSizes.entries;
+
   return (
     <FeedbackProvider messages={messages} theme={theme} unstyled={unstyled}>
       <RoadmapScreenInner
@@ -50,7 +57,6 @@ function RoadmapScreenInner({
   pageSize: number;
   entryPageSize: number;
 }) {
-  const { messages } = useFeedbackUi();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const roadmap = hooks.useRoadmap();
@@ -59,9 +65,29 @@ function RoadmapScreenInner({
   const items = searching ? (search ?? []) : roadmap.results;
   const selected = items.find((item) => item.id === selectedId) ?? null;
 
-  if (selected !== null) {
-    return (
-      <FeedbackBoard.Root {...colors}>
+  return (
+    <FeedbackBoard.Root {...colors}>
+      {selected === null ? (
+        <RoadmapBoard
+          items={items}
+          loading={
+            searching
+              ? search === undefined
+              : roadmap.status === "LoadingFirstPage"
+          }
+          searching={searching}
+          query={query}
+          onQueryChange={setQuery}
+          onItemOpen={(item) => setSelectedId(item.id)}
+          canLoadMore={
+            !searching &&
+            (roadmap.status === "CanLoadMore" ||
+              roadmap.status === "LoadingMore")
+          }
+          loadingMore={roadmap.status === "LoadingMore"}
+          onLoadMore={() => roadmap.loadMore(pageSize)}
+        />
+      ) : (
         <RoadmapDetail
           item={selected}
           hooks={hooks}
@@ -70,59 +96,107 @@ function RoadmapScreenInner({
           onUnauthenticated={onUnauthenticated}
           onBack={() => setSelectedId(null)}
         />
-      </FeedbackBoard.Root>
-    );
-  }
+      )}
+    </FeedbackBoard.Root>
+  );
+}
 
-  const loading = searching
-    ? search === undefined
-    : roadmap.status === "LoadingFirstPage";
+function RoadmapBoard({
+  items,
+  loading,
+  searching,
+  query,
+  onQueryChange,
+  onItemOpen,
+  canLoadMore,
+  loadingMore,
+  onLoadMore,
+}: {
+  items: readonly RoadmapItem[];
+  loading: boolean;
+  searching: boolean;
+  query: string;
+  onQueryChange: (value: string) => void;
+  onItemOpen: (item: RoadmapItem) => void;
+  canLoadMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+}) {
+  const { messages } = useFeedbackUi();
 
   return (
-    <FeedbackBoard.Root {...colors}>
+    <>
       <FeedbackBoard.Header>
         <div>
-          <FeedbackBoard.Title>Roadmap</FeedbackBoard.Title>
-          <p className="cf-board__subtitle">
-            See what is planned, in progress, and shipped.
-          </p>
+          <FeedbackBoard.Title>{messages.roadmap.title}</FeedbackBoard.Title>
+          <p className="cf-board__subtitle">{messages.roadmap.subtitle}</p>
         </div>
       </FeedbackBoard.Header>
       <FeedbackBoard.Search
         value={query}
-        onValueChange={setQuery}
-        placeholder="Search roadmap…"
+        onValueChange={onQueryChange}
+        placeholder={messages.roadmap.searchPlaceholder}
       />
       {loading ? (
         <FeedbackBoard.State>{messages.board.loading}</FeedbackBoard.State>
       ) : items.length === 0 ? (
         <FeedbackBoard.State>
-          {searching ? "No roadmap items found." : "No roadmap items yet."}
+          {searching
+            ? messages.roadmap.noSearchResults
+            : messages.roadmap.noItems}
         </FeedbackBoard.State>
       ) : (
-        <FeedbackBoard.List>
-          {items.map((item) => (
-            <RoadmapCard
-              key={item.id}
-              item={item}
-              onOpen={() => setSelectedId(item.id)}
-            />
-          ))}
-        </FeedbackBoard.List>
+        <div className="cf-roadmap-board">
+          {stages.map((stage) => {
+            const stageItems = items
+              .filter((item) => item.status === stage.value)
+              .sort((a, b) => a.position - b.position);
+
+            return (
+              <section className="cf-roadmap-column" key={stage.value}>
+                <header className="cf-roadmap-column__header">
+                  <div className="cf-roadmap-column__heading">
+                    <span
+                      className="cf-roadmap-status__dot"
+                      aria-hidden="true"
+                    />
+                    <h3>{messages.roadmap.statuses[stage.value]}</h3>
+                  </div>
+                  <span className="cf-roadmap-column__count">
+                    {stageItems.length}
+                  </span>
+                </header>
+                <div className="cf-roadmap-column__list">
+                  {stageItems.length === 0 ? (
+                    <p className="cf-roadmap-column__empty">
+                      {messages.roadmap.noItems}
+                    </p>
+                  ) : (
+                    stageItems.map((item) => (
+                      <RoadmapCard
+                        key={item.id}
+                        item={item}
+                        onOpen={() => onItemOpen(item)}
+                      />
+                    ))
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       )}
-      {!searching &&
-        (roadmap.status === "CanLoadMore" ||
-          roadmap.status === "LoadingMore") && (
-          <button
-            type="button"
-            className="cf-button"
-            disabled={roadmap.status === "LoadingMore"}
-            onClick={() => roadmap.loadMore(pageSize)}
-          >
-            {messages.board.loadMore}
-          </button>
-        )}
-    </FeedbackBoard.Root>
+      {canLoadMore && (
+        <button
+          type="button"
+          className="cf-button"
+          disabled={loadingMore}
+          onClick={onLoadMore}
+        >
+          {messages.board.loadMore}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -133,19 +207,24 @@ function RoadmapCard({
   item: RoadmapItem;
   onOpen: () => void;
 }) {
+  const { messages } = useFeedbackUi();
+
   return (
-    <button type="button" className="cf-entry cf-roadmap-card" onClick={onOpen}>
-      <span className="cf-entry__content">
-        <span className="cf-entry__meta">
-          <span className="cf-entry__kind">
-            {item.status.replaceAll("_", " ")}
-          </span>
-          <span className="cf-status">{item.feedbackCount} linked</span>
+    <button type="button" className="cf-roadmap-card" onClick={onOpen}>
+      <span className="cf-roadmap-card__meta">
+        <span className="cf-roadmap-status">
+          {messages.roadmap.statuses[item.status]}
         </span>
-        <strong className="cf-entry__title">{item.title}</strong>
-        {item.description && (
-          <span className="cf-entry__body">{item.description}</span>
-        )}
+        <span className="cf-roadmap-card__count">
+          {messages.roadmap.linkedEntries(item.feedbackCount)}
+        </span>
+      </span>
+      <strong className="cf-roadmap-card__title">{item.title}</strong>
+      {item.description && (
+        <span className="cf-roadmap-card__body">{item.description}</span>
+      )}
+      <span className="cf-roadmap-card__link">
+        {messages.entry.open} <span aria-hidden="true">›</span>
       </span>
     </button>
   );
@@ -168,6 +247,7 @@ function RoadmapDetail({
 }) {
   const { messages } = useFeedbackUi();
   const feedback = hooks.useRoadmapFeedback(item.id);
+
   return (
     <div className="cf-detail">
       <button
@@ -177,46 +257,26 @@ function RoadmapDetail({
       >
         {messages.entry.back}
       </button>
-      <header>
-        <div className="cf-entry__meta">
-          <span className="cf-entry__kind">
-            {item.status.replaceAll("_", " ")}
+      <header className="cf-roadmap-detail__header">
+        <div className="cf-roadmap-card__meta">
+          <span className="cf-roadmap-status">
+            {messages.roadmap.statuses[item.status]}
           </span>
-          <span className="cf-status">Position {item.position}</span>
+          <span className="cf-roadmap-card__count">
+            {messages.roadmap.linkedEntries(item.feedbackCount)}
+          </span>
         </div>
         <h2 className="cf-board__title">{item.title}</h2>
-        <p className="cf-entry__body">
-          {item.description ?? "No description."}
-        </p>
+        {item.description && (
+          <p className="cf-entry__body">{item.description}</p>
+        )}
       </header>
-      <dl className="cf-roadmap-meta">
-        <div>
-          <dt>ID</dt>
-          <dd>{item.id}</dd>
-        </div>
-        <div>
-          <dt>Linked feedback</dt>
-          <dd>{item.feedbackCount}</dd>
-        </div>
-        <div>
-          <dt>Created</dt>
-          <dd>{new Date(item.createdAt).toLocaleString()}</dd>
-        </div>
-        <div>
-          <dt>Updated</dt>
-          <dd>{new Date(item.updatedAt).toLocaleString()}</dd>
-        </div>
-        <div>
-          <dt>Document created</dt>
-          <dd>{new Date(item.creationTime).toLocaleString()}</dd>
-        </div>
-      </dl>
       <section className="cf-discussion">
-        <h3>Attached feedback</h3>
+        <h3>{messages.roadmap.attachedFeedback}</h3>
         {feedback.status === "LoadingFirstPage" ? (
           <p className="cf-state">{messages.board.loading}</p>
         ) : feedback.results.length === 0 ? (
-          <p className="cf-state">No feedback attached.</p>
+          <p className="cf-state">{messages.roadmap.noAttachedFeedback}</p>
         ) : (
           <div className="cf-comments">
             {feedback.results.map((entry) => (
@@ -238,7 +298,7 @@ function RoadmapDetail({
             disabled={feedback.status === "LoadingMore"}
             onClick={() => feedback.loadMore(entryPageSize)}
           >
-            {messages.comments.loadMore}
+            {messages.board.loadMore}
           </button>
         )}
       </section>

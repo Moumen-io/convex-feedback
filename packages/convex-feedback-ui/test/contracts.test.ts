@@ -71,4 +71,20 @@ describe("UI contracts", () => {
       { value: "closed", label: "Fermé" },
     ]);
   });
+
+  test("roadmap copy preserves nested stage fallbacks", () => {
+    const messages = mergeFeedbackMessages({
+      roadmap: {
+        title: "What is next",
+        statuses: { shipped: "Released" },
+      },
+    });
+
+    expect(messages.roadmap.title).toBe("What is next");
+    expect(messages.roadmap.statuses.shipped).toBe("Released");
+    expect(messages.roadmap.statuses.planned).toBe(
+      englishFeedbackMessages.roadmap.statuses.planned,
+    );
+    expect(messages.roadmap.linkedEntries(2)).toBe("2 linked entries");
+  });
 });

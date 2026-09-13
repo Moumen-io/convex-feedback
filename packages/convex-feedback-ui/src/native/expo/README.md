@@ -52,5 +52,9 @@ The existing `FeedbackScreen` remains the self-contained API for conditional
 in-screen navigation.
 
 `RoadmapScreen` is also exported from this entry point for public roadmap
-browsing. Pass `onEntryOpen` for host navigation and `onUnauthenticated` for
-the host's sign-in UI.
+browsing. It uses the current Expo Router stack by default, including its
+toolbar back action; pass `useStack={false}` for the plain React Native
+implementation. Pass `onEntryOpen` for host navigation and
+`onUnauthenticated` for the host's sign-in UI. For real Expo Router pages, use
+`RoadmapStackLayout` with `RoadmapBoardScreen` and `RoadmapItemScreen`, just
+as the routed feedback integration uses its own stack layout.

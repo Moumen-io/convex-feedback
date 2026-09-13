@@ -288,6 +288,44 @@ the board stack.
 
 See `packages/example-expo-routed` for a complete application.
 
+### Routed public roadmap
+
+The public roadmap has a matching routed Expo API. Create a board and item
+page under your app's route directory:
+
+```text
+app/roadmap/
+├── _layout.tsx
+├── index.tsx
+└── [roadmapId].tsx
+```
+
+```tsx
+// app/roadmap/_layout.tsx
+import {
+  RoadmapStackLayout,
+  roadmapStackSettings,
+} from "convex-feedback-ui/expo";
+import { feedbackHooks } from "../../feedback";
+
+export const unstable_settings = roadmapStackSettings;
+
+export default function Layout() {
+  return <RoadmapStackLayout hooks={feedbackHooks} />;
+}
+
+// app/roadmap/index.tsx
+export { RoadmapBoardScreen as default } from "convex-feedback-ui/expo";
+
+// app/roadmap/[roadmapId].tsx
+export { RoadmapItemScreen as default } from "convex-feedback-ui/expo";
+```
+
+Use `onEntryOpen` on `RoadmapStackLayout` when attached feedback should push
+the host application's routed feedback detail page. The roadmap item page
+uses the existing entry-card and entry-detail implementations when no host
+entry route is supplied.
+
 ## Diagnostic metadata
 
 Prebuilt screens can collect creation-time diagnostic metadata for feedback entries. Collection is disabled by default and never applies to comments.

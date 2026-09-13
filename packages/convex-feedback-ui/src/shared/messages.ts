@@ -12,6 +12,22 @@ export const englishFeedbackMessages: FeedbackMessages = {
     loading: "Loading…",
     loadMore: "Load more",
   },
+  roadmap: {
+    title: "Roadmap",
+    subtitle: "See what is planned, in progress, and shipped.",
+    searchPlaceholder: "Search roadmap…",
+    statuses: {
+      planned: "Planned",
+      in_progress: "In progress",
+      shipped: "Shipped",
+    },
+    linkedEntries: (count) =>
+      `${count} linked ${count === 1 ? "entry" : "entries"}`,
+    noItems: "No roadmap items yet.",
+    noSearchResults: "No matching roadmap items found.",
+    attachedFeedback: "Feedback behind this item",
+    noAttachedFeedback: "No feedback attached yet.",
+  },
   kinds: {
     feedback: "Feedback",
     feature_request: "Feature request",
@@ -86,6 +102,14 @@ export function mergeFeedbackMessages(
 ): FeedbackMessages {
   return {
     board: { ...englishFeedbackMessages.board, ...overrides.board },
+    roadmap: {
+      ...englishFeedbackMessages.roadmap,
+      ...overrides.roadmap,
+      statuses: {
+        ...englishFeedbackMessages.roadmap.statuses,
+        ...overrides.roadmap?.statuses,
+      },
+    },
     kinds: {
       ...englishFeedbackMessages.kinds,
       ...overrides.kinds,

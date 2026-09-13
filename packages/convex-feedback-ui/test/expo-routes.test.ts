@@ -6,7 +6,12 @@ import {
   feedbackCreateStackSettings,
   feedbackRouteHref,
   feedbackStackSettings,
+  createRoadmapStackSettings,
+  defaultRoadmapRoutes,
   resolveFeedbackRoutes,
+  resolveRoadmapRoutes,
+  roadmapRouteHref,
+  roadmapStackSettings,
 } from "../src/native/expo/routes.js";
 
 describe("Expo routed feedback contracts", () => {
@@ -14,6 +19,8 @@ describe("Expo routed feedback contracts", () => {
     expect(resolveFeedbackRoutes()).toEqual(defaultFeedbackRoutes);
     expect(feedbackStackSettings).toEqual({ anchor: "index" });
     expect(feedbackCreateStackSettings).toEqual({ anchor: "index" });
+    expect(resolveRoadmapRoutes()).toEqual(defaultRoadmapRoutes);
+    expect(roadmapStackSettings).toEqual({ anchor: "index" });
   });
 
   test("merges partial route overrides", () => {
@@ -45,5 +52,24 @@ describe("Expo routed feedback contracts", () => {
       pathname: "./entry/[entryId]",
       params: { entryId: "entry-1" },
     });
+  });
+
+  test("validates and builds roadmap routes", () => {
+    expect(resolveRoadmapRoutes({ item: "items/[roadmapId]" })).toEqual({
+      board: "index",
+      item: "items/[roadmapId]",
+    });
+    expect(createRoadmapStackSettings({ board: "roadmap" })).toEqual({
+      anchor: "roadmap",
+    });
+    expect(
+      roadmapRouteHref("items/[roadmapId]", { roadmapId: "roadmap-1" }),
+    ).toEqual({
+      pathname: "./items/[roadmapId]",
+      params: { roadmapId: "roadmap-1" },
+    });
+    expect(() => resolveRoadmapRoutes({ item: "items/[id]" })).toThrow(
+      "[roadmapId]",
+    );
   });
 });

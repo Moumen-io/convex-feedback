@@ -1,4 +1,4 @@
-import type { EntryKind, EntryStatus } from "convex-feedback";
+import type { EntryKind, EntryStatus, RoadmapStatus } from "convex-feedback";
 
 /**
  * Localizable package-owned UI copy used by both React DOM and React Native.
@@ -38,6 +38,36 @@ export interface FeedbackMessages {
 
     /** Entry pagination CTA. */
     loadMore: string;
+  };
+
+  /** Public roadmap copy. */
+  roadmap: {
+    /** Main roadmap heading. */
+    title: string;
+
+    /** Supporting copy shown near the roadmap heading. */
+    subtitle: string;
+
+    /** Search input placeholder. */
+    searchPlaceholder: string;
+
+    /** Display labels for each roadmap stage. */
+    statuses: Record<RoadmapStatus, string>;
+
+    /** Formats the number of feedback entries attached to an item. */
+    linkedEntries: (count: number) => string;
+
+    /** Empty-state copy when the roadmap has no items. */
+    noItems: string;
+
+    /** Empty-state copy when a search produces no results. */
+    noSearchResults: string;
+
+    /** Heading for feedback attached to a roadmap item. */
+    attachedFeedback: string;
+
+    /** Empty-state copy when an item has no attached feedback. */
+    noAttachedFeedback: string;
   };
 
   /** Localized display labels for each fixed entry kind. */
@@ -175,6 +205,13 @@ export interface FeedbackMessages {
 export interface FeedbackMessageOverrides {
   /** Board copy overrides. */
   board?: Partial<FeedbackMessages["board"]> | undefined;
+
+  /** Roadmap copy overrides. */
+  roadmap?:
+    | (Omit<Partial<FeedbackMessages["roadmap"]>, "statuses"> & {
+        statuses?: Partial<FeedbackMessages["roadmap"]["statuses"]>;
+      })
+    | undefined;
 
   /** Entry-kind label overrides. */
   kinds?: Partial<FeedbackMessages["kinds"]> | undefined;

@@ -95,11 +95,130 @@
   background: var(--cf-surface);
 }
 :where(.cf-board) :where(.cf-roadmap-card) {
+  display: grid;
+  gap: 10px;
   width: 100%;
+  border: 1px solid var(--cf-border);
+  border-radius: calc(var(--cf-radius) * 0.9);
+  padding: 14px;
+  background: var(--cf-surface);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+:where(.cf-board) :where(.cf-roadmap-card:hover) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--cf-primary) 35%, var(--cf-border));
+  box-shadow: 0 8px 20px rgb(20 20 35 / 0.06);
+}
+:where(.cf-board) :where(.cf-roadmap-card:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--cf-primary) 25%, transparent);
+  outline-offset: 2px;
+}
+:where(.cf-board) :where(.cf-roadmap-board) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: var(--cf-space);
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-border);
+}
+:where(.cf-board) :where(.cf-roadmap-column) {
+  min-width: 0;
+  background: var(--cf-background);
+}
+:where(.cf-board) :where(.cf-roadmap-column__header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 58px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--cf-border);
+  background: color-mix(in srgb, var(--cf-background) 94%, var(--cf-surface));
+}
+:where(.cf-board) :where(.cf-roadmap-column__heading) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+:where(.cf-board) :where(.cf-roadmap-column__heading h3) {
+  margin: 0;
+  font-size: 0.9rem;
+}
+:where(.cf-board) :where(.cf-roadmap-column__count),
+:where(.cf-board) :where(.cf-roadmap-card__count) {
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+:where(.cf-board) :where(.cf-roadmap-column__list) {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 180px;
+  padding: 10px;
+}
+:where(.cf-board) :where(.cf-roadmap-column__empty) {
+  margin: 0;
+  padding: 28px 10px;
+  color: var(--cf-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  text-align: center;
+}
+:where(.cf-board) :where(.cf-roadmap-status__dot) {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--cf-primary);
+}
+:where(.cf-board) :where(.cf-roadmap-status) {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--cf-surface-muted);
+  color: var(--cf-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+:where(.cf-board) :where(.cf-roadmap-card__meta) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+:where(.cf-board) :where(.cf-roadmap-card__title) {
+  font-size: 1rem;
+  line-height: 1.35;
+}
+:where(.cf-board) :where(.cf-roadmap-card__body) {
+  overflow: hidden;
+  color: var(--cf-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+:where(.cf-board) :where(.cf-roadmap-card__link) {
+  color: var(--cf-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+:where(.cf-board) :where(.cf-roadmap-detail__header) {
+  display: grid;
+  gap: 10px;
 }
 :where(.cf-board) :where(.cf-entry__content) {
   min-width: 0;
@@ -347,6 +466,10 @@
   :where(.cf-board) :where(.cf-upvote) {
     width: 40px;
     min-height: 48px;
+  }
+  :where(.cf-board) :where(.cf-roadmap-board) {
+    grid-template-columns: repeat(3, minmax(17rem, 1fr));
+    overflow-x: auto;
   }
 }
 :where(.cf-board) :where(.cf-confirm-backdrop) {

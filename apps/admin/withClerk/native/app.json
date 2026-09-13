@@ -8,7 +8,8 @@
     "scheme": "convex-feedback-admin",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.moumentos.convex-feedback-admin"
     },
     "android": {
       "adaptiveIcon": {

@@ -21,4 +21,4 @@ The app expects the host namespace `api.feedback`. Change `lib/feedback.ts` if y
 
 ## Deploy
 
-Configure the two `EXPO_PUBLIC_*` variables in your EAS environment, then create a build with your usual EAS profile. Update the generated bundle identifiers/package names in `app.json` before store distribution.
+Configure the two `EXPO_PUBLIC_*` variables in your EAS environment, then create a build with your usual EAS profile. Before running EAS or deploying to the App Store from a fork, you must replace `expo.ios.bundleIdentifier` in `app.json` (`com.moumentos.convex-feedback-admin`) with a bundle identifier registered under your own Apple Developer account. Run `eas init` to link the fork to your own EAS project, and update any Android package identifiers before store distribution as well.

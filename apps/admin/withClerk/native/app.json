@@ -37,6 +37,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "96471a56-5731-4b20-a947-4286a9aa8b7f"
+      }
+    },
+    "owner": "moumentos"
   }
 }

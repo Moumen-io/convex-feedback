@@ -10,7 +10,9 @@
   },
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*",
+    "apps/admin/withClerk/*"
   ],
   "scripts": {
     "build:packages": "npm run build -w convex-feedback && npm run build -w convex-feedback-ui",

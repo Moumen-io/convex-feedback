@@ -31,11 +31,16 @@ if (!publishableKey || !convexUrl) {
   );
 }
 
-const convex = new ConvexReactClient(convexUrl);
+const requiredPublishableKey: string = publishableKey;
+const requiredConvexUrl: string = convexUrl;
+const convex = new ConvexReactClient(requiredConvexUrl);
 
 export default function RootLayout() {
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+    <ClerkProvider
+      publishableKey={requiredPublishableKey}
+      tokenCache={tokenCache}
+    >
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <AdminGate />
       </ConvexProviderWithClerk>

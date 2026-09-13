@@ -110,7 +110,12 @@ export function FeedbackBoardScreen() {
       <Stack.SearchBar
         ref={searchRef}
         placeholder={messages.board.searchPlaceholder}
-        onChangeText={(event) => setQuery(event.nativeEvent.text)}
+        onChangeText={(event) =>
+          setQuery(
+            (event as unknown as { nativeEvent: { text: string } }).nativeEvent
+              .text,
+          )
+        }
         onFocus={() => setIsSearching(true)}
         onBlur={() => setIsSearching(query.trim().length > 0)}
         obscureBackground={false}

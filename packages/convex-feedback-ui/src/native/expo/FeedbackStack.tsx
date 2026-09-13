@@ -105,7 +105,10 @@ export function FeedbackStack({
       <Stack.SearchBar
         onChangeText={(q) => {
           if (selectedEntryId) setSelectedEntryId(null);
-          setQuery(q.nativeEvent.text);
+          setQuery(
+            (q as unknown as { nativeEvent: { text: string } }).nativeEvent
+              .text,
+          );
         }}
         onFocus={() => {
           if (selectedEntryId) setSelectedEntryId(null);

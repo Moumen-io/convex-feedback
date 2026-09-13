@@ -53,4 +53,34 @@ describe("admin filtering pagination", () => {
     });
     expect(result.page.map((entry) => entry.id)).toEqual([targetId]);
   });
+
+  test("single-kind admin search preserves search-index pagination", async () => {
+    const testInstance = setup();
+    const firstId = await createEntry(testInstance, "Single kind first");
+    const secondId = await createEntry(testInstance, "Single kind second");
+
+    const firstPage = await testInstance.query(api.admin.searchEntries, {
+      searchQuery: "common searchable needle",
+      kinds: ["feature_request"],
+      paginationOpts: { cursor: null, numItems: 1 },
+      viewerActorId: actor.id,
+    });
+    const secondPage = await testInstance.query(api.admin.searchEntries, {
+      searchQuery: "common searchable needle",
+      kinds: ["feature_request"],
+      paginationOpts: {
+        cursor: firstPage.continueCursor,
+        numItems: 1,
+      },
+      viewerActorId: actor.id,
+    });
+
+    const pageIds = [...firstPage.page, ...secondPage.page].map(
+      (entry) => entry.id,
+    );
+    expect(pageIds).toHaveLength(2);
+    expect(pageIds).toEqual(expect.arrayContaining([firstId, secondId]));
+    expect(firstPage.isDone).toBe(false);
+    expect(secondPage.isDone).toBe(true);
+  });
 });

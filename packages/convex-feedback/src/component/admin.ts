@@ -1,9 +1,11 @@
+import { stream } from "convex-helpers/server/stream";
 import {
   paginationOptsValidator,
   paginationResultValidator,
+  type PaginationOptions,
+  type PaginationResult,
 } from "convex/server";
 import { ConvexError, v } from "convex/values";
-import { stream } from "convex-helpers/server/stream";
 
 import type { Doc } from "./_generated/dataModel.js";
 import { query } from "./_generated/server.js";
@@ -18,6 +20,68 @@ import {
   type EntryStatus,
 } from "./model.js";
 import schema from "./schema.js";
+
+const ADMIN_SEARCH_CURSOR_PREFIX = "convex-feedback:admin-search:";
+
+type TakeQuery<T> = {
+  take(n: number): Promise<T[]>;
+};
+
+function encodeAdminSearchCursor(offset: number): string {
+  return `${ADMIN_SEARCH_CURSOR_PREFIX}${offset}`;
+}
+
+function decodeAdminSearchCursor(cursor: string | null | undefined): number {
+  if (cursor === null || cursor === undefined) return 0;
+  if (!cursor.startsWith(ADMIN_SEARCH_CURSOR_PREFIX)) {
+    throw new ConvexError("InvalidCursor: invalid admin search cursor.");
+  }
+
+  const offset = Number(cursor.slice(ADMIN_SEARCH_CURSOR_PREFIX.length));
+  if (!Number.isSafeInteger(offset) || offset < 0) {
+    throw new ConvexError("InvalidCursor: invalid admin search cursor.");
+  }
+  return offset;
+}
+
+function addAdminSearchCursorOffsets(left: number, right: number): number {
+  const result = left + right;
+  if (!Number.isSafeInteger(result) || result < 0) {
+    throw new ConvexError("InvalidCursor: admin search cursor is too large.");
+  }
+  return result;
+}
+
+async function paginateAdminSearchIndex(
+  query: TakeQuery<Doc<"entries">>,
+  paginationOpts: PaginationOptions,
+): Promise<PaginationResult<Doc<"entries">>> {
+  const start = decodeAdminSearchCursor(paginationOpts.cursor);
+  const end = decodeAdminSearchCursor(paginationOpts.endCursor);
+  const requestedEnd =
+    paginationOpts.endCursor === undefined || paginationOpts.endCursor === null
+      ? addAdminSearchCursorOffsets(start, paginationOpts.numItems)
+      : end;
+
+  if (requestedEnd < start) {
+    throw new ConvexError("InvalidCursor: admin search cursors are reversed.");
+  }
+
+  // Search-index queries cannot expose a component-safe continuation cursor.
+  // Read through the requested range and use the result offset as our opaque
+  // cursor instead.
+  const results = await query.take(
+    addAdminSearchCursorOffsets(requestedEnd, 1),
+  );
+  const page = results.slice(start, requestedEnd);
+  const nextOffset = addAdminSearchCursorOffsets(start, page.length);
+
+  return {
+    page,
+    isDone: results.length <= requestedEnd,
+    continueCursor: encodeAdminSearchCursor(nextOffset),
+  };
+}
 
 function matchesFilters(
   entry: Doc<"entries">,
@@ -127,9 +191,8 @@ export const searchEntries = query({
     const canUseSearchIndex = kinds === undefined || kinds.length === 1;
 
     const result = canUseSearchIndex
-      ? await ctx.db
-          .query("entries")
-          .withSearchIndex("search", (q) => {
+      ? await paginateAdminSearchIndex(
+          ctx.db.query("entries").withSearchIndex("search", (q) => {
             const searched = q.search("searchText", searchQuery);
             const withKind =
               kinds?.length === 1 ? searched.eq("kind", kinds[0]!) : searched;
@@ -140,8 +203,9 @@ export const searchEntries = query({
             return args.priority === undefined
               ? withStatus
               : withStatus.eq("priority", args.priority);
-          })
-          .paginate(args.paginationOpts)
+          }),
+          args.paginationOpts,
+        )
       : await (
           args.priority !== undefined
             ? stream(ctx.db, schema)

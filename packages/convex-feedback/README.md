@@ -347,6 +347,15 @@ const results = feedbackHooks.useSearchEntries({
 });
 ```
 
+Admin full-text search keeps the search index for relevance-ranked results,
+but uses component-safe custom pagination. Convex's native `.paginate()` is
+not supported inside component queries, so the component reads search results
+with `.take()` and returns an opaque offset cursor instead. This works with
+`usePaginatedQuery` from `convex-helpers/react`, but later pages may reread
+earlier matches and can shift if matching documents change between requests.
+See Convex's [component pagination documentation](https://docs.convex.dev/components/authoring#pagination)
+for the native pagination limitation.
+
 ## Duplicate suggestions
 
 ```ts

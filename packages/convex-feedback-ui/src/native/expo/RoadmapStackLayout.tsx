@@ -1,5 +1,6 @@
 import { Stack, type NativeStackNavigationOptions } from "expo-router";
 
+import { Platform } from "react-native";
 import { mergeFeedbackMessages } from "../../shared/messages.js";
 import { mergeFeedbackTheme } from "../../shared/theme.js";
 import { RoadmapProvider } from "../shared/ui/RoadmapScreen.js";
@@ -52,8 +53,15 @@ export function RoadmapStackLayout({
     borderColor,
     dangerColor,
   };
+
+  const boardHeaderTransparent =
+    boardOptions?.headerTransparent ?? screenOptions?.headerTransparent ?? true;
+
+  const isIos = Platform.OS === "ios";
+
   const defaults: NativeStackNavigationOptions = {
     headerShown: true,
+    headerTransparent: true,
     headerShadowVisible: true,
     headerBackButtonDisplayMode: "minimal",
     headerTintColor: textColor ?? resolvedTheme.colors.text,
@@ -82,6 +90,7 @@ export function RoadmapStackLayout({
           pageSize,
           entryPageSize,
           onEntryOpen,
+          boardHeaderTransparent,
         }}
       >
         <Stack>
@@ -98,6 +107,8 @@ export function RoadmapStackLayout({
             name={routes.item}
             options={{
               ...defaults,
+              presentation: isIos ? "formSheet" : "modal",
+              sheetAllowedDetents: "fitToContents",
               headerTitle: resolvedMessages.roadmap.title,
               ...screenOptions,
               ...itemOptions,

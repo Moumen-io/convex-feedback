@@ -139,4 +139,5 @@ export interface RoutedRoadmapContextValue {
   pageSize: number;
   entryPageSize: number;
   onEntryOpen?: RoadmapScreenProps["onEntryOpen"];
+  boardHeaderTransparent: boolean;
 }

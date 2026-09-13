@@ -22,6 +22,8 @@ views. Pass `onUnauthenticated` to handle auth when an anonymous visitor votes
 or comments.
 
 The exported `RoadmapBoard` is the reusable admin-style horizontal board
-layout. Supply ordered stages, colors, and a `renderItem` callback to share the
-same column scrolling behavior while customizing cards for an admin or public
-surface.
+layout. Render it inside `RoadmapProvider` and supply ordered stages plus a
+`renderItem` callback to share the same column scrolling behavior while
+customizing cards for an admin or public surface. The `colors` props on
+`RoadmapBoard` and `RoadmapBoardCard` are deprecated; configure the provider's
+`theme` instead.

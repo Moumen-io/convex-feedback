@@ -135,6 +135,8 @@ export interface RoadmapScreenContentProps extends Pick<
   onQueryChange?: (query: string) => void;
   /** Renders the inline title/search header for non-Stack usage. @default true */
   showBoardHeader?: boolean;
+  /** Extra top space reserved for a transparent native stack header. */
+  boardTopInset?: number;
 }
 
 /** Shared screen content used by direct native and Expo Stack integrations. */
@@ -145,6 +147,7 @@ export function RoadmapScreenContent({
   query,
   onQueryChange,
   showBoardHeader = true,
+  boardTopInset,
   ...colors
 }: RoadmapScreenContentProps) {
   const [selected, setSelected] = useState<RoadmapItem | null>(null);
@@ -158,6 +161,7 @@ export function RoadmapScreenContent({
           query={query}
           onQueryChange={onQueryChange}
           showHeader={showBoardHeader}
+          boardTopInset={boardTopInset}
         />
       ) : (
         <RoadmapDetailPage
@@ -178,12 +182,14 @@ export function RoadmapBoardContent({
   query: controlledQuery,
   onQueryChange,
   showHeader = true,
+  boardTopInset = 0,
 }: {
   pageSize: number;
   onItemOpen: (item: RoadmapItem) => void;
   query?: string;
   onQueryChange?: (query: string) => void;
   showHeader?: boolean;
+  boardTopInset?: number;
 }) {
   const { hooks } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
@@ -238,16 +244,9 @@ export function RoadmapBoardContent({
             ...stage,
             label: messages.roadmap.statuses[stage.value],
           }))}
-          colors={{
-            background: theme.colors.background,
-            surface: theme.colors.surface,
-            text: theme.colors.text,
-            muted: theme.colors.mutedText,
-            border: theme.colors.border,
-            primary: theme.colors.primary,
-          }}
           emptyLabel={messages.roadmap.emptyStage}
           loading={loading}
+          topInset={boardTopInset}
           onItemOpen={onItemOpen}
           renderItem={({ item, onOpen }) => (
             <RoadmapCard item={item} onOpen={onOpen} />
@@ -423,31 +422,21 @@ function RoadmapCard({
   item: RoadmapItem;
   onOpen: () => void;
 }) {
-  const { messages, theme } = useFeedbackUi();
+  const { theme } = useFeedbackUi();
 
   return (
-    <RoadmapBoardCard
-      colors={{ border: theme.colors.border, surface: theme.colors.surface }}
-      accessibilityLabel={item.title}
-      onPress={onOpen}
-    >
-      <View style={styles.cardMeta}>
-        <RoadmapStatusBadge status={item.status} />
-      </View>
+    <RoadmapBoardCard accessibilityLabel={item.title} onPress={onOpen}>
       <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
         {item.title}
       </Text>
-      {item.description ? (
+      {item.description && (
         <Text
           style={[styles.cardDescription, { color: theme.colors.mutedText }]}
           numberOfLines={3}
         >
           {item.description}
         </Text>
-      ) : null}
-      <Text style={[styles.cardLink, { color: theme.colors.primary }]}>
-        {messages.entry.open} ›
-      </Text>
+      )}
     </RoadmapBoardCard>
   );
 }

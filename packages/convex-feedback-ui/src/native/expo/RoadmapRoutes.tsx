@@ -1,8 +1,9 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/build/react-navigation/elements";
 import { useRef, useState } from "react";
 import { ActivityIndicator } from "react-native";
-import type { SearchBarCommands } from "react-native-screens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { SearchBarCommands } from "react-native-screens";
 
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider.js";
@@ -11,17 +12,24 @@ import {
   RoadmapBoardContent,
   RoadmapItemContent,
 } from "../shared/ui/RoadmapScreen.js";
+import { useRoutedRoadmap } from "./RoutedRoadmapContext.js";
 import {
+  parseRoadmapRouteItem,
   roadmapRouteHref,
   roadmapRouteParams,
-  parseRoadmapRouteItem,
 } from "./routes.js";
-import { useRoutedRoadmap } from "./RoutedRoadmapContext.js";
 
 export function RoadmapBoardScreen() {
   const { messages, theme } = useFeedbackUi();
-  const { routes, colors, androidToolbarIcons, pageSize } = useRoutedRoadmap();
+  const {
+    routes,
+    colors,
+    androidToolbarIcons,
+    pageSize,
+    boardHeaderTransparent,
+  } = useRoutedRoadmap();
   const router = useRouter();
+  const headerHeight = useHeaderHeight();
   const [query, setQuery] = useState("");
   const searchRef = useRef<SearchBarCommands>(null);
 
@@ -39,6 +47,7 @@ export function RoadmapBoardScreen() {
           query={query}
           onQueryChange={setQuery}
           showHeader={false}
+          boardTopInset={boardHeaderTransparent ? headerHeight : 0}
           onItemOpen={(item) => {
             searchRef.current?.blur();
             router.push(

@@ -97,9 +97,7 @@ export function useFeedbackBody(): FeedbackScreenBodyContextValue {
   const context = useContext(FeedbackBodyContext);
 
   if (!context) {
-    throw new Error(
-      "useOnboardingFlow must be used inside OnboardingFlowProvider",
-    );
+    throw new Error("useFeedbackBody must be used inside FeedbackBodyProvider");
   }
 
   return context;

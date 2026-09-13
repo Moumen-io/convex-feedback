@@ -13,12 +13,17 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFeedbackUi } from "../../../shared/context/FeedbackProvider.js";
 
 export interface RoadmapBoardStage {
   value: RoadmapStatus;
   label: string;
 }
 
+/**
+ * @deprecated Configure roadmap colors through `RoadmapProvider`'s `theme`
+ * instead. Kept temporarily for backwards compatibility.
+ */
 export interface RoadmapBoardColors {
   background: string;
   surface: string;
@@ -40,8 +45,11 @@ export interface RoadmapBoardProps {
   items: readonly RoadmapItem[];
   /** Ordered columns rendered from left to right. */
   stages: readonly RoadmapBoardStage[];
-  /** Colors used by the shared board frame and its loading/empty states. */
-  colors: RoadmapBoardColors;
+  /**
+   * @deprecated Configure colors through `RoadmapProvider`'s `theme` instead.
+   * Kept temporarily for backwards compatibility.
+   */
+  colors?: RoadmapBoardColors;
   /** Shows the same full-board loading state as the admin roadmap. */
   loading?: boolean;
   /** Copy shown when a column does not contain any items. */
@@ -50,6 +58,8 @@ export interface RoadmapBoardProps {
   onItemOpen: (item: RoadmapItem) => void;
   /** Supplies the card UI so admin and user-facing cards can differ. */
   renderItem: (args: RoadmapBoardItemRenderArgs) => ReactElement | null;
+  /** Extra top space reserved for a transparent native stack header. */
+  topInset?: number;
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
 }
@@ -58,7 +68,11 @@ export interface RoadmapBoardCardProps extends Pick<
   ViewProps,
   "accessibilityLabel"
 > {
-  colors: Pick<RoadmapBoardColors, "border" | "surface">;
+  /**
+   * @deprecated Configure colors through `RoadmapProvider`'s `theme` instead.
+   * Kept temporarily for backwards compatibility.
+   */
+  colors?: Pick<RoadmapBoardColors, "border" | "surface">;
   onPress: () => void;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -72,6 +86,12 @@ export function RoadmapBoardCard({
   children,
   style,
 }: RoadmapBoardCardProps) {
+  const { theme } = useFeedbackUi();
+  const cardColors = colors ?? {
+    border: theme.colors.border,
+    surface: theme.colors.surface,
+  };
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -80,8 +100,8 @@ export function RoadmapBoardCard({
       style={({ pressed }) => [
         styles.card,
         {
-          borderColor: colors.border,
-          backgroundColor: colors.surface,
+          borderColor: cardColors.border,
+          backgroundColor: cardColors.surface,
         },
         style,
         pressed && styles.pressed,
@@ -106,16 +126,36 @@ export function RoadmapBoard({
   emptyLabel,
   onItemOpen,
   renderItem,
+  topInset = 0,
   style,
   contentContainerStyle,
 }: RoadmapBoardProps) {
   const insets = useSafeAreaInsets();
+  const { theme } = useFeedbackUi();
+  const resolvedColors = colors
+    ? {
+        ...theme.colors,
+        background: colors.background,
+        surface: colors.surface,
+        // The legacy palette has no muted surface token. Preserve the old
+        // board behavior while callers migrate to RoadmapProvider.theme.
+        surfaceMuted: colors.surface,
+        text: colors.text,
+        mutedText: colors.muted,
+        border: colors.border,
+        primary: colors.primary,
+      }
+    : theme.colors;
 
   if (loading) {
     return (
       <ActivityIndicator
-        style={[styles.loader, { backgroundColor: colors.background }, style]}
-        color={colors.primary}
+        style={[
+          styles.loader,
+          { backgroundColor: resolvedColors.background },
+          style,
+        ]}
+        color={resolvedColors.primary}
       />
     );
   }
@@ -125,17 +165,20 @@ export function RoadmapBoard({
       horizontal
       style={[
         styles.boardScroll,
-        { backgroundColor: colors.background },
+        {
+          backgroundColor: resolvedColors.background,
+        },
         style,
       ]}
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior="never"
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={[
         styles.board,
         {
-          paddingLeft: 12 + insets.left,
-          paddingRight: 12 + insets.right,
-          paddingBottom: 24 + insets.bottom,
+          paddingLeft: 16 + insets.left,
+          paddingRight: 16 + insets.right,
+          paddingTop: 12 + topInset,
+          paddingBottom: 16 + insets.bottom,
         },
         contentContainerStyle,
       ]}
@@ -151,16 +194,26 @@ export function RoadmapBoard({
             style={[
               styles.column,
               {
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
+                borderColor: resolvedColors.border,
+                backgroundColor: resolvedColors.surfaceMuted,
               },
             ]}
           >
-            <View style={[styles.columnHeader, { borderColor: colors.border }]}>
-              <Text style={[styles.columnTitle, { color: colors.text }]}>
+            <View
+              style={[
+                styles.columnHeader,
+                {
+                  borderColor: resolvedColors.border,
+                  backgroundColor: resolvedColors.surface,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.columnTitle, { color: resolvedColors.text }]}
+              >
                 {stage.label}
               </Text>
-              <Text style={[styles.count, { color: colors.muted }]}>
+              <Text style={[styles.count, { color: resolvedColors.mutedText }]}>
                 {stageItems.length}
               </Text>
             </View>
@@ -174,7 +227,9 @@ export function RoadmapBoard({
                 { paddingBottom: 16 + insets.bottom },
               ]}
               ListEmptyComponent={
-                <Text style={[styles.empty, { color: colors.muted }]}>
+                <Text
+                  style={[styles.empty, { color: resolvedColors.mutedText }]}
+                >
                   {emptyLabel}
                 </Text>
               }
@@ -197,7 +252,7 @@ export function RoadmapBoard({
 const styles = StyleSheet.create({
   boardScroll: { flex: 1 },
   loader: { flex: 1 },
-  board: { gap: 12, paddingTop: 12 },
+  board: { gap: 12 },
   column: {
     width: 310,
     borderWidth: 1,

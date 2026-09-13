@@ -1,4 +1,5 @@
 import { Stack, useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/build/react-navigation/elements";
 import { useRef, useState } from "react";
 import type { SearchBarCommands } from "react-native-screens";
 
@@ -83,6 +84,8 @@ function StackedRoadmapScreen({
     dangerColor,
   } = props;
   const { messages, theme } = useFeedbackUi();
+  const headerHeight = useHeaderHeight();
+  const headerTransparent = props.StackOptions?.headerTransparent ?? true;
   const [query, setQuery] = useState("");
   const searchRef = useRef<SearchBarCommands>(null);
 
@@ -92,7 +95,7 @@ function StackedRoadmapScreen({
         options={{
           headerTitle: messages.roadmap.title,
           headerShown: true,
-          headerTransparent: false,
+          headerTransparent: true,
           headerShadowVisible: true,
           headerBackButtonDisplayMode: "minimal",
           headerBackVisible: false,
@@ -131,6 +134,7 @@ function StackedRoadmapScreen({
         query={query}
         onQueryChange={setQuery}
         showBoardHeader={false}
+        boardTopInset={headerTransparent ? headerHeight : 0}
         onEntryOpen={onEntryOpen}
         onUnauthenticated={onUnauthenticated}
         primaryColor={primaryColor}

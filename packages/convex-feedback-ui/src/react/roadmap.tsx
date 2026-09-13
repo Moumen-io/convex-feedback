@@ -279,6 +279,12 @@ function RoadmapEntry({
         />
         <FeedbackEntry.Content
           onClick={() => onOpen?.(entry.id)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpen?.(entry.id);
+            }
+          }}
           role={onOpen === undefined ? undefined : "button"}
           tabIndex={onOpen === undefined ? undefined : 0}
         >

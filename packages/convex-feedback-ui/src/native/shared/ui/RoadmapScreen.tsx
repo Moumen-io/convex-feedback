@@ -319,19 +319,23 @@ function RoadmapEntry({
         disabled={isAuthenticated === undefined || action.pending}
         onToggle={toggle}
       />
-      <FeedbackEntry.Content
-        onTouchEnd={onOpen === undefined ? undefined : () => onOpen(entry.id)}
+      <Pressable
+        onPress={onOpen === undefined ? undefined : () => onOpen(entry.id)}
+        accessibilityRole={onOpen === undefined ? undefined : "button"}
+        style={{ flex: 1, minWidth: 0 }}
       >
-        <View style={{ gap: 5 }}>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <FeedbackEntry.Kind />
-            <FeedbackEntry.Status />
+        <FeedbackEntry.Content>
+          <View style={{ gap: 5 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <FeedbackEntry.Kind />
+              <FeedbackEntry.Status />
+            </View>
+            <FeedbackEntry.Title />
+            <FeedbackEntry.Body />
+            <FeedbackEntry.CommentCount />
           </View>
-          <FeedbackEntry.Title />
-          <FeedbackEntry.Body />
-          <FeedbackEntry.CommentCount />
-        </View>
-      </FeedbackEntry.Content>
+        </FeedbackEntry.Content>
+      </Pressable>
     </FeedbackEntry.Root>
   );
 }

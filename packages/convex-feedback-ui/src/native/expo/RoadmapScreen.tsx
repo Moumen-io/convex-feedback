@@ -15,6 +15,10 @@ import type {
   RoadmapAndroidToolbarIcons,
   RoadmapStackScreenOptions,
 } from "./types.js";
+import {
+  supportsRoadmapBottomToolbar,
+  useStackBottomInset,
+} from "./stackInsets.js";
 import { useStackHeaderHeight } from "./useStackHeaderHeight.js";
 
 interface RoadmapScreenWithStack {
@@ -24,9 +28,18 @@ interface RoadmapScreenWithStack {
   StackOptions?: RoadmapStackScreenOptions;
   /** Android image source for the toolbar back action. */
   androidToolbarIcons?: RoadmapAndroidToolbarIcons;
-  /** Explicit top inset for a transparent stack header. Defaults to the native-stack context. */
+  /**
+   * Total top space reserved for a transparent stack header. When omitted,
+   * the native-stack header height is used. If `headerTransparent` is `false`,
+   * the default is `0` because the stack lays content below the header;
+   * `0` also explicitly disables the automatic inset.
+   */
   topInset?: number;
-  /** Explicit bottom inset for a host navigation bar. Defaults to the safe area. */
+  /**
+   * Total bottom space reserved for a host navigation bar or overlay. When
+   * omitted, the safe-area bottom is used, plus the built-in iOS bottom
+   * toolbar height when that toolbar is available; `0` disables the inset.
+   */
   bottomInset?: number;
 }
 
@@ -92,6 +105,10 @@ function StackedRoadmapScreen({
   const { messages, theme } = useFeedbackUi();
   const headerHeight = useStackHeaderHeight();
   const headerTransparent = props.StackOptions?.headerTransparent ?? true;
+  const resolvedBottomInset = useStackBottomInset(
+    bottomInset,
+    supportsRoadmapBottomToolbar,
+  );
   const [query, setQuery] = useState("");
   const searchRef = useRef<SearchBarCommands>(null);
 
@@ -126,9 +143,11 @@ function StackedRoadmapScreen({
         hideNavigationBar={false}
         textColor={theme.colors.text}
       />
-      <Stack.Toolbar placement="bottom">
-        <Stack.Toolbar.SearchBarSlot />
-      </Stack.Toolbar>
+      {supportsRoadmapBottomToolbar && (
+        <Stack.Toolbar placement="bottom">
+          <Stack.Toolbar.SearchBarSlot />
+        </Stack.Toolbar>
+      )}
       <RoadmapToolbar
         androidToolbarIcons={androidToolbarIcons}
         messages={messages}
@@ -141,7 +160,7 @@ function StackedRoadmapScreen({
         onQueryChange={setQuery}
         showBoardHeader={false}
         topInset={topInset ?? (headerTransparent ? headerHeight : 0)}
-        bottomInset={bottomInset}
+        bottomInset={resolvedBottomInset}
         onEntryOpen={onEntryOpen}
         onUnauthenticated={onUnauthenticated}
         primaryColor={primaryColor}

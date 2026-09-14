@@ -98,6 +98,8 @@ import { FeedbackScreen } from "convex-feedback-ui/native";
 
 The native `FeedbackScreen` includes the feedback UI using React Native components.
 
+The native roadmap exports also include the reusable `RoadmapBoard` and `RoadmapScreenContent`. Their `topInset` defaults to `0`, while `bottomInset` defaults to the bottom safe-area inset. These props describe space occupied by host navigation chrome: an explicit `bottomInset` is the total space, including the safe area, and replaces the default even when set to `0`. NativeTabs normally bounds content above its tab bar, so it should be left unset there.
+
 ## Expo Router
 
 Expo Router projects can use the `/expo` entry point:
@@ -163,6 +165,12 @@ its text label:
   }}
 />
 ```
+
+### Roadmap stack insets
+
+The stack-enabled Expo `RoadmapScreen` and routed `RoadmapStackLayout` use a transparent native header by default. The board automatically reserves the measured native-stack header height; if that context is unavailable, the fallback is 44 points on iOS or 56 points on Android, plus the top safe-area inset. If `headerTransparent` is `false`, the native stack already places the board below the header and the automatic top inset is `0`. Set `topInset` to override that space, including with `0`.
+
+The routed and stack-enabled roadmap also renders its native bottom search toolbar on iOS 26 and newer and includes its standard 44-point height in the default `bottomInset`. Android and older iOS versions do not receive an empty toolbar. If your host draws a toolbar or tab bar over the screen, pass `bottomInset` as the total occupied height, including the safe area; an explicit value replaces the automatic default, including `0`. NativeTabs content is already bounded above the tab bar, so omit `bottomInset` there.
 
 ### Using the Expo screen without stack integration
 
@@ -327,6 +335,10 @@ uses the existing entry-card and entry-detail implementations when no host
 entry route is supplied. The board title and search field are rendered by the
 Expo Router Stack, and `RoadmapBoard` is exported from the native entry points
 for sharing the admin-style stage layout with custom cards.
+
+On this routed stack, `topInset` and `bottomInset` can be supplied on
+`RoadmapStackLayout` to replace the automatic header and bottom-toolbar
+spacing.
 
 ## Diagnostic metadata
 

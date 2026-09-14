@@ -123,9 +123,20 @@ export interface RoadmapStackLayoutProps extends RoadmapScreenProps {
   itemOptions?: RoadmapStackScreenOptions;
   /** Android image sources for toolbar actions. iOS continues to use SF Symbols. */
   androidToolbarIcons?: RoadmapAndroidToolbarIcons;
-  /** Explicit top inset for a transparent stack header. Defaults to the native-stack context. */
+  /**
+   * Total top space reserved for the board beneath a transparent stack
+   * header. Defaults to the measured native-stack header height, with an
+   * iOS/Android fallback when the header context is unavailable. When
+   * `headerTransparent` is `false`, the native stack already lays the board
+   * below the header and the default is `0`. `0` disables the automatic top
+   * inset.
+   */
   topInset?: number;
-  /** Explicit bottom inset for a host navigation bar. Defaults to the safe area. */
+  /**
+   * Total bottom space reserved for a host navigation bar or overlay. Defaults
+   * to the bottom safe area, plus the built-in iOS bottom search toolbar when
+   * that toolbar is rendered. `0` disables the automatic bottom inset.
+   */
   bottomInset?: number;
 }
 
@@ -144,6 +155,8 @@ export interface RoutedRoadmapContextValue {
   entryPageSize: number;
   onEntryOpen?: RoadmapScreenProps["onEntryOpen"];
   boardHeaderTransparent: boolean;
+  /** Explicit top space forwarded from the routed stack layout. */
   topInset?: number;
+  /** Explicit total bottom space forwarded from the routed stack layout. */
   bottomInset?: number;
 }

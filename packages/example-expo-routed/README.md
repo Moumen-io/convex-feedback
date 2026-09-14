@@ -8,6 +8,12 @@ has its own board and roadmap-item routes under `src/app/roadmap`.
 `FeedbackStackLayout` and `RoadmapStackLayout` keep their shared providers
 mounted while users move between the board and detail pages.
 
+The routed roadmap uses a transparent native header and automatically accounts
+for its stack header and supported iOS bottom search toolbar. Pass
+`topInset` or `bottomInset` to `RoadmapStackLayout` when the host needs to
+override those values; `bottomInset` is total occupied bottom space, including
+the safe area.
+
 Create `.env.local` with the shared example backend URL:
 
 ```bash

@@ -21,10 +21,12 @@ const defaultHeaderHeight = Platform.select({
 });
 
 /**
- * Reads the native-stack header height without importing an Expo Router
+ * Returns the full native-stack header height without importing an Expo Router
  * private path. Expo Router 55 and 56+ both register this named context on
  * the shared React Navigation elements registry, although the owning module
- * changed between those releases.
+ * changed between those releases. When the context is unavailable, the hook
+ * falls back to 44 points on iOS or 56 points on Android, plus the top safe
+ * area, and never throws.
  */
 export function useStackHeaderHeight(): number {
   const insets = useSafeAreaInsets();

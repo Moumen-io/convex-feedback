@@ -17,8 +17,20 @@ import {
   roadmapRouteParams,
 } from "./routes.js";
 import { useRoutedRoadmap } from "./RoutedRoadmapContext.js";
+import {
+  supportsRoadmapBottomToolbar,
+  useStackBottomInset,
+} from "./stackInsets.js";
 import { useStackHeaderHeight } from "./useStackHeaderHeight.js";
 
+/**
+ * Routed roadmap board page with native Expo Router stack controls.
+ *
+ * Transparent headers are accounted for through the measured stack header
+ * height. The built-in bottom search toolbar is rendered only on platforms
+ * where its native slot exists, and its height is included in the board's
+ * bottom inset. Explicit layout insets always take precedence.
+ */
 export function RoadmapBoardScreen() {
   const { messages, theme } = useFeedbackUi();
   const {
@@ -32,6 +44,10 @@ export function RoadmapBoardScreen() {
   } = useRoutedRoadmap();
   const router = useRouter();
   const headerHeight = useStackHeaderHeight();
+  const resolvedBottomInset = useStackBottomInset(
+    bottomInset,
+    supportsRoadmapBottomToolbar,
+  );
   const [query, setQuery] = useState("");
   const searchRef = useRef<SearchBarCommands>(null);
 
@@ -50,7 +66,7 @@ export function RoadmapBoardScreen() {
           onQueryChange={setQuery}
           showHeader={false}
           topInset={topInset ?? (boardHeaderTransparent ? headerHeight : 0)}
-          bottomInset={bottomInset}
+          bottomInset={resolvedBottomInset}
           onItemOpen={(item) => {
             searchRef.current?.blur();
             router.push(
@@ -75,9 +91,11 @@ export function RoadmapBoardScreen() {
         hideNavigationBar={false}
         textColor={theme.colors.text}
       />
-      <Stack.Toolbar placement="bottom">
-        <Stack.Toolbar.SearchBarSlot />
-      </Stack.Toolbar>
+      {supportsRoadmapBottomToolbar && (
+        <Stack.Toolbar placement="bottom">
+          <Stack.Toolbar.SearchBarSlot />
+        </Stack.Toolbar>
+      )}
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           hidden={!router.canGoBack()}

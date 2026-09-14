@@ -59,6 +59,43 @@ for the plain React Native implementation. Pass `onEntryOpen` for host navigatio
 `RoadmapStackLayout` with `RoadmapBoardScreen` and `RoadmapItemScreen`, just
 as the routed feedback integration uses its own stack layout.
 
+### Roadmap insets and bottom toolbar
+
+The stack-enabled `RoadmapScreen` and `RoadmapStackLayout` default to a
+transparent native header. Their board reserves the measured stack header
+height automatically. If the native-stack header context is unavailable, the
+package falls back to 44 points on iOS or 56 points on Android, plus the top
+safe-area inset. If `headerTransparent` is `false`, the stack already places
+the board below the header and the automatic `topInset` is `0`. Set
+`topInset` to provide the header space yourself; an explicit value wins,
+including `0`.
+
+`bottomInset` is the total bottom space occupied by host navigation chrome,
+including the safe area. When it is omitted, direct `RoadmapBoard` and
+`RoadmapScreenContent` usage reserves the bottom safe-area inset. The
+stack-enabled roadmap additionally renders its native bottom search toolbar
+where Expo Router provides `Stack.Toolbar.SearchBarSlot` (iOS 26 and newer)
+and includes the standard 44-point toolbar height in the default bottom inset.
+It does not render an empty bottom toolbar on Android or older iOS versions.
+
+Pass `bottomInset` when the host supplies an overlaying toolbar or tab bar and
+include both the overlay height and the safe-area inset. An explicit value
+replaces the default, including `0`. NativeTabs normally bounds the screen
+content above its tab bar, so NativeTabs consumers should omit `bottomInset`.
+
+For example, a host-owned overlay can provide its total occupied space:
+
+```tsx
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const { bottom } = useSafeAreaInsets();
+
+<RoadmapStackLayout
+  hooks={feedbackHooks}
+  bottomInset={bottom + customToolbarHeight}
+/>;
+```
+
 The routed entry page includes an explicit Stack back action so navigation into
 feedback from a roadmap item remains reversible even when the host uses nested
 Expo Router stacks.

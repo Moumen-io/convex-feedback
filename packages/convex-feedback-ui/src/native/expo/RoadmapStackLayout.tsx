@@ -12,6 +12,13 @@ import type { RoadmapStackLayoutProps } from "./types.js";
  * Provider and native-stack layout for real Expo Router roadmap pages.
  * Consumers supply the small route files; this component keeps the roadmap
  * query and entry-detail context mounted while a detail page is pushed.
+ * Headers are transparent by default, and the board reserves the measured
+ * header height plus the safe area. If a board header is opaque, the native
+ * stack already positions content below it and the default top inset is zero.
+ * The built-in iOS bottom search toolbar is also included in the default board
+ * bottom inset when it is available.
+ * `topInset` and `bottomInset` override those defaults, including when set to
+ * `0`.
  */
 export function RoadmapStackLayout({
   hooks,

@@ -135,13 +135,25 @@ export interface RoadmapScreenContentProps extends Pick<
   onQueryChange?: (query: string) => void;
   /** Renders the inline title/search header for non-Stack usage. @default true */
   showBoardHeader?: boolean;
-  /** Extra top space reserved for a transparent native stack header. */
+  /**
+   * Additional top space reserved for content behind a transparent native
+   * stack header. Defaults to `0`.
+   */
   topInset?: number;
-  /** Bottom space reserved for a host navigation bar. Defaults to the safe area. */
+  /**
+   * Total bottom space reserved for a host navigation bar or overlay. Defaults
+   * to the bottom safe-area inset. An explicit value replaces that default,
+   * including `0`.
+   */
   bottomInset?: number;
 }
 
-/** Shared screen content used by direct native and Expo Stack integrations. */
+/**
+ * Shared screen content used by direct native and Expo Stack integrations.
+ * Consumers using an overlaying host toolbar should pass its full occupied
+ * height through `bottomInset`; NativeTabs consumers normally omit it because
+ * the tab bar supplies a bounded content region.
+ */
 export function RoadmapScreenContent({
   pageSize,
   entryPageSize,
@@ -194,7 +206,9 @@ export function RoadmapBoardContent({
   query?: string;
   onQueryChange?: (query: string) => void;
   showHeader?: boolean;
+  /** Additional top space reserved below a transparent native stack header. */
   topInset?: number;
+  /** Total bottom space reserved for a host navigation bar or overlay. */
   bottomInset?: number;
 }) {
   const { hooks } = useFeedbackBody();

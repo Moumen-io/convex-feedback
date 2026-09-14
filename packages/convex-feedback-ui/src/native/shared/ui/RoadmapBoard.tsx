@@ -58,9 +58,17 @@ export interface RoadmapBoardProps {
   onItemOpen: (item: RoadmapItem) => void;
   /** Supplies the card UI so admin and user-facing cards can differ. */
   renderItem: (args: RoadmapBoardItemRenderArgs) => ReactElement | null;
-  /** Extra top space reserved for a transparent native stack header. */
+  /**
+   * Additional top space reserved for content behind a transparent native
+   * stack header. Defaults to `0`; pass the full header height when the host
+   * renders the board under a transparent header.
+   */
   topInset?: number;
-  /** Bottom space reserved for a host navigation bar. Defaults to the safe area. */
+  /**
+   * Total bottom space reserved for a host navigation bar or overlay. Defaults
+   * to the bottom safe-area inset. An explicit value replaces that default,
+   * including `0`.
+   */
   bottomInset?: number;
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
@@ -119,6 +127,8 @@ export function RoadmapBoardCard({
  *
  * The outer list scrolls horizontally while each stage owns its vertical
  * `FlatList`, matching the admin board's bounded nested-scroll structure.
+ * `bottomInset` is treated as total host-occupied space, so a caller that
+ * renders an overlay must include both the overlay and any safe-area space.
  */
 export function RoadmapBoard({
   items,

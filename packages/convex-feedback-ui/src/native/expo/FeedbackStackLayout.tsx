@@ -121,7 +121,7 @@ export function FeedbackStackLayout({
                 ...defaults,
                 headerTitle: resolvedMessages.form.editTitle,
                 presentation: Platform.OS === "ios" ? "formSheet" : "modal",
-                sheetAllowedDetents: "fitToContents",
+                sheetAllowedDetents: [0.6],
                 ...screenOptions,
                 ...editOptions,
               }}

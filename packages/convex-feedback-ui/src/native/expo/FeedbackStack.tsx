@@ -5,6 +5,7 @@ import {
   useRouter,
 } from "expo-router";
 import { Fragment } from "react";
+import { Platform } from "react-native";
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider";
 import {
@@ -13,7 +14,7 @@ import {
   entryStatusChoices,
 } from "../../shared/helpers";
 import { EditEntryStackScreen } from "./EditEntryScreen";
-import type { FeedbackStackProps } from "./types";
+import type { FeedbackStackProps, FeedbackStackScreenOptions } from "./types";
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -51,8 +52,17 @@ export function FeedbackStack({
   const editEntryId = firstParam(params.__convexFeedbackEditEntryId);
   const editEntry = hooks.useEntry(editEntryId);
   const selectedEntry = hooks.useEntry(selectedEntryId);
-  const editStackOptions =
-    typeof stackOptions === "function" ? undefined : stackOptions;
+  const editStackOptions: FeedbackStackScreenOptions =
+    typeof stackOptions === "function"
+      ? {
+          presentation: Platform.OS === "ios" ? "formSheet" : "modal",
+          sheetAllowedDetents: [0.6],
+        }
+      : {
+          presentation: Platform.OS === "ios" ? "formSheet" : "modal",
+          sheetAllowedDetents: [0.6],
+          ...stackOptions,
+        };
 
   if (editEntryId !== undefined) {
     return (

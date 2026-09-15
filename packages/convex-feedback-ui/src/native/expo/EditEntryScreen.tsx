@@ -52,12 +52,37 @@ export function EditEntryStackScreen({
     entry !== null &&
     formState.canSave &&
     !formState.pending;
+  const formContent =
+    entry === undefined || entry === null ? null : (
+      <ScrollView
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={isIos ? "interactive" : "on-drag"}
+        contentInsetAdjustmentBehavior="automatic"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={{
+          flexGrow: 0,
+          justifyContent: "flex-start",
+          gap: 18,
+          padding: 20,
+          paddingBottom: 32,
+        }}
+      >
+        <EditEntryForm
+          ref={formRef}
+          entry={entry}
+          onRequestClose={onRequestClose}
+          onStateChange={setFormState}
+          autoFocus={false}
+          showSubmitButton={false}
+        />
+      </ScrollView>
+    );
 
   return (
     <>
       <Stack.Screen
         options={{
-          ...stackOptions,
           headerShown: true,
           headerTransparent: false,
           headerShadowVisible: true,
@@ -65,74 +90,45 @@ export function EditEntryStackScreen({
           contentStyle: { backgroundColor },
           headerTitle: messages.form.editTitle,
           headerBackVisible: false,
-          presentation: isIos ? "formSheet" : "modal",
-          sheetAllowedDetents: "fitToContents",
+          ...stackOptions,
         }}
       />
 
       <FeedbackBoard.Root {...colors}>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor,
-          }}
-        >
-          {entry === undefined ? (
-            <View
-              style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              <ActivityIndicator color={primaryColor} />
-              <Text style={{ color: mutedColor }}>
-                {messages.board.loading}
-              </Text>
-            </View>
-          ) : entry === null ? (
-            <View
-              style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                padding: theme.spacing,
-              }}
-            >
-              <Text style={{ color: mutedColor }}>
-                {messages.form.editNotFound}
-              </Text>
-            </View>
-          ) : (
-            <KeyboardAvoidingView
-              style={{ flex: 1 }}
-              behavior={isIos ? "padding" : "height"}
-            >
-              <ScrollView
-                style={{ flex: 1 }}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode={isIos ? "interactive" : "on-drag"}
-                contentInsetAdjustmentBehavior="automatic"
-                contentContainerStyle={{
-                  flexGrow: 1,
-                  gap: 18,
-                  padding: 20,
-                  paddingBottom: 32,
-                }}
-              >
-                <EditEntryForm
-                  ref={formRef}
-                  entry={entry}
-                  onRequestClose={onRequestClose}
-                  onStateChange={setFormState}
-                  autoFocus={false}
-                  showSubmitButton={false}
-                />
-              </ScrollView>
-            </KeyboardAvoidingView>
-          )}
-        </View>
+        {entry === undefined ? (
+          <View
+            style={{
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              backgroundColor,
+            }}
+          >
+            <ActivityIndicator color={primaryColor} />
+            <Text style={{ color: mutedColor }}>{messages.board.loading}</Text>
+          </View>
+        ) : entry === null ? (
+          <View
+            style={{
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              padding: theme.spacing,
+              backgroundColor,
+            }}
+          >
+            <Text style={{ color: mutedColor }}>
+              {messages.form.editNotFound}
+            </Text>
+          </View>
+        ) : isIos ? (
+          formContent
+        ) : (
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior="height">
+            {formContent}
+          </KeyboardAvoidingView>
+        )}
 
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button

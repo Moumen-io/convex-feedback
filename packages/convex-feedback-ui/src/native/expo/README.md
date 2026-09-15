@@ -39,8 +39,10 @@ Toolbar actions retain their package-provided SF Symbols on iOS. Pass
 Missing Android images fall back to text labels.
 
 Author editing in the stack-enabled feedback screens opens a native form-sheet
-editor on iOS and a modal stack screen on Android. Its cancel and save toolbar
-actions use `messages.form.cancel` and `messages.form.saveChanges`.
+editor on iOS and a modal stack screen on Android. The iOS editor defaults to
+the `0.6` sheet detent; pass `editOptions.sheetAllowedDetents` to override it.
+Its cancel and save toolbar actions use `messages.form.cancel` and
+`messages.form.saveChanges`.
 Suggested entries from the create form open the main entry-detail route, so the
 same edit route is used everywhere.
 

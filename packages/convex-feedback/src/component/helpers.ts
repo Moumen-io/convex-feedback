@@ -136,6 +136,8 @@ export async function serializeEntry(
     commentCount: entry.commentCount,
     ...(entry.updatedAt === undefined ? {} : { updatedAt: entry.updatedAt }),
     viewerHasUpvoted: reaction !== null,
+    viewerIsAuthor:
+      viewerActorId !== undefined && entry.actorId === viewerActorId,
     ...(includeMetadata && entry.metadata !== undefined
       ? { metadata: entry.metadata }
       : {}),

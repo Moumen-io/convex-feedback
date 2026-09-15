@@ -20,19 +20,6 @@ export interface RoadmapBoardStage {
   label: string;
 }
 
-/**
- * @deprecated Configure roadmap colors through `RoadmapProvider`'s `theme`
- * instead. Kept temporarily for backwards compatibility.
- */
-export interface RoadmapBoardColors {
-  background: string;
-  surface: string;
-  text: string;
-  muted: string;
-  border: string;
-  primary: string;
-}
-
 export interface RoadmapBoardItemRenderArgs {
   item: RoadmapItem;
   stage: RoadmapBoardStage;
@@ -45,11 +32,6 @@ export interface RoadmapBoardProps {
   items: readonly RoadmapItem[];
   /** Ordered columns rendered from left to right. */
   stages: readonly RoadmapBoardStage[];
-  /**
-   * @deprecated Configure colors through `RoadmapProvider`'s `theme` instead.
-   * Kept temporarily for backwards compatibility.
-   */
-  colors?: RoadmapBoardColors;
   /** Shows the same full-board loading state as the admin roadmap. */
   loading?: boolean;
   /** Copy shown when a column does not contain any items. */
@@ -78,11 +60,6 @@ export interface RoadmapBoardCardProps extends Pick<
   ViewProps,
   "accessibilityLabel"
 > {
-  /**
-   * @deprecated Configure colors through `RoadmapProvider`'s `theme` instead.
-   * Kept temporarily for backwards compatibility.
-   */
-  colors?: Pick<RoadmapBoardColors, "border" | "surface">;
   onPress: () => void;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -90,14 +67,13 @@ export interface RoadmapBoardCardProps extends Pick<
 
 /** Shared admin-style pressable card shell with configurable contents. */
 export function RoadmapBoardCard({
-  colors,
   onPress,
   accessibilityLabel,
   children,
   style,
 }: RoadmapBoardCardProps) {
   const { theme } = useFeedbackUi();
-  const cardColors = colors ?? {
+  const cardColors = {
     border: theme.colors.border,
     surface: theme.colors.surface,
   };
@@ -133,7 +109,6 @@ export function RoadmapBoardCard({
 export function RoadmapBoard({
   items,
   stages,
-  colors,
   loading = false,
   emptyLabel,
   onItemOpen,
@@ -146,20 +121,7 @@ export function RoadmapBoard({
   const insets = useSafeAreaInsets();
   const resolvedBottomInset = bottomInset ?? insets.bottom;
   const { theme } = useFeedbackUi();
-  const resolvedColors = colors
-    ? {
-        ...theme.colors,
-        background: colors.background,
-        surface: colors.surface,
-        // The legacy palette has no muted surface token. Preserve the old
-        // board behavior while callers migrate to RoadmapProvider.theme.
-        surfaceMuted: colors.surface,
-        text: colors.text,
-        mutedText: colors.muted,
-        border: colors.border,
-        primary: colors.primary,
-      }
-    : theme.colors;
+  const resolvedColors = theme.colors;
 
   if (loading) {
     return (

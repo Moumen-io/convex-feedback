@@ -12,10 +12,15 @@ import {
   entryStatusChoices,
 } from "../../shared/helpers.js";
 import { EntryDetail } from "../shared/ui/EntryDetail.js";
+import { EditEntryStackScreen } from "./EditEntryScreen.js";
 import { FeedbackScreenList } from "../shared/ui/FeedbackScreenList.js";
 import { CreateEntryForm } from "../shared/ui/NewEntry.js";
 import { FeedbackBoard } from "../shared/ui/primitives.js";
-import { feedbackRouteHref } from "./routes.js";
+import {
+  feedbackBoardRouteHref,
+  feedbackEditRouteHref,
+  feedbackRouteHref,
+} from "./routes.js";
 import { useRoutedFeedbackModal } from "./RoutedFeedbackModalContext.js";
 import { useRoutedFeedback } from "./RoutedFeedbackContext.js";
 
@@ -170,11 +175,43 @@ export function FeedbackEntryScreen() {
   return <FeedbackEntryRouteContent entryId={entryId} />;
 }
 
+export function FeedbackEditScreen() {
+  const params = useLocalSearchParams<{
+    entryId?: string | string[];
+  }>();
+  const entryId = Array.isArray(params.entryId)
+    ? params.entryId[0]
+    : params.entryId;
+
+  if (!entryId) {
+    throw new Error(
+      'FeedbackEditScreen requires an "entryId" dynamic route parameter.',
+    );
+  }
+
+  return <FeedbackEditRouteContent entryId={entryId} />;
+}
+
+function FeedbackEditRouteContent({ entryId }: { entryId: string }) {
+  const { hooks } = useFeedbackBody();
+  const { androidToolbarIcons, colors } = useRoutedFeedback();
+  const router = useRouter();
+  const entry = hooks.useEntry(entryId);
+
+  return (
+    <EditEntryStackScreen
+      entry={entry}
+      onRequestClose={() => router.back()}
+      colors={colors}
+      androidToolbarIcons={androidToolbarIcons}
+    />
+  );
+}
+
 function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
   const { hooks } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const { routes, colors, androidToolbarIcons } = useRoutedFeedback();
-  const modal = useRoutedFeedbackModal();
   const router = useRouter();
   const entry = hooks.useEntry(entryId);
 
@@ -182,7 +219,9 @@ function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace(feedbackRouteHref(routes.board));
+      router.replace(feedbackBoardRouteHref(routes.entry, routes.board), {
+        relativeToDirectory: true,
+      });
     }
   };
 
@@ -196,7 +235,12 @@ function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
       />
       <FeedbackBoard.Root {...colors}>
         <FeedbackBoard.List style={{ padding: theme.spacing }}>
-          <EntryDetail entryId={entryId} hideBackButton onBack={goBack} />
+          <EntryDetail
+            entryId={entryId}
+            hideBackButton
+            hideEditButton
+            onBack={goBack}
+          />
         </FeedbackBoard.List>
       </FeedbackBoard.Root>
       <Stack.Toolbar placement="left">
@@ -213,19 +257,23 @@ function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
           {messages.entry.back}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
-      {modal && (
+      {entry?.viewerIsAuthor === true && (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
             icon={
               process.env.EXPO_OS === "ios"
-                ? "xmark"
-                : androidToolbarIcons.close
+                ? "pencil"
+                : androidToolbarIcons.edit
             }
-            accessibilityLabel={messages.form.cancel}
-            onPress={modal.dismiss}
-            tintColor={theme.colors.text}
+            accessibilityLabel={messages.entry.edit}
+            onPress={() =>
+              router.push(feedbackEditRouteHref(routes.edit), {
+                relativeToDirectory: true,
+              })
+            }
+            tintColor={theme.colors.primary}
           >
-            {messages.form.cancel}
+            {messages.entry.edit}
           </Stack.Toolbar.Button>
         </Stack.Toolbar>
       )}
@@ -244,7 +292,7 @@ export function CreateFeedbackScreen() {
   const [body, setBody] = useState("");
 
   const entryHref = (entryId: string) =>
-    feedbackRouteHref(routes.entry, { entryId });
+    feedbackRouteHref(`../${routes.entry}`, { entryId });
 
   return (
     <>
@@ -266,7 +314,9 @@ export function CreateFeedbackScreen() {
               router.push(entryHref(entryId), { relativeToDirectory: true })
             }
             onCreated={(entryId) => {
-              router.dismissTo(entryHref(entryId));
+              router.dismissTo(entryHref(entryId), {
+                relativeToDirectory: true,
+              });
             }}
           />
         </FeedbackBoard.List>

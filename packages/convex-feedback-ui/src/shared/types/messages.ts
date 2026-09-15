@@ -99,6 +99,9 @@ export interface FeedbackMessages {
     /** Label for opening an entry. */
     open: string;
 
+    /** Label for editing an entry authored by the current viewer. */
+    edit: string;
+
     /** Label for returning to the feedback list. */
     back: string;
   };
@@ -124,7 +127,7 @@ export interface FeedbackMessages {
     close: string;
   };
 
-  /** Create-entry form copy. */
+  /** Entry form copy. */
   form: {
     /** Entry-kind field label. */
     kind: string;
@@ -143,6 +146,24 @@ export interface FeedbackMessages {
 
     /** Create-entry submit CTA. */
     submit: string;
+
+    /** Heading for the entry-edit form. */
+    editTitle: string;
+
+    /** Supporting copy for the entry-edit form. */
+    editDescription: string;
+
+    /** Entry-edit submit CTA. */
+    saveChanges: string;
+
+    /** Native error-dialog title for an entry edit failure. */
+    editError: string;
+
+    /** Empty state shown when an entry cannot be loaded for editing. */
+    editNotFound: string;
+
+    /** Retry action shown after an entry edit failure. */
+    retry: string;
 
     /** Generic form/dialog cancel action. */
     cancel: string;
@@ -234,7 +255,7 @@ export interface FeedbackMessageOverrides {
   /** Diagnostic metadata copy overrides. */
   metadata?: Partial<FeedbackMessages["metadata"]> | undefined;
 
-  /** Create-entry form copy overrides. */
+  /** Entry form copy overrides. */
   form?: Partial<FeedbackMessages["form"]> | undefined;
 
   /** Comment-thread copy overrides. */

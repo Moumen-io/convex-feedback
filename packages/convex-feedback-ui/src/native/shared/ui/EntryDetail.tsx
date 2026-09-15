@@ -7,6 +7,7 @@ import { allowAuthenticatedAction } from "../../../shared/helpers.js";
 import type { FeedbackScreenEntryDetailProps } from "../../../shared/types";
 import { Button } from "./Button";
 import { CommentBranch } from "./CommentBranch";
+import { EditEntryModal } from "./EditEntry.js";
 import { FeedbackEntry, FeedbackForm } from "./primitives";
 import { MetadataModal } from "./MetadataModal";
 import { useNativeAction } from "../helpers.js";
@@ -15,6 +16,7 @@ export function EntryDetail({
   entryId,
   onBack,
   hideBackButton,
+  hideEditButton = false,
 }: FeedbackScreenEntryDetailProps) {
   const {
     hooks,
@@ -31,6 +33,7 @@ export function EntryDetail({
   const createComment = hooks.useCreateComment();
   const [body, setBody] = useState("");
   const [showMetadata, setShowMetadata] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const upvoteAction = useNativeAction();
   const commentAction = useNativeAction();
 
@@ -84,12 +87,36 @@ export function EntryDetail({
           onToggle={toggleUpvote}
         />
         <FeedbackEntry.Content style={{ gap: 5 }}>
-          <FeedbackEntry.Status />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
+            <View style={{ flex: 1, gap: 5 }}>
+              <FeedbackEntry.Kind />
+              <FeedbackEntry.Status />
+            </View>
+            {!hideEditButton && entry.viewerIsAuthor === true && (
+              <Button
+                label={messages.entry.edit}
+                onPress={() => setEditOpen(true)}
+              />
+            )}
+          </View>
           <FeedbackEntry.Title />
           <FeedbackEntry.Body />
           <FeedbackEntry.CommentCount />
         </FeedbackEntry.Content>
       </FeedbackEntry.Root>
+      {editOpen && (
+        <EditEntryModal
+          entry={entry}
+          onRequestClose={() => setEditOpen(false)}
+        />
+      )}
       {entry.metadata !== undefined && (
         <Button
           label={messages.metadata.view}

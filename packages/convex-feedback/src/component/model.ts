@@ -104,6 +104,8 @@ export const publicEntryValidator = v.object({
   commentCount: v.number(),
   updatedAt: v.optional(v.number()),
   viewerHasUpvoted: v.boolean(),
+  /** Whether the current viewer is the actor who created this entry. */
+  viewerIsAuthor: v.optional(v.boolean()),
   metadata: v.optional(feedbackMetadataValidator),
 });
 
@@ -254,6 +256,11 @@ export type FeedbackMetadata = Infer<typeof feedbackMetadataValidator>;
  * @property viewerHasUpvoted
  * Whether the actor associated with the current query has upvoted the entry.
  * `false` when no viewer actor is available.
+ *
+ * @property viewerIsAuthor
+ * Whether the actor associated with the current query created the entry.
+ * `false` when no viewer actor is available. This is optional for compatibility
+ * with hosts that have not yet redeployed the updated wrapper.
  *
  * @property metadata
  * Creation-time diagnostic metadata. Present only when `getEntry` is queried

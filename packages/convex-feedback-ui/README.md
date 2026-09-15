@@ -1,4 +1,4 @@
-[![npm version](https://badge.fury.io/js/convex-feedback-ui.svg)](https://badge.fury.io/js/convex-feedback-ui) [![Convex Component](https://www.convex.dev/components/badge/convex-feedback)](https://www.convex.dev/components/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback-ui) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback-ui) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
+![npm version](https://badge.fury.io/js/convex-feedback-ui.svg) ![Convex Component](https://www.convex.dev/components/badge/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback-ui) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback-ui) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
 
 [Vite demo](https://convex-feedback-vite.vercel.app/) • [Expo demo](https://convex-feedback-expo.vercel.app/) • [React Native demo](https://convex-feedback-native.vercel.app/)
 
@@ -60,6 +60,11 @@ The default stylesheet:
 - uses CSS custom properties for theme values;
 - allows normal host CSS, Tailwind, or CSS-module classes to override defaults;
 - can be omitted entirely if you want to provide your own styling.
+
+On entry detail, the prebuilt feedback screens show an Edit action only when the server identifies the current viewer as the entry author. The form edits the title and details; entry type remains admin-controlled. The backend rechecks authorship when the update mutation runs, so hiding the action is
+only a presentation convenience and is not the authorization boundary. Stack-enabled Expo screens place this action in the native right toolbar; non-stacked native screens keep it alongside the entry details.
+
+In stack mode, opening the action pushes a native form-sheet editor on iOS (and a modal stack screen on Android) with cancel and save controls in the top toolbar. Edit-screen copy is configurable through `messages.form`.
 
 Key colors can be overridden directly:
 
@@ -161,6 +166,8 @@ its text label:
   hooks={feedbackHooks}
   androidToolbarIcons={{
     create: require("./assets/add.png"),
+    edit: require("./assets/edit.png"),
+    save: require("./assets/check.png"),
     back: require("./assets/back.png"),
   }}
 />
@@ -196,11 +203,12 @@ small route files while the package supplies their layouts and screens:
 app/feedback/
 ├── _layout.tsx
 ├── index.tsx
-├── [entryId].tsx
+├── [entryId]/
+│   ├── index.tsx
+│   └── edit.tsx
 └── new/
     ├── _layout.tsx
-    ├── index.tsx
-    └── [entryId].tsx
+    └── index.tsx
 ```
 
 The layout owns the feedback providers and keeps them mounted across the board,
@@ -222,6 +230,8 @@ export default function Layout() {
       hooks={feedbackHooks}
       androidToolbarIcons={{
         create: require("../../assets/add.png"),
+        edit: require("../../assets/edit.png"),
+        save: require("../../assets/check.png"),
         back: require("../../assets/back.png"),
         close: require("../../assets/close.png"),
       }}
@@ -240,8 +250,11 @@ Each page file only needs to re-export its package screen:
 // app/feedback/index.tsx
 export { FeedbackBoardScreen as default } from "convex-feedback-ui/expo";
 
-// app/feedback/[entryId].tsx
+// app/feedback/[entryId]/index.tsx
 export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
+
+// app/feedback/[entryId]/edit.tsx
+export { FeedbackEditScreen as default } from "convex-feedback-ui/expo";
 
 // app/feedback/new/_layout.tsx
 import {
@@ -254,9 +267,6 @@ export default FeedbackCreateStackLayout;
 
 // app/feedback/new/index.tsx
 export { CreateFeedbackScreen as default } from "convex-feedback-ui/expo";
-
-// app/feedback/new/[entryId].tsx
-export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
 ```
 
 `FeedbackStackLayout` uses these route names by default:
@@ -265,18 +275,20 @@ export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
 {
   board: "index",
   entry: "[entryId]",
+  edit: "[entryId]/edit",
   create: "new",
 }
 ```
 
 Names can be partially overridden when the files use a different structure.
 The create name identifies its nested route directory, and the entry route must
-exist both beside that directory and inside it while retaining the `[entryId]`
-dynamic segment:
+retain the `[entryId]` dynamic segment. The edit route must be nested beneath
+the entry route:
 
 ```tsx
 const routes = {
   entry: "entry/[entryId]",
+  edit: "entry/[entryId]/edit",
   create: "create",
 };
 
@@ -287,12 +299,7 @@ export default function Layout() {
 }
 ```
 
-The board's search and loaded list remain mounted when another screen is
-pushed, so returning restores the prior query and scroll position. The create
-route is a modal navigator by default. Duplicate suggestions push the normal
-detail screen inside that modal's stack, with back and close controls. After
-creation, the complete modal is dismissed and the created entry replaces it on
-the board stack.
+The board's search and loaded list remain mounted when another screen is pushed, so returning restores the prior query and scroll position. The create route is a modal navigator by default. Duplicate suggestions push the main entry-detail route, with the create modal remaining available behind it. After creation, the complete modal is dismissed and the created entry replaces it on the board stack.
 
 See `packages/example-expo-routed` for a complete application.
 
@@ -379,7 +386,6 @@ Or combine global defaults with per-kind behavior:
 - A kind set to `false` disables all metadata collection for that kind.
 - Collection happens only when the user finally submits.
 - Unavailable or failed collection sources are omitted without blocking feedback submission.
-
 - Web defaults include `platform`, `user agent`, `language`, `timezone`, `screen` and `viewport` dimensions, and `device pixel ratio`.
 - React Native defaults include `platform`, `OS` version, available device model, screen `dimensions`, `pixel ratio`, and `font scale`.
 - The Expo entry point additionally uses `expo-constants` for app `version`, `build` number, `application ID`, `Expo runtime version`, and execution `environment` when available.

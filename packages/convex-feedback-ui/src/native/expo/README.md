@@ -19,12 +19,13 @@ Containers such as `FeedbackEntry.Content`, `FeedbackForm.Root`, and `Comment.Ch
 ## Routed screens
 
 Use `FeedbackStackLayout` with `FeedbackBoardScreen`,
-`FeedbackCreateStackLayout`, `FeedbackEntryScreen`, and
+`FeedbackCreateStackLayout`, `FeedbackEntryScreen`, `FeedbackEditScreen`, and
 `CreateFeedbackScreen` when board state should be shared across real Expo
-Router routes. Consumer applications must create the corresponding board and
-entry files plus a nested create directory containing `_layout.tsx`,
-`index.tsx`, and `[entryId].tsx`, because Expo Router discovers pages from the
-application's route directory.
+Router routes. Consumer applications must create the corresponding board,
+entry directory, and edit file plus a nested create directory containing
+`_layout.tsx` and `index.tsx`, because Expo Router discovers pages from the
+application's route directory. The default entry files are
+`[entryId]/index.tsx` and `[entryId]/edit.tsx`.
 
 Re-export `feedbackStackSettings` from the route layout as
 `unstable_settings` so a deep link to the create modal anchors the board behind
@@ -34,8 +35,14 @@ suggested entries retain the form behind them. Use
 
 Toolbar actions retain their package-provided SF Symbols on iOS. Pass
 `androidToolbarIcons` to `FeedbackScreen` or `FeedbackStackLayout` with Android
-`ImageSourcePropType` values for the create, back, close, and filter actions.
+`ImageSourcePropType` values for the create, edit, save, back, close, and filter actions.
 Missing Android images fall back to text labels.
+
+Author editing in the stack-enabled feedback screens opens a native form-sheet
+editor on iOS and a modal stack screen on Android. Its cancel and save toolbar
+actions use `messages.form.cancel` and `messages.form.saveChanges`.
+Suggested entries from the create form open the main entry-detail route, so the
+same edit route is used everywhere.
 
 > [!WARNING]
 > If the filter toolbar button is intermittently broken, especially on iOS 26+, pass `Host` from `@expo/ui/swift-ui` to `BottomToolbarWrapper`. This wraps every bottom toolbar:

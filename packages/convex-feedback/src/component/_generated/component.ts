@@ -62,6 +62,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           updatedAt?: number;
           upvoteCount: number;
           viewerHasUpvoted: boolean;
+          viewerIsAuthor?: boolean;
         } | null,
         Name
       >;
@@ -125,6 +126,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             updatedAt?: number;
             upvoteCount: number;
             viewerHasUpvoted: boolean;
+            viewerIsAuthor?: boolean;
           }>;
           pageStatus?: "SplitRecommended" | "SplitRequired" | null;
           splitCursor?: string | null;
@@ -192,6 +194,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             updatedAt?: number;
             upvoteCount: number;
             viewerHasUpvoted: boolean;
+            viewerIsAuthor?: boolean;
           }>;
           pageStatus?: "SplitRecommended" | "SplitRequired" | null;
           splitCursor?: string | null;
@@ -338,6 +341,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           updatedAt?: number;
           upvoteCount: number;
           viewerHasUpvoted: boolean;
+          viewerIsAuthor?: boolean;
         } | null,
         Name
       >;
@@ -390,6 +394,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             updatedAt?: number;
             upvoteCount: number;
             viewerHasUpvoted: boolean;
+            viewerIsAuthor?: boolean;
           }>;
           pageStatus?: "SplitRecommended" | "SplitRequired" | null;
           splitCursor?: string | null;
@@ -435,6 +440,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           updatedAt?: number;
           upvoteCount: number;
           viewerHasUpvoted: boolean;
+          viewerIsAuthor?: boolean;
         }>,
         Name
       >;
@@ -506,6 +512,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             updatedAt?: number;
             upvoteCount: number;
             viewerHasUpvoted: boolean;
+            viewerIsAuthor?: boolean;
           }>;
           similar: Array<{
             actorId: string;
@@ -529,6 +536,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             updatedAt?: number;
             upvoteCount: number;
             viewerHasUpvoted: boolean;
+            viewerIsAuthor?: boolean;
           }>;
         },
         Name
@@ -670,6 +678,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             updatedAt?: number;
             upvoteCount: number;
             viewerHasUpvoted: boolean;
+            viewerIsAuthor?: boolean;
           }>;
           pageStatus?: "SplitRecommended" | "SplitRequired" | null;
           splitCursor?: string | null;

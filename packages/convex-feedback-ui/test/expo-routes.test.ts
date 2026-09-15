@@ -1,8 +1,10 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  feedbackBoardRouteHref,
   createFeedbackStackSettings,
   defaultFeedbackRoutes,
+  feedbackEditRouteHref,
   feedbackCreateStackSettings,
   feedbackRouteHref,
   feedbackStackSettings,
@@ -32,6 +34,7 @@ describe("Expo routed feedback contracts", () => {
     expect(routes).toEqual({
       board: "index",
       entry: "entry/[entryId]",
+      edit: "entry/[entryId]/edit",
       create: "create",
     });
     expect(createFeedbackStackSettings({ board: "board" })).toEqual({
@@ -41,6 +44,9 @@ describe("Expo routed feedback contracts", () => {
 
   test("requires the stable entryId dynamic parameter", () => {
     expect(() => resolveFeedbackRoutes({ entry: "[id]" })).toThrow("[entryId]");
+    expect(() => resolveFeedbackRoutes({ edit: "edit/[entryId]" })).toThrow(
+      "nested under",
+    );
   });
 
   test("builds relative route hrefs with optional parameters", () => {
@@ -52,6 +58,12 @@ describe("Expo routed feedback contracts", () => {
       pathname: "./entry/[entryId]",
       params: { entryId: "entry-1" },
     });
+    expect(feedbackEditRouteHref("[entryId]/edit")).toBe("./edit");
+    expect(feedbackEditRouteHref("entry/[entryId]/edit")).toBe("./edit");
+    expect(feedbackBoardRouteHref("[entryId]", "index")).toBe("../index");
+    expect(feedbackBoardRouteHref("entry/[entryId]", "index")).toBe(
+      "../../index",
+    );
   });
 
   test("validates and builds roadmap routes", () => {

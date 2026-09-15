@@ -5,17 +5,29 @@ import type { FeedbackRouteNames, RoadmapRouteNames } from "./types.js";
 export const defaultFeedbackRoutes: FeedbackRouteNames = {
   board: "index",
   entry: "[entryId]",
+  edit: "[entryId]/edit",
   create: "new",
 };
 
 export function resolveFeedbackRoutes(
   routes: Partial<FeedbackRouteNames> = {},
 ): FeedbackRouteNames {
-  const resolved = { ...defaultFeedbackRoutes, ...routes };
+  const resolved = {
+    ...defaultFeedbackRoutes,
+    ...routes,
+    ...(routes.edit === undefined && routes.entry !== undefined
+      ? { edit: `${routes.entry}/edit` }
+      : {}),
+  };
 
   if (!resolved.entry.includes("[entryId]")) {
     throw new Error(
       'The routed feedback entry route must contain the "[entryId]" dynamic segment.',
+    );
+  }
+  if (!resolved.edit.startsWith(`${resolved.entry}/`)) {
+    throw new Error(
+      "The routed feedback edit route must be nested under the entry route.",
     );
   }
 
@@ -30,7 +42,7 @@ export function createFeedbackStackSettings(
 
 export const feedbackStackSettings = createFeedbackStackSettings();
 
-/** Anchor the create form beneath suggested-entry detail screens. */
+/** Anchor the create form to the feedback board. */
 export const feedbackCreateStackSettings = { anchor: "index" };
 
 export function feedbackRouteHref(
@@ -39,6 +51,36 @@ export function feedbackRouteHref(
 ): Href {
   const pathname = route.startsWith(".") ? route : `./${route}`;
   return params === undefined ? pathname : { pathname, params };
+}
+
+/** Build the edit child href from an entry-detail route. */
+export function feedbackEditRouteHref(route: string): Href {
+  const marker = "[entryId]";
+  const markerIndex = route.indexOf(marker);
+  const childRoute =
+    markerIndex === -1
+      ? ""
+      : route.slice(markerIndex + marker.length).replace(/^\/+/, "");
+
+  if (!childRoute) {
+    throw new Error(
+      'The routed feedback edit route must include a child segment after "[entryId]".',
+    );
+  }
+
+  return feedbackRouteHref(childRoute);
+}
+
+/** Build a board href relative to an entry route at any configured depth. */
+export function feedbackBoardRouteHref(
+  entryRoute: string,
+  boardRoute: string,
+): Href {
+  const entrySegments = entryRoute
+    .split("/")
+    .filter((segment) => segment.length > 0 && segment !== ".");
+  const parentPrefix = "../".repeat(entrySegments.length);
+  return feedbackRouteHref(`${parentPrefix}${boardRoute}`);
 }
 
 export const defaultRoadmapRoutes: RoadmapRouteNames = {

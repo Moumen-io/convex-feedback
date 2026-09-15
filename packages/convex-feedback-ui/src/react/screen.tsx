@@ -1,7 +1,11 @@
 "use client";
 
-import type { EntryKind, FeedbackMetadata } from "convex-feedback";
-import { useMemo, useState, type SyntheticEvent } from "react";
+import type {
+  EntryKind,
+  FeedbackEntry as FeedbackEntryData,
+  FeedbackMetadata,
+} from "convex-feedback";
+import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
 
 import {
   FeedbackBodyProvider,
@@ -489,6 +493,7 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
   const createComment = hooks.useCreateComment();
   const [body, setBody] = useState("");
   const [showMetadata, setShowMetadata] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const upvoteAction = useFeedbackAction();
   const commentAction = useFeedbackAction();
 
@@ -531,15 +536,29 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
           onToggle={toggleUpvote}
         />
         <FeedbackEntry.Content>
-          <div className="cf-entry__meta">
-            <FeedbackEntry.Status />
-            <FeedbackEntry.CommentCount />
+          <div className="cf-entry__detail-header">
+            <div className="cf-entry__meta">
+              <FeedbackEntry.Status />
+              <FeedbackEntry.CommentCount />
+            </div>
+            {entry.viewerIsAuthor === true && (
+              <button
+                type="button"
+                className="cf-button"
+                aria-label={messages.entry.edit}
+                onClick={() => setEditOpen(true)}
+              >
+                {messages.entry.edit}
+              </button>
+            )}
           </div>
           <FeedbackEntry.Title />
           <FeedbackEntry.Body />
         </FeedbackEntry.Content>
       </FeedbackEntry.Root>
       <FeedbackActionError failure={upvoteAction.failure} />
+
+      {editOpen && <EditEntryDialog entry={entry} onOpenChange={setEditOpen} />}
 
       {entry.metadata !== undefined && (
         <div>
@@ -622,6 +641,125 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
           </button>
         )}
       </section>
+    </div>
+  );
+}
+
+function EditEntryDialog({
+  entry,
+  onOpenChange,
+}: {
+  entry: FeedbackEntryData;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { hooks, isAuthenticated, onUnauthenticated } = useFeedbackBody();
+  const { messages } = useFeedbackUi();
+  const updateEntry = hooks.useUpdateEntry();
+  const action = useFeedbackAction();
+  const [title, setTitle] = useState(entry.title);
+  const [body, setBody] = useState(entry.body);
+
+  useEffect(() => {
+    setTitle(entry.title);
+    setBody(entry.body);
+  }, [entry.body, entry.id, entry.title]);
+
+  const save = async () => {
+    if (
+      action.pending ||
+      title.trim().length === 0 ||
+      body.trim().length === 0 ||
+      !allowAuthenticatedAction(isAuthenticated, onUnauthenticated)
+    ) {
+      return;
+    }
+
+    const result = await action.run(() =>
+      updateEntry({
+        entryId: entry.id,
+        title: title.trim(),
+        body: body.trim(),
+      }),
+    );
+    if (result !== undefined) onOpenChange(false);
+  };
+
+  return (
+    <div
+      className="cf-confirm-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !action.pending) {
+          onOpenChange(false);
+        }
+      }}
+    >
+      <div
+        className="cf-confirm cf-edit-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cf-edit-entry-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <h3 id="cf-edit-entry-title">{messages.form.editTitle}</h3>
+        <p>{messages.form.editDescription}</p>
+        <FeedbackForm.Root
+          className="cf-edit-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
+        >
+          <div className="cf-edit-entry__kind">
+            <span>{messages.form.kind}</span>
+            <strong>{messages.kinds[entry.kind]}</strong>
+          </div>
+          <label className="cf-field">
+            <span>{messages.form.title}</span>
+            <FeedbackForm.Input
+              autoFocus
+              value={title}
+              onChange={(event) => setTitle(event.currentTarget.value)}
+              placeholder={messages.form.titlePlaceholder}
+              disabled={action.pending}
+              required
+            />
+          </label>
+          <label className="cf-field">
+            <span>{messages.form.body}</span>
+            <FeedbackForm.Textarea
+              value={body}
+              onChange={(event) => setBody(event.currentTarget.value)}
+              placeholder={messages.form.bodyPlaceholder}
+              rows={5}
+              disabled={action.pending}
+              required
+            />
+          </label>
+          <div className="cf-inline-actions">
+            <button
+              type="button"
+              className="cf-button"
+              disabled={action.pending}
+              onClick={() => onOpenChange(false)}
+            >
+              {messages.form.cancel}
+            </button>
+            <FeedbackForm.Submit
+              submitting={action.pending}
+              disabled={
+                action.pending ||
+                title.trim().length === 0 ||
+                body.trim().length === 0 ||
+                isAuthenticated === undefined
+              }
+            >
+              {messages.form.saveChanges}
+            </FeedbackForm.Submit>
+          </div>
+          <FeedbackActionError failure={action.failure} />
+        </FeedbackForm.Root>
+      </div>
     </div>
   );
 }

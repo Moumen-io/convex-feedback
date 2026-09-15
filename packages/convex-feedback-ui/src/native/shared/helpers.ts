@@ -13,8 +13,20 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
 
+export interface NativeActionDialogMessages {
+  cancel: string;
+  retry: string;
+}
+
+const defaultNativeActionDialogMessages: NativeActionDialogMessages = {
+  cancel: "Cancel",
+  retry: "Retry",
+};
+
 /** Runs a native UI mutation and offers a single retry action on failure. */
-export function useNativeAction() {
+export function useNativeAction(
+  dialogMessages: NativeActionDialogMessages = defaultNativeActionDialogMessages,
+) {
   const [pending, setPending] = useState(false);
 
   const run = async <T>(
@@ -28,9 +40,9 @@ export function useNativeAction() {
       return await action();
     } catch (error) {
       Alert.alert(title, errorMessage(error), [
-        { text: "Cancel", style: "cancel" },
+        { text: dialogMessages.cancel, style: "cancel" },
         {
-          text: "Retry",
+          text: dialogMessages.retry,
           onPress: () => {
             void run(retryAction, title, retryAction);
           },

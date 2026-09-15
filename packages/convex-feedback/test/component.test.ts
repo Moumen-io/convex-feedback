@@ -94,6 +94,50 @@ describe("convex-feedback component", () => {
 
     expect(entry?.upvoteCount).toBe(1);
     expect(entry?.viewerHasUpvoted).toBe(true);
+    expect(entry?.viewerIsAuthor).toBe(true);
+  });
+
+  test("only the entry author or an admin can edit entry content", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance);
+    const updateArgs = {
+      entryId,
+      title: "Updated title",
+      body: "Updated body.",
+      editableByAuthor: true,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    };
+
+    await expect(
+      testInstance.mutation(api.entries.update, {
+        ...updateArgs,
+        actor: { id: "different-author" },
+      }),
+    ).rejects.toThrow("Not authorized to edit this entry.");
+
+    await expect(
+      testInstance.query(api.entries.get, {
+        entryId,
+        viewerActorId: "different-author",
+      }),
+    ).resolves.toMatchObject({ viewerIsAuthor: false });
+
+    await testInstance.mutation(api.entries.update, {
+      ...updateArgs,
+      actor: { id: "author-1" },
+    });
+
+    await expect(
+      testInstance.query(api.entries.get, {
+        entryId,
+        viewerActorId: "author-1",
+      }),
+    ).resolves.toMatchObject({
+      title: "Updated title",
+      body: "Updated body.",
+      viewerIsAuthor: true,
+    });
   });
 
   test("only admins can change an entry kind", async () => {

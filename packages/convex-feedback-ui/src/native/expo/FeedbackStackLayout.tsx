@@ -1,4 +1,5 @@
 import { Stack, type NativeStackNavigationOptions } from "expo-router";
+import { Platform } from "react-native";
 
 import { FeedbackBodyProvider } from "../../shared/context/FeedbackBodyProvider.js";
 import { FeedbackProvider } from "../../shared/context/FeedbackProvider.js";
@@ -30,6 +31,7 @@ export function FeedbackStackLayout({
   screenOptions,
   boardOptions,
   entryOptions,
+  editOptions,
   createOptions,
   androidToolbarIcons = {},
   BottomToolbarWrapper,
@@ -111,6 +113,17 @@ export function FeedbackStackLayout({
                 headerTitle: boardTitle,
                 ...screenOptions,
                 ...entryOptions,
+              }}
+            />
+            <Stack.Screen
+              name={routes.edit}
+              options={{
+                ...defaults,
+                headerTitle: resolvedMessages.form.editTitle,
+                presentation: Platform.OS === "ios" ? "formSheet" : "modal",
+                sheetAllowedDetents: "fitToContents",
+                ...screenOptions,
+                ...editOptions,
               }}
             />
             <Stack.Screen

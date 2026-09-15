@@ -9,6 +9,7 @@ import { FeedbackBoard } from "./primitives.js";
 export function FeedbackScreenContent({
   showHeader = true,
   hideBackButton = false,
+  hideEditButton = false,
   onEntryOpen,
   onCreateEntry,
   ...colors
@@ -39,6 +40,7 @@ export function FeedbackScreenContent({
 
         <FeedbackScreenList
           hideBackButton={hideBackButton}
+          hideEditButton={hideEditButton}
           onEntryOpen={handleEntryOpen}
           onCreateEntry={handleCreateEntry}
         />

@@ -248,6 +248,12 @@
   color: var(--cf-muted);
   font-size: 0.8rem;
 }
+:where(.cf-board) :where(.cf-entry__detail-header) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
 :where(.cf-board) :where(.cf-entry__kind) {
   color: var(--cf-muted);
   font-size: 0.78rem;
@@ -504,6 +510,40 @@
   margin: 0;
   color: var(--cf-muted);
   line-height: 1.5;
+}
+
+:where(.cf-board) :where(.cf-edit-dialog) {
+  width: min(100%, 560px);
+  max-height: min(90vh, 720px);
+  overflow: auto;
+}
+
+:where(.cf-board) :where(.cf-edit-dialog h3) {
+  margin: 0;
+}
+
+:where(.cf-board) :where(.cf-edit-form) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+:where(.cf-board) :where(.cf-edit-entry__kind) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--cf-border);
+  border-radius: calc(var(--cf-radius) * 0.75);
+  background: var(--cf-surface-muted);
+  color: var(--cf-muted);
+  font-size: 0.86rem;
+}
+
+:where(.cf-board) :where(.cf-edit-entry__kind strong) {
+  color: var(--cf-text);
 }
 
 :where(.cf-board) :where(.cf-metadata-dialog) {

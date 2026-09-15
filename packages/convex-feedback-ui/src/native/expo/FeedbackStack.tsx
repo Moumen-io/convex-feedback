@@ -1,4 +1,9 @@
-import { Stack, useRouter } from "expo-router";
+import {
+  Stack,
+  useLocalSearchParams,
+  usePathname,
+  useRouter,
+} from "expo-router";
 import { Fragment } from "react";
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider";
@@ -7,11 +12,17 @@ import {
   createEntryLabel,
   entryStatusChoices,
 } from "../../shared/helpers";
+import { EditEntryStackScreen } from "./EditEntryScreen";
 import type { FeedbackStackProps } from "./types";
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 export function FeedbackStack({
   searchRef,
   stackOptions,
+  colors,
   androidToolbarIcons = {},
   BottomToolbarWrapper,
   children,
@@ -19,6 +30,7 @@ export function FeedbackStack({
   const {
     query,
     enabledKinds,
+    hooks,
     selectedEntryId,
     setQuery,
     setShowForm,
@@ -32,6 +44,27 @@ export function FeedbackStack({
   const { messages, theme } = useFeedbackUi();
   const router = useRouter();
   const ToolbarWrapper = BottomToolbarWrapper ?? Fragment;
+  const pathname = usePathname();
+  const params = useLocalSearchParams<{
+    __convexFeedbackEditEntryId?: string | string[];
+  }>();
+  const editEntryId = firstParam(params.__convexFeedbackEditEntryId);
+  const editEntry = hooks.useEntry(editEntryId);
+  const selectedEntry = hooks.useEntry(selectedEntryId);
+  const editStackOptions =
+    typeof stackOptions === "function" ? undefined : stackOptions;
+
+  if (editEntryId !== undefined) {
+    return (
+      <EditEntryStackScreen
+        entry={editEntry}
+        onRequestClose={() => router.back()}
+        colors={colors}
+        androidToolbarIcons={androidToolbarIcons}
+        stackOptions={editStackOptions}
+      />
+    );
+  }
 
   const canGoBack = !!selectedEntryId || router.canGoBack();
 
@@ -67,6 +100,25 @@ export function FeedbackStack({
         }}
       />
       <Stack.Toolbar placement="right">
+        {selectedEntry?.viewerIsAuthor === true && (
+          <Stack.Toolbar.Button
+            icon={
+              process.env.EXPO_OS === "ios"
+                ? "pencil"
+                : androidToolbarIcons.edit
+            }
+            accessibilityLabel={messages.entry.edit}
+            onPress={() => {
+              router.push({
+                pathname,
+                params: { __convexFeedbackEditEntryId: selectedEntry.id },
+              });
+            }}
+            tintColor={theme.colors.primary}
+          >
+            {messages.entry.edit}
+          </Stack.Toolbar.Button>
+        )}
         <Stack.Toolbar.Button
           icon={
             process.env.EXPO_OS === "ios" ? "plus" : androidToolbarIcons.create
@@ -104,14 +156,18 @@ export function FeedbackStack({
 
       <Stack.SearchBar
         onChangeText={(q) => {
-          if (selectedEntryId) setSelectedEntryId(null);
+          if (selectedEntryId) {
+            setSelectedEntryId(null);
+          }
           setQuery(
             (q as unknown as { nativeEvent: { text: string } }).nativeEvent
               .text,
           );
         }}
         onFocus={() => {
-          if (selectedEntryId) setSelectedEntryId(null);
+          if (selectedEntryId) {
+            setSelectedEntryId(null);
+          }
           setIsSearching(true);
         }}
         onBlur={() => setIsSearching(false)}

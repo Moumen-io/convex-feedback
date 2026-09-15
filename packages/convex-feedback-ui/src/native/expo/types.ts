@@ -34,6 +34,7 @@ export type ExpoFeedbackScreenProps = FeedbackScreenStackProps &
 export interface FeedbackStackProps {
   searchRef: React.RefObject<SearchBarCommands | null>;
   stackOptions?: StackScreenProps["options"];
+  colors?: FeedbackColorProps;
   androidToolbarIcons?: FeedbackAndroidToolbarIcons;
   /** Optional component wrapping the bottom search/filter toolbar. */
   BottomToolbarWrapper?: BottomToolbarWrapper;
@@ -46,6 +47,8 @@ export interface FeedbackRouteNames {
   board: string;
   /** Entry route. Must contain `[entryId]`. @default "[entryId]" */
   entry: string;
+  /** Edit-entry route nested under the entry route. @default "[entryId]/edit" */
+  edit: string;
   /** Create-entry modal route. @default "new" */
   create: string;
 }
@@ -58,6 +61,10 @@ export type FeedbackStackScreenOptions = Exclude<
 export interface FeedbackAndroidToolbarIcons {
   /** Android image source for the create-entry action. */
   create?: ImageSourcePropType;
+  /** Android image source for the edit-entry action. */
+  edit?: ImageSourcePropType;
+  /** Android image source for the save-entry action. */
+  save?: ImageSourcePropType;
   /** Android image source for the back action. */
   back?: ImageSourcePropType;
   /** Android image source for modal close actions. */
@@ -82,6 +89,8 @@ export interface FeedbackStackLayoutProps extends FeedbackScreenRootProps {
   boardOptions?: FeedbackStackScreenOptions;
   /** Entry-detail screen option overrides. */
   entryOptions?: FeedbackStackScreenOptions;
+  /** Edit-entry screen option overrides. */
+  editOptions?: FeedbackStackScreenOptions;
   /** Create-entry modal option overrides. */
   createOptions?: FeedbackStackScreenOptions;
   /** Android image sources for toolbar actions. iOS continues to use SF Symbols. */
@@ -91,12 +100,10 @@ export interface FeedbackStackLayoutProps extends FeedbackScreenRootProps {
 }
 
 export interface FeedbackCreateStackLayoutProps {
-  /** Options shared by the create form and suggested-entry screens. */
+  /** Options shared by the create form screen. */
   screenOptions?: FeedbackStackScreenOptions;
   /** Create-form screen option overrides. */
   createOptions?: FeedbackStackScreenOptions;
-  /** Suggested-entry screen option overrides. */
-  entryOptions?: FeedbackStackScreenOptions;
 }
 
 /** File names used by the routed public roadmap stack. */

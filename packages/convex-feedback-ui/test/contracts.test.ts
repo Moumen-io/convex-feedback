@@ -24,6 +24,13 @@ describe("UI contracts", () => {
     expect(messages.metadata.title).toBe(
       englishFeedbackMessages.metadata.title,
     );
+    expect(messages.form.saveChanges).toBe(
+      englishFeedbackMessages.form.saveChanges,
+    );
+    expect(messages.form.editNotFound).toBe(
+      englishFeedbackMessages.form.editNotFound,
+    );
+    expect(messages.form.retry).toBe(englishFeedbackMessages.form.retry);
     expect(messages.statuses.in_progress).toBe("In progress");
   });
 

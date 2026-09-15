@@ -296,6 +296,9 @@ Reserved keys are rejected with a field-specific error.
 
 Metadata is intentionally absent from entry lists, searches, and duplicate suggestions. `getEntry` includes it only when the host's server-side actor resolver returns `isAdmin: true`; ordinary and anonymous callers receive no `metadata` property.
 
+Public entry results include `viewerIsAuthor` when returned by the current wrapper deployment. It is computed from the server-resolved actor and the stored entry author; clients should use it only to present author-only UI such as an Edit action. `updateEntry` still rechecks ownership in the component
+mutation, so a caller that is not the entry author is rejected. Admins retain their existing permission to edit entries through the admin workflow.
+
 ## Admin panel
 
 The standalone [Vite and Expo Clerk admin apps](../../apps/admin/withClerk/README.md) provide an inbox, entry detail workflow, and a stage-based roadmap. They are reference applications to fork and deploy, not reusable UI exports.

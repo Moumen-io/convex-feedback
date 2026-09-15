@@ -1,7 +1,14 @@
 import type { RoadmapItem } from "convex-feedback";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { adminTheme } from "@/constants/AdminTheme";
@@ -47,6 +54,52 @@ export function RoadmapForm({ item }: { item?: RoadmapItem }) {
     if (succeeded) router.back();
   };
 
+  const formContent = (
+    <ScrollView
+      style={styles.scroll}
+      contentInsetAdjustmentBehavior="automatic"
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+      automaticallyAdjustKeyboardInsets
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingLeft: 16 + insets.left,
+          paddingRight: 16 + insets.right,
+          paddingBottom: 16,
+        },
+      ]}
+    >
+      <Text style={styles.description}>
+        {isEdit
+          ? "Update the roadmap item details."
+          : "Create a deliverable for the roadmap."}
+      </Text>
+      <Text style={styles.label}>Title</Text>
+      <TextInput
+        autoFocus
+        editable={!action.pending}
+        value={title}
+        onChangeText={setTitle}
+        placeholder="Title"
+        placeholderTextColor={adminTheme.muted}
+        style={styles.input}
+        returnKeyType="next"
+      />
+      <Text style={styles.label}>Description</Text>
+      <TextInput
+        editable={!action.pending}
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Description"
+        placeholderTextColor={adminTheme.muted}
+        style={[styles.input, styles.multiline]}
+        multiline
+        textAlignVertical="top"
+      />
+    </ScrollView>
+  );
+
   return (
     <>
       <Stack.Screen
@@ -75,54 +128,20 @@ export function RoadmapForm({ item }: { item?: RoadmapItem }) {
           Save
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <ScrollView
-        style={styles.screen}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingLeft: 16 + insets.left,
-            paddingRight: 16 + insets.right,
-            paddingBottom: 16,
-          },
-        ]}
-      >
-        <Text style={styles.description}>
-          {isEdit
-            ? "Update the roadmap item details."
-            : "Create a deliverable for the roadmap."}
-        </Text>
-        <Text style={styles.label}>Title</Text>
-        <TextInput
-          autoFocus
-          editable={!action.pending}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Title"
-          placeholderTextColor={adminTheme.muted}
-          style={styles.input}
-          returnKeyType="next"
-        />
-        <Text style={styles.label}>Description</Text>
-        <TextInput
-          editable={!action.pending}
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Description"
-          placeholderTextColor={adminTheme.muted}
-          style={[styles.input, styles.multiline]}
-          multiline
-          textAlignVertical="top"
-        />
-      </ScrollView>
+      {Platform.OS === "ios" ? (
+        formContent
+      ) : (
+        <KeyboardAvoidingView style={styles.screen} behavior="height">
+          {formContent}
+        </KeyboardAvoidingView>
+      )}
     </>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: adminTheme.background },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, backgroundColor: adminTheme.background },
   content: { gap: 10, paddingTop: 22 },
   description: {
     marginBottom: 8,

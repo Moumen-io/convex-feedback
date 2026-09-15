@@ -59,6 +59,63 @@ export function EntryForm({ entry }: { entry?: AdminFeedbackEntry }) {
     if (succeeded) router.back();
   };
 
+  const formContent = (
+    <ScrollView
+      style={styles.scroll}
+      contentInsetAdjustmentBehavior="automatic"
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+      automaticallyAdjustKeyboardInsets
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingLeft: 22 + insets.left,
+          paddingRight: 22 + insets.right,
+          paddingBottom: 32,
+        },
+      ]}
+    >
+      <Text style={styles.description}>
+        {isEdit
+          ? "Update the entry details, including its category."
+          : "Capture a new customer signal for the inbox."}
+      </Text>
+      <View style={styles.field}>
+        <Text style={styles.label}>Kind</Text>
+        <Text style={styles.value}>
+          {kinds.find((option) => option.value === kind)?.label}
+        </Text>
+        <Text style={styles.hint}>Change it from the native Kind menu.</Text>
+      </View>
+      <View style={styles.field}>
+        <Text style={styles.label}>Title</Text>
+        <TextInput
+          autoFocus={!isEdit}
+          editable={!action.pending}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Title"
+          placeholderTextColor={adminTheme.muted}
+          style={styles.input}
+          returnKeyType="next"
+        />
+      </View>
+      <View style={styles.field}>
+        <Text style={styles.label}>Description</Text>
+        <TextInput
+          editable={!action.pending}
+          value={body}
+          onChangeText={setBody}
+          placeholder="Description"
+          placeholderTextColor={adminTheme.muted}
+          style={[styles.input, styles.multiline]}
+          multiline
+          textAlignVertical="top"
+        />
+      </View>
+    </ScrollView>
+  );
+
   return (
     <>
       <Stack.Screen
@@ -105,76 +162,20 @@ export function EntryForm({ entry }: { entry?: AdminFeedbackEntry }) {
           Save
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <ScrollView
-          style={styles.scroll}
-          contentInsetAdjustmentBehavior="automatic"
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={
-            Platform.OS === "ios" ? "interactive" : "on-drag"
-          }
-          automaticallyAdjustKeyboardInsets
-          contentContainerStyle={[
-            styles.content,
-            {
-              paddingLeft: 22 + insets.left,
-              paddingRight: 22 + insets.right,
-              paddingBottom: 32,
-            },
-          ]}
-        >
-          <Text style={styles.description}>
-            {isEdit
-              ? "Update the entry details, including its category."
-              : "Capture a new customer signal for the inbox."}
-          </Text>
-          <View style={styles.field}>
-            <Text style={styles.label}>Kind</Text>
-            <Text style={styles.value}>
-              {kinds.find((option) => option.value === kind)?.label}
-            </Text>
-            <Text style={styles.hint}>
-              Change it from the native Kind menu.
-            </Text>
-          </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Title</Text>
-            <TextInput
-              autoFocus={!isEdit}
-              editable={!action.pending}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Title"
-              placeholderTextColor={adminTheme.muted}
-              style={styles.input}
-              returnKeyType="next"
-            />
-          </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              editable={!action.pending}
-              value={body}
-              onChangeText={setBody}
-              placeholder="Description"
-              placeholderTextColor={adminTheme.muted}
-              style={[styles.input, styles.multiline]}
-              multiline
-              textAlignVertical="top"
-            />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      {Platform.OS === "ios" ? (
+        formContent
+      ) : (
+        <KeyboardAvoidingView style={styles.screen} behavior="height">
+          {formContent}
+        </KeyboardAvoidingView>
+      )}
     </>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: adminTheme.background },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, backgroundColor: adminTheme.background },
   content: { gap: 18, paddingTop: 22 },
   description: { color: adminTheme.muted, fontSize: 14, lineHeight: 21 },
   field: { gap: 7 },

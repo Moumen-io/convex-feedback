@@ -1,6 +1,6 @@
 {
   "name": "convex-feedback-ui",
-  "version": "0.2.0-beta.6",
+  "version": "0.2.0-beta.7",
   "description": "Customizable React and React Native UI primitives for convex-feedback.",
   "license": "Apache-2.0",
   "repository": {
@@ -40,7 +40,7 @@
     "prepack": "npm run build"
   },
   "peerDependencies": {
-    "convex-feedback": "^0.2.0-beta.6",
+    "convex-feedback": "^0.2.0-beta.7",
     "react": ">=18.2.0",
     "react-native": ">=0.83.0",
     "react-native-safe-area-context": ">=5.4.0",

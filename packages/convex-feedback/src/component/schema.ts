@@ -27,6 +27,7 @@ const schema = defineSchema({
     priority: v.optional(entryPriorityValidator),
     roadmapId: v.optional(v.id("roadmap")),
   })
+    .index("by_actor", ["actorId"])
     .index("by_kind", ["kind"])
     .index("by_status", ["status"])
     .index("by_kind_status", ["kind", "status"])
@@ -106,6 +107,7 @@ const schema = defineSchema({
     updatedAt: v.optional(v.number()),
     deletedAt: v.optional(v.number()),
   })
+    .index("by_actor", ["actorId"])
     .index("by_entry_parent", ["entryId", "parentCommentId"])
     .index("by_entry_parent_likes", [
       "entryId",
@@ -118,6 +120,7 @@ const schema = defineSchema({
     entryId: v.optional(v.id("entries")),
     commentId: v.optional(v.id("comments")),
   })
+    .index("by_actor", ["actorId"])
     .index("by_entry_actor", ["entryId", "actorId"])
     .index("by_comment_actor", ["commentId", "actorId"]),
 });

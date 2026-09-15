@@ -15,6 +15,7 @@ import type * as entries from "../entries.js";
 import type * as helpers from "../helpers.js";
 import type * as migrations from "../migrations.js";
 import type * as model from "../model.js";
+import type * as reactions from "../reactions.js";
 import type * as roadmap from "../roadmap.js";
 import type * as types from "../types.js";
 
@@ -33,6 +34,7 @@ const fullApi: ApiFromModules<{
   helpers: typeof helpers;
   migrations: typeof migrations;
   model: typeof model;
+  reactions: typeof reactions;
   roadmap: typeof roadmap;
   types: typeof types;
 }> = anyApi as any;

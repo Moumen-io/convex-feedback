@@ -11,7 +11,10 @@ import type {
   EntryStatus,
   EntryStatusFilter,
   FeedbackComment,
+  FeedbackActivityComment,
+  FeedbackActivityEntry,
   FeedbackEntry,
+  FeedbackReaction,
   FeedbackMetadata,
   AdminFeedbackEntry,
   EntryPriority,
@@ -54,6 +57,12 @@ export type ListEntriesArgs = {
    * When omitted, `config.entries.defaultSort` is used.
    */
   sort?: EntrySort;
+};
+
+/** Arguments for cursor-paginated entries created by the current actor. */
+export type ListUserEntriesArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
 };
 
 /**
@@ -289,6 +298,18 @@ export type ListCommentsArgs = {
   sort?: CommentSort;
 };
 
+/** Arguments for cursor-paginated comments created by the current actor. */
+export type ListUserCommentsArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
+};
+
+/** Arguments for cursor-paginated reactions created by the current actor. */
+export type ListUserReactionsArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
+};
+
 /**
  * Arguments for creating a top-level comment or reply.
  */
@@ -393,6 +414,15 @@ export interface FeedbackPublicApi<
     "public",
     ListEntriesArgs,
     PaginationResult<FeedbackEntry>,
+    Name
+  >;
+
+  /** Returns entries created by the authenticated actor. */
+  listUserEntries: FunctionReference<
+    "query",
+    "public",
+    ListUserEntriesArgs,
+    PaginationResult<FeedbackActivityEntry>,
     Name
   >;
 
@@ -565,6 +595,24 @@ export interface FeedbackPublicApi<
     "public",
     ListCommentsArgs,
     PaginationResult<FeedbackComment>,
+    Name
+  >;
+
+  /** Returns comments created by the authenticated actor. */
+  listUserComments: FunctionReference<
+    "query",
+    "public",
+    ListUserCommentsArgs,
+    PaginationResult<FeedbackActivityComment>,
+    Name
+  >;
+
+  /** Returns reactions created by the authenticated actor. */
+  listUserReactions: FunctionReference<
+    "query",
+    "public",
+    ListUserReactionsArgs,
+    PaginationResult<FeedbackReaction>,
     Name
   >;
 

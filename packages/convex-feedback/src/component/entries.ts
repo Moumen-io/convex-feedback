@@ -13,10 +13,12 @@ import {
   assertActorId,
   normalizeRequiredText,
   normalizeTitle,
+  serializeActivityEntry,
   serializeEntry,
   validateFeedbackMetadata,
 } from "./helpers.js";
 import {
+  activityEntryWithContextValidator,
   actorValidator,
   actorIsAdmin,
   entryKindValidator,
@@ -268,6 +270,43 @@ export const list = query({
       page: await Promise.all(
         result.page.map((entry) =>
           serializeEntry(ctx, entry, args.viewerActorId),
+        ),
+      ),
+    };
+  },
+});
+
+/**
+ * List entries created by a known actor. This component-level query remains
+ * actor-parameterized so trusted host/server consumers can use it without a
+ * request authentication context.
+ *
+ * `includeAdminContext` is intentionally unavailable on the host-facing
+ * `listUserEntries` wrapper. Trusted server consumers such as exports may opt
+ * into retained metadata and triage context when needed.
+ */
+export const listByActor = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    actorId: v.string(),
+    includeAdminContext: v.optional(v.boolean()),
+  },
+  returns: paginationResultValidator(activityEntryWithContextValidator),
+  handler: async (ctx, args) => {
+    assertActorId(args.actorId);
+
+    const db = paginator(ctx.db, schema);
+    const result = await db
+      .query("entries")
+      .withIndex("by_actor", (q) => q.eq("actorId", args.actorId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    return {
+      ...result,
+      page: await Promise.all(
+        result.page.map((entry) =>
+          serializeActivityEntry(ctx, entry, args.includeAdminContext === true),
         ),
       ),
     };

@@ -4,12 +4,16 @@ import { expectTypeOf, test } from "vitest";
 import type {
   actorValidator,
   adminEntryValidator,
+  activityCommentValidator,
+  activityEntryValidator,
+  activityEntryWithContextValidator,
   commentSortValidator,
   entryKindValidator,
   entryPriorityValidator,
   entrySortValidator,
   entryStatusFilterValidator,
   entryStatusValidator,
+  feedbackReactionValidator,
   feedbackMetadataValidator,
   feedbackMetadataValueValidator,
   publicCommentValidator,
@@ -20,6 +24,10 @@ import type {
 } from "../src/component/model.js";
 import type {
   AdminFeedbackEntry,
+  FeedbackActivityComment,
+  FeedbackActivityEntry,
+  FeedbackActivityEntryWithContext,
+  FeedbackCommentReactionTarget,
   CommentSort,
   EntryKind,
   EntryPriority,
@@ -29,8 +37,10 @@ import type {
   FeedbackActor,
   FeedbackComment,
   FeedbackEntry,
+  FeedbackEntryReactionTarget,
   FeedbackMetadata,
   FeedbackMetadataValue,
+  FeedbackReaction,
   RoadmapItem,
   RoadmapStatus,
   SimilarEntriesResult,
@@ -42,6 +52,12 @@ type InferredFeedbackMetadata = Infer<typeof feedbackMetadataValidator>;
 type InferredFeedbackEntry = Infer<typeof publicEntryValidator>;
 type InferredAdminFeedbackEntry = Infer<typeof adminEntryValidator>;
 type InferredFeedbackComment = Infer<typeof publicCommentValidator>;
+type InferredActivityEntry = Infer<typeof activityEntryValidator>;
+type InferredActivityEntryWithContext = Infer<
+  typeof activityEntryWithContextValidator
+>;
+type InferredActivityComment = Infer<typeof activityCommentValidator>;
+type InferredFeedbackReaction = Infer<typeof feedbackReactionValidator>;
 type InferredSimilarEntriesResult = Infer<typeof similarEntriesValidator>;
 
 type Equivalent<A, B> = [A] extends [B]
@@ -120,6 +136,54 @@ type ExpectedSimilarEntriesResult = {
   similar: FeedbackEntry[];
 };
 
+type ExpectedActivityEntry = {
+  id: string;
+  creationTime: number;
+  actorId: string;
+  kind: EntryKind;
+  status: EntryStatus;
+  title: string;
+  body: string;
+  upvoteCount: number;
+  commentCount: number;
+  updatedAt?: number;
+};
+
+type ExpectedActivityEntryWithContext = ExpectedActivityEntry & {
+  metadata?: FeedbackMetadata;
+  priority?: EntryPriority;
+  roadmap?: RoadmapItem;
+};
+
+type ExpectedActivityComment = {
+  id: string;
+  creationTime: number;
+  entryId: string;
+  entryTitle: string | null;
+  parentCommentId?: string;
+  actorId: string;
+  depth: number;
+  body: string | null;
+  likeCount: number;
+  replyCount: number;
+  updatedAt?: number;
+  deletedAt?: number;
+};
+
+type ExpectedFeedbackReaction =
+  | {
+      type: "entry_upvote";
+      id: string;
+      creationTime: number;
+      entry: FeedbackEntryReactionTarget | null;
+    }
+  | {
+      type: "comment_like";
+      id: string;
+      creationTime: number;
+      comment: FeedbackCommentReactionTarget | null;
+    };
+
 test("characterizes the public model types against their validators", () => {
   expectTypeOf<Infer<typeof entryKindValidator>>().toEqualTypeOf<EntryKind>();
   expectTypeOf<
@@ -159,6 +223,21 @@ test("characterizes the public model types against their validators", () => {
   >().toEqualTypeOf<true>();
   expectTypeOf<
     Equivalent<InferredFeedbackComment, FeedbackComment>
+  >().toEqualTypeOf<true>();
+  expectTypeOf<
+    Equivalent<InferredActivityEntry, FeedbackActivityEntry>
+  >().toEqualTypeOf<true>();
+  expectTypeOf<
+    Equivalent<
+      InferredActivityEntryWithContext,
+      FeedbackActivityEntryWithContext
+    >
+  >().toEqualTypeOf<true>();
+  expectTypeOf<
+    Equivalent<InferredActivityComment, FeedbackActivityComment>
+  >().toEqualTypeOf<true>();
+  expectTypeOf<
+    Equivalent<InferredFeedbackReaction, FeedbackReaction>
   >().toEqualTypeOf<true>();
   expectTypeOf<
     Equivalent<InferredSimilarEntriesResult, SimilarEntriesResult>
@@ -268,6 +347,12 @@ test("characterizes the public model types against their validators", () => {
   expectTypeOf<OptionalKeys<FeedbackComment>>().toEqualTypeOf<
     "parentCommentId" | "updatedAt" | "deletedAt"
   >();
+
+  expectTypeOf<FeedbackActivityEntry>().toEqualTypeOf<ExpectedActivityEntry>();
+  expectTypeOf<FeedbackActivityEntryWithContext>().toMatchTypeOf<ExpectedActivityEntryWithContext>();
+  expectTypeOf<ExpectedActivityEntryWithContext>().toMatchTypeOf<FeedbackActivityEntryWithContext>();
+  expectTypeOf<FeedbackActivityComment>().toEqualTypeOf<ExpectedActivityComment>();
+  expectTypeOf<FeedbackReaction>().toEqualTypeOf<ExpectedFeedbackReaction>();
 
   expectTypeOf<SimilarEntriesResult>().toEqualTypeOf<ExpectedSimilarEntriesResult>();
   expectTypeOf<SimilarEntriesResult["exact"]>().toEqualTypeOf<

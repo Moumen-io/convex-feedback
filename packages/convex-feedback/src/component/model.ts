@@ -124,6 +124,89 @@ export const publicCommentValidator = v.object({
   viewerHasLiked: v.boolean(),
 });
 
+/**
+ * Entry activity returned by actor-scoped queries.
+ *
+ * Unlike the ordinary public entry shape, activity entries do not contain
+ * viewer-relative reaction state. The actor is already the subject of the
+ * query.
+ */
+export const activityEntryValidator = v.object({
+  id: v.string(),
+  creationTime: v.number(),
+  actorId: v.string(),
+  kind: entryKindValidator,
+  status: entryStatusValidator,
+  title: v.string(),
+  body: v.string(),
+  upvoteCount: v.number(),
+  commentCount: v.number(),
+  updatedAt: v.optional(v.number()),
+});
+
+/**
+ * Component-level activity entry shape with retained diagnostic and triage
+ * context. The host wrapper deliberately strips these optional fields from
+ * its normal actor-facing API.
+ */
+export const activityEntryWithContextValidator = activityEntryValidator.extend({
+  metadata: v.optional(feedbackMetadataValidator),
+  priority: v.optional(entryPriorityValidator),
+  roadmap: v.optional(roadmapItemValidator),
+});
+
+/** Comment activity with the basic entry context needed by an activity UI. */
+export const activityCommentValidator = v.object({
+  id: v.string(),
+  creationTime: v.number(),
+  entryId: v.string(),
+  entryTitle: v.union(v.string(), v.null()),
+  parentCommentId: v.optional(v.string()),
+  actorId: v.string(),
+  depth: v.number(),
+  /** Retained body text is returned even after a soft delete when available. */
+  body: v.union(v.string(), v.null()),
+  likeCount: v.number(),
+  replyCount: v.number(),
+  updatedAt: v.optional(v.number()),
+  deletedAt: v.optional(v.number()),
+});
+
+/** Resolved target context for an entry-upvote activity record. */
+export const entryReactionTargetValidator = v.object({
+  id: v.string(),
+  title: v.string(),
+  kind: entryKindValidator,
+  status: entryStatusValidator,
+});
+
+/** Resolved target context for a comment-like activity record. */
+export const commentReactionTargetValidator = v.object({
+  id: v.string(),
+  body: v.union(v.string(), v.null()),
+  entryId: v.string(),
+  entryTitle: v.union(v.string(), v.null()),
+});
+
+/**
+ * A reaction activity record. Missing targets are represented by `null`
+ * context so one deleted/orphaned target cannot invalidate a whole page.
+ */
+export const feedbackReactionValidator = v.union(
+  v.object({
+    type: v.literal("entry_upvote"),
+    id: v.string(),
+    creationTime: v.number(),
+    entry: v.union(entryReactionTargetValidator, v.null()),
+  }),
+  v.object({
+    type: v.literal("comment_like"),
+    id: v.string(),
+    creationTime: v.number(),
+    comment: v.union(commentReactionTargetValidator, v.null()),
+  }),
+);
+
 export const similarEntriesValidator = v.object({
   exact: v.array(publicEntryValidator),
   similar: v.array(publicEntryValidator),
@@ -141,6 +224,12 @@ type InferredFeedbackMetadata = Infer<typeof feedbackMetadataValidator>;
 type InferredFeedbackEntry = Infer<typeof publicEntryValidator>;
 type InferredAdminFeedbackEntry = Infer<typeof adminEntryValidator>;
 type InferredFeedbackComment = Infer<typeof publicCommentValidator>;
+type InferredActivityEntry = Infer<typeof activityEntryValidator>;
+type InferredActivityEntryWithContext = Infer<
+  typeof activityEntryWithContextValidator
+>;
+type InferredActivityComment = Infer<typeof activityCommentValidator>;
+type InferredFeedbackReaction = Infer<typeof feedbackReactionValidator>;
 type InferredSimilarEntriesResult = Infer<typeof similarEntriesValidator>;
 
 /**
@@ -405,6 +494,108 @@ export interface FeedbackComment {
   /** Whether the actor associated with the current query likes this comment. `false` when no viewer actor is available. */
   viewerHasLiked: InferredFeedbackComment["viewerHasLiked"];
 }
+
+/** Entry created by the actor used for an actor-scoped activity query. */
+export interface FeedbackActivityEntry {
+  /** Public component document identifier. */
+  id: InferredActivityEntry["id"];
+
+  /** Convex document creation timestamp in milliseconds since the Unix epoch. */
+  creationTime: InferredActivityEntry["creationTime"];
+
+  /** Stable identifier of the actor who created the entry. */
+  actorId: InferredActivityEntry["actorId"];
+
+  /** Entry category. */
+  kind: InferredActivityEntry["kind"];
+
+  /** Current workflow status. */
+  status: InferredActivityEntry["status"];
+
+  /** User-provided entry title. */
+  title: InferredActivityEntry["title"];
+
+  /** User-provided entry description. */
+  body: InferredActivityEntry["body"];
+
+  /** Denormalized number of actors currently upvoting this entry. */
+  upvoteCount: InferredActivityEntry["upvoteCount"];
+
+  /** Denormalized total number of comments belonging to the entry. */
+  commentCount: InferredActivityEntry["commentCount"];
+
+  /** Millisecond timestamp of the most recent content update. */
+  updatedAt?: InferredActivityEntry["updatedAt"];
+}
+
+/**
+ * Component-only activity entry shape with retained diagnostic and triage
+ * context. It is used by trusted server consumers, not the normal `listUser`
+ * wrappers.
+ */
+export interface FeedbackActivityEntryWithContext extends FeedbackActivityEntry {
+  metadata?: InferredActivityEntryWithContext["metadata"];
+  priority?: InferredActivityEntryWithContext["priority"];
+  roadmap?: InferredActivityEntryWithContext["roadmap"];
+}
+
+/** Comment created by the actor used for an actor-scoped activity query. */
+export interface FeedbackActivityComment {
+  /** Public component document identifier. */
+  id: InferredActivityComment["id"];
+
+  /** Convex document creation timestamp in milliseconds since the Unix epoch. */
+  creationTime: InferredActivityComment["creationTime"];
+
+  /** Entry this comment belongs to. */
+  entryId: InferredActivityComment["entryId"];
+
+  /** Current entry title, or `null` if the parent entry is no longer stored. */
+  entryTitle: InferredActivityComment["entryTitle"];
+
+  /** Direct parent comment. Absent for top-level comments. */
+  parentCommentId?: InferredActivityComment["parentCommentId"];
+
+  /** Stable identifier of the actor who created the comment. */
+  actorId: InferredActivityComment["actorId"];
+
+  /** Zero-based nesting depth. */
+  depth: InferredActivityComment["depth"];
+
+  /** Retained body text, including soft-deleted text when it remains stored. */
+  body: InferredActivityComment["body"];
+
+  /** Denormalized number of actors currently liking this comment. */
+  likeCount: InferredActivityComment["likeCount"];
+
+  /** Number of direct child replies. */
+  replyCount: InferredActivityComment["replyCount"];
+
+  /** Millisecond timestamp of the latest edit, when edited. */
+  updatedAt?: InferredActivityComment["updatedAt"];
+
+  /** Millisecond timestamp at which the comment was soft-deleted. */
+  deletedAt?: InferredActivityComment["deletedAt"];
+}
+
+/** Resolved entry context for an entry-upvote activity record. */
+export interface FeedbackEntryReactionTarget {
+  id: InferredActivityEntry["id"];
+  title: string;
+  kind: EntryKind;
+  status: EntryStatus;
+}
+
+/** Resolved comment context for a comment-like activity record. */
+export interface FeedbackCommentReactionTarget {
+  id: InferredActivityComment["id"];
+  body: string | null;
+  entryId: InferredActivityComment["entryId"];
+  entryTitle: string | null;
+}
+
+/** A reaction created by the actor used for an actor-scoped activity query. */
+export type FeedbackReaction = InferredFeedbackReaction;
 
 /**
  * Duplicate-detection result for a proposed entry.

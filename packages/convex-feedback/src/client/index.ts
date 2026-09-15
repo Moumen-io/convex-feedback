@@ -24,6 +24,8 @@ import {
 import type { ComponentApi } from "../component/_generated/component.js";
 import {
   adminEntryValidator,
+  activityCommentValidator,
+  activityEntryValidator,
   commentSortValidator,
   entryKindValidator,
   entryPriorityValidator,
@@ -33,6 +35,7 @@ import {
   feedbackMetadataValidator,
   publicCommentValidator,
   publicEntryValidator,
+  feedbackReactionValidator,
   roadmapItemValidator,
   roadmapStatusValidator,
   similarEntriesValidator,
@@ -44,9 +47,14 @@ import {
   createFeedbackConfig,
   type FeedbackConfigOverrides,
 } from "./config.js";
+import { stripActivityEntryContext } from "../component/helpers.js";
 
 export type {
   AdminFeedbackEntry,
+  FeedbackActivityComment,
+  FeedbackActivityEntry,
+  FeedbackActivityEntryWithContext,
+  FeedbackCommentReactionTarget,
   CommentSort,
   EntryKind,
   EntryPriority,
@@ -58,11 +66,37 @@ export type {
   FeedbackEntry,
   FeedbackMetadata,
   FeedbackMetadataValue,
+  FeedbackEntryReactionTarget,
+  FeedbackReaction,
   RoadmapItem,
   RoadmapStatus,
   SimilarEntriesResult,
 } from "../component/model.js";
-export type { FeedbackPublicApi } from "./api.js";
+export type {
+  AdminListEntriesArgs,
+  AdminSearchEntriesArgs,
+  CreateCommentArgs,
+  CreateEntryArgs,
+  DeleteCommentArgs,
+  DetachFeedbackFromRoadmapArgs,
+  FindSimilarEntriesArgs,
+  GetEntryArgs,
+  ListCommentsArgs,
+  ListEntriesArgs,
+  ListUserCommentsArgs,
+  ListUserEntriesArgs,
+  ListUserReactionsArgs,
+  ListRoadmapArgs,
+  ListRoadmapFeedbackArgs,
+  SearchEntriesArgs,
+  SetCommentLikeArgs,
+  SetEntryPriorityArgs,
+  SetEntryStatusArgs,
+  SetEntryUpvoteArgs,
+  UpdateCommentArgs,
+  UpdateEntryArgs,
+  FeedbackPublicApi,
+} from "./api.js";
 export {
   createFeedbackConfig,
   defaultFeedbackConfig,
@@ -503,6 +537,29 @@ function buildFeedbackApi<
       },
     }),
 
+    listUserEntries: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+      },
+      returns: paginationResultValidator(activityEntryValidator),
+      handler: async (ctx, args) => {
+        const actor = requireActor(await options.actor(ctx));
+        const result = await ctx.runQuery(component.entries.listByActor, {
+          actorId: actor.id,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
+          includeAdminContext: false,
+        });
+
+        return {
+          ...result,
+          page: result.page.map(stripActivityEntryContext),
+        };
+      },
+    }),
+
     getEntry: queryGeneric({
       args: { entryId: v.string() },
       returns: v.union(publicEntryValidator, v.null()),
@@ -784,6 +841,23 @@ function buildFeedbackApi<
       },
     }),
 
+    listUserComments: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+      },
+      returns: paginationResultValidator(activityCommentValidator),
+      handler: async (ctx, args) => {
+        const actor = requireActor(await options.actor(ctx));
+        return await ctx.runQuery(component.comments.listByActor, {
+          actorId: actor.id,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.comments.maxPageSize,
+          ),
+        });
+      },
+    }),
+
     createComment: mutationGeneric({
       args: {
         entryId: v.string(),
@@ -871,6 +945,23 @@ function buildFeedbackApi<
           actorId: actor.id,
           commentId: args.commentId,
           desiredState: args.desiredState,
+        });
+      },
+    }),
+
+    listUserReactions: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+      },
+      returns: paginationResultValidator(feedbackReactionValidator),
+      handler: async (ctx, args) => {
+        const actor = requireActor(await options.actor(ctx));
+        return await ctx.runQuery(component.reactions.listByActor, {
+          actorId: actor.id,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
         });
       },
     }),

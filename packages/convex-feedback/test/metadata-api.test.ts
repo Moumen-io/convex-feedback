@@ -11,6 +11,7 @@ import type { ComponentApi } from "../src/component/_generated/component.js";
 const component = {
   entries: {
     list: "entries:list",
+    listByActor: "entries:listByActor",
     get: "entries:get",
     search: "entries:search",
     similar: "entries:similar",
@@ -21,10 +22,14 @@ const component = {
   },
   comments: {
     list: "comments:list",
+    listByActor: "comments:listByActor",
     create: "comments:create",
     update: "comments:update",
     remove: "comments:remove",
     setLike: "comments:setLike",
+  },
+  reactions: {
+    listByActor: "reactions:listByActor",
   },
   roadmap: {
     list: "roadmap:list",
@@ -138,5 +143,84 @@ describe("metadata API authorization", () => {
       roadmapId: "roadmap-1",
       paginationOpts: { cursor: null, numItems: 10 },
     });
+  });
+
+  test("actor activity wrappers use only the host-resolved actor", async () => {
+    const runQuery = vi.fn((reference: string) => {
+      if (reference === "entries:listByActor") {
+        return Promise.resolve({
+          page: [
+            {
+              id: "entry-1",
+              creationTime: 1,
+              actorId: "resolved-actor",
+              kind: "feedback" as const,
+              status: "open" as const,
+              title: "Entry",
+              body: "Body",
+              upvoteCount: 1,
+              commentCount: 0,
+              metadata: { standard: { platform: "web" } },
+              priority: "high" as const,
+            },
+          ],
+          continueCursor: "entry-cursor",
+          isDone: true,
+        });
+      }
+      return Promise.resolve({
+        page: [],
+        continueCursor: "cursor",
+        isDone: true,
+      });
+    });
+    const api = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve({ id: "resolved-actor" }),
+    });
+    const context = { runQuery } as unknown as GenericQueryCtx<never>;
+
+    const entries = await invokeQuery(api.listUserEntries, context, {
+      paginationOpts: { cursor: null, numItems: 10 },
+      actorId: "attacker-actor",
+    } as never);
+    await invokeQuery(api.listUserComments, context, {
+      paginationOpts: { cursor: null, numItems: 10 },
+      actorId: "attacker-actor",
+    } as never);
+    await invokeQuery(api.listUserReactions, context, {
+      paginationOpts: { cursor: null, numItems: 10 },
+      actorId: "attacker-actor",
+    } as never);
+
+    expect(entries.page[0]).not.toHaveProperty("metadata");
+    expect(entries.page[0]).not.toHaveProperty("priority");
+    expect(runQuery).toHaveBeenNthCalledWith(1, "entries:listByActor", {
+      actorId: "resolved-actor",
+      paginationOpts: { cursor: null, numItems: 10 },
+      includeAdminContext: false,
+    });
+    expect(runQuery).toHaveBeenNthCalledWith(2, "comments:listByActor", {
+      actorId: "resolved-actor",
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(runQuery).toHaveBeenNthCalledWith(3, "reactions:listByActor", {
+      actorId: "resolved-actor",
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+  });
+
+  test("actor activity wrappers require authentication", async () => {
+    const api = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve(null),
+    });
+    const context = {
+      runQuery: vi.fn(),
+    } as unknown as GenericQueryCtx<never>;
+
+    await expect(
+      invokeQuery(api.listUserEntries, context, {
+        paginationOpts: { cursor: null, numItems: 10 },
+      }),
+    ).rejects.toThrow("Authentication is required.");
   });
 });

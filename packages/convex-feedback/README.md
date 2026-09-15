@@ -19,6 +19,7 @@ A headless, fully typed Convex component for product feedback, feature requests,
 - Convex full-text search.
 - Exact-title + full-text duplicate suggestions.
 - Host-controlled authentication and admin permissions.
+- Indexed actor-scoped activity for entries, comments, and reactions.
 - Admin priority and roadmap workflows.
 - Optional host-defined mutation rate limiting.
 - Configurable limits and behavior
@@ -102,8 +103,11 @@ export const {
   adminGetEntry,
   adminSearchEntries,
   setEntryPriority,
+  listUserEntries,
   setEntryUpvote,
   listComments,
+  listUserComments,
+  listUserReactions,
   createComment,
   updateComment,
   deleteComment,
@@ -299,6 +303,40 @@ Metadata is intentionally absent from entry lists, searches, and duplicate sugge
 Public entry results include `viewerIsAuthor` when returned by the current wrapper deployment. It is computed from the server-resolved actor and the stored entry author; clients should use it only to present author-only UI such as an Edit action. `updateEntry` still rechecks ownership in the component
 mutation, so a caller that is not the entry author is rejected. Admins retain their existing permission to edit entries through the admin workflow.
 
+### Actor-scoped activity
+
+The host wrapper also exposes cursor-paginated activity queries for the
+authenticated actor:
+
+```ts
+const userEntries = await listUserEntries({
+  paginationOpts: { cursor: null, numItems: 20 },
+});
+const userComments = await listUserComments({
+  paginationOpts: { cursor: null, numItems: 20 },
+});
+const userReactions = await listUserReactions({
+  paginationOpts: { cursor: null, numItems: 20 },
+});
+```
+
+These wrappers do not accept an `actorId`; they always use the actor returned
+by the configured host callback. Entries include their own content, status,
+timestamps, and counts. Comments include the retained body (including a
+soft-deleted body when it remains stored), `parentCommentId`, and the parent
+entry title without loading a parent-comment body.
+
+Reaction results are discriminated by `type` (`"entry_upvote"` or
+`"comment_like"`) and include reaction creation time plus resolved target
+context. Deleted or orphaned targets are represented with `null` context so a
+page remains readable.
+
+Trusted server consumers can call the component-level actor query directly
+with a known `actorId`. `entries.listByActor` additionally accepts
+`includeAdminContext: true` when an export or other server-side workflow needs
+retained metadata, priority, or roadmap context; the normal `listUserEntries`
+wrapper always strips those private fields.
+
 ## Admin panel
 
 The standalone [Vite and Expo Clerk admin apps](../../apps/admin/withClerk/README.md) provide an inbox, entry detail workflow, and a stage-based roadmap. They are reference applications to fork and deploy, not reusable UI exports.
@@ -451,7 +489,10 @@ The wrapper exposes:
 | `updateEntry`           | mutation | Edit feedback; admins may also change its kind       |
 | `setEntryStatus`        | mutation | Admin workflow status change                         |
 | `setEntryUpvote`        | mutation | Idempotently set entry upvote state                  |
+| `listUserEntries`       | query    | Entries created by the authenticated actor           |
 | `listComments`          | query    | One paginated direct-child comment level             |
+| `listUserComments`      | query    | Comments created by the authenticated actor          |
+| `listUserReactions`     | query    | Entry upvotes and comment likes by the actor         |
 | `createComment`         | mutation | Create comment or reply                              |
 | `updateComment`         | mutation | Edit a comment                                       |
 | `deleteComment`         | mutation | Soft-delete a comment                                |

@@ -459,6 +459,270 @@ describe("convex-feedback component", () => {
     expect(remainingRoadmap.isDone).toBe(true);
   });
 
+  test("actor activity queries are isolated and cursor-paginated", async () => {
+    const testInstance = setup();
+    const activityActor = "activity-author";
+
+    const createActivityEntry = async (
+      title: string,
+      actorId = activityActor,
+    ) =>
+      await testInstance.mutation(api.entries.create, {
+        actorId,
+        kind: "feature_request",
+        title,
+        body: `${title} body`,
+        defaultStatus: "open",
+        enabledKinds: ["feedback", "feature_request", "bug_report"],
+        maxTitleLength: 160,
+        maxBodyLength: 10_000,
+      });
+
+    const firstEntryId = await createActivityEntry("Actor entry one");
+    await createActivityEntry("Other actor entry", "other-author");
+    const secondEntryId = await createActivityEntry("Actor entry two");
+
+    const firstPage = await testInstance.query(api.entries.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 1 },
+    });
+    const secondPage = await testInstance.query(api.entries.listByActor, {
+      actorId: activityActor,
+      paginationOpts: {
+        cursor: firstPage.continueCursor,
+        numItems: 1,
+      },
+    });
+
+    expect(firstPage.page).toHaveLength(1);
+    expect(secondPage.page).toHaveLength(1);
+    expect(
+      [...firstPage.page, ...secondPage.page].map((entry) => entry.id).sort(),
+    ).toEqual([firstEntryId, secondEntryId].sort());
+    expect(
+      [...firstPage.page, ...secondPage.page].every(
+        (entry) => entry.actorId === activityActor,
+      ),
+    ).toBe(true);
+    expect(firstPage.page[0]).not.toHaveProperty("metadata");
+
+    await testInstance.mutation(api.entries.setPriority, {
+      actor: { id: "admin-author", isAdmin: true },
+      entryId: firstEntryId,
+      priority: "high",
+    });
+    await testInstance.mutation(api.entries.update, {
+      actor: { id: activityActor },
+      entryId: firstEntryId,
+      title: "Actor entry one updated",
+      body: "Updated actor entry body",
+      editableByAuthor: true,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+
+    const contextEntryId = await testInstance.mutation(api.entries.create, {
+      actorId: activityActor,
+      kind: "bug_report",
+      title: "Context entry",
+      body: "Context body",
+      defaultStatus: "open",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+      metadata: { standard: { platform: "web" } },
+    });
+    await testInstance.mutation(api.entries.setPriority, {
+      actor: { id: "admin-author", isAdmin: true },
+      entryId: contextEntryId,
+      priority: "medium",
+    });
+
+    const contextPage = await testInstance.query(api.entries.listByActor, {
+      actorId: activityActor,
+      includeAdminContext: true,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    const contextEntry = contextPage.page.find(
+      (entry) => entry.id === contextEntryId,
+    );
+    expect(contextEntry).toMatchObject({
+      metadata: { standard: { platform: "web" } },
+      priority: "medium",
+    });
+
+    const entryForComments = await createActivityEntry(
+      "Comment context entry",
+      "other-author",
+    );
+    const parentCommentId = await testInstance.mutation(api.comments.create, {
+      actorId: "other-author",
+      entryId: entryForComments,
+      body: "Other actor parent",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    const ownCommentId = await testInstance.mutation(api.comments.create, {
+      actorId: activityActor,
+      entryId: entryForComments,
+      parentCommentId,
+      body: "Retained actor comment",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    await testInstance.mutation(api.comments.remove, {
+      actor: { id: activityActor },
+      commentId: ownCommentId,
+      deletableByAuthor: true,
+    });
+
+    const comments = await testInstance.query(api.comments.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(comments.page).toHaveLength(1);
+    expect(comments.page[0]).toMatchObject({
+      id: ownCommentId,
+      body: "Retained actor comment",
+      entryId: entryForComments,
+      entryTitle: "Comment context entry",
+      parentCommentId,
+    });
+    expect(comments.page[0]).not.toHaveProperty("parentCommentBody");
+  });
+
+  test("actor reaction activity resolves mixed and orphaned targets safely", async () => {
+    const testInstance = setup();
+    const activityActor = "reaction-author";
+
+    const ownEntryId = await testInstance.mutation(api.entries.create, {
+      actorId: activityActor,
+      kind: "feature_request",
+      title: "Own entry",
+      body: "Own entry body",
+      defaultStatus: "open",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+    const otherEntryId = await testInstance.mutation(api.entries.create, {
+      actorId: "other-author",
+      kind: "bug_report",
+      title: "Other entry",
+      body: "Other entry body",
+      defaultStatus: "under_review",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+    await testInstance.mutation(api.entries.setUpvote, {
+      actorId: activityActor,
+      entryId: otherEntryId,
+      desiredState: true,
+    });
+
+    const commentId = await testInstance.mutation(api.comments.create, {
+      actorId: "other-author",
+      entryId: otherEntryId,
+      body: "Comment to like",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    await testInstance.mutation(api.comments.setLike, {
+      actorId: activityActor,
+      commentId,
+      desiredState: true,
+    });
+    await testInstance.mutation(api.comments.remove, {
+      actor: { id: "other-author" },
+      commentId,
+      deletableByAuthor: true,
+    });
+
+    const orphanEntryId = await testInstance.mutation(api.entries.create, {
+      actorId: "other-author",
+      kind: "feedback",
+      title: "Deleted entry",
+      body: "This target will be removed",
+      defaultStatus: "open",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+    await testInstance.mutation(api.entries.setUpvote, {
+      actorId: activityActor,
+      entryId: orphanEntryId,
+      desiredState: true,
+    });
+    await testInstance.run((ctx) => ctx.db.delete("entries", orphanEntryId));
+
+    const firstPage = await testInstance.query(api.reactions.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 2 },
+    });
+    const secondPage = await testInstance.query(api.reactions.listByActor, {
+      actorId: activityActor,
+      paginationOpts: {
+        cursor: firstPage.continueCursor,
+        numItems: 2,
+      },
+    });
+    const finalPage = await testInstance.query(api.reactions.listByActor, {
+      actorId: activityActor,
+      paginationOpts: {
+        cursor: secondPage.continueCursor,
+        numItems: 2,
+      },
+    });
+    const reactions = [...firstPage.page, ...secondPage.page];
+
+    expect(reactions).toHaveLength(4);
+    expect(reactions.map((reaction) => reaction.type)).toEqual(
+      expect.arrayContaining(["entry_upvote", "comment_like"]),
+    );
+
+    const ownEntryReaction = reactions.find(
+      (reaction) =>
+        reaction.type === "entry_upvote" && reaction.entry?.id === ownEntryId,
+    );
+    expect(ownEntryReaction).toMatchObject({
+      type: "entry_upvote",
+      entry: {
+        id: ownEntryId,
+        title: "Own entry",
+        kind: "feature_request",
+        status: "open",
+      },
+    });
+    if (ownEntryReaction?.type === "entry_upvote") {
+      expect(ownEntryReaction.entry).not.toHaveProperty("actorId");
+    }
+
+    const deletedCommentReaction = reactions.find(
+      (reaction) =>
+        reaction.type === "comment_like" && reaction.comment?.id === commentId,
+    );
+    expect(deletedCommentReaction).toMatchObject({
+      type: "comment_like",
+      comment: {
+        id: commentId,
+        body: null,
+        entryId: otherEntryId,
+        entryTitle: "Other entry",
+      },
+    });
+
+    const orphanReaction = reactions.find(
+      (reaction) => reaction.type === "entry_upvote" && reaction.entry === null,
+    );
+    expect(orphanReaction).toMatchObject({
+      type: "entry_upvote",
+      entry: null,
+    });
+    expect(finalPage.page).toHaveLength(0);
+    expect(finalPage.isDone).toBe(true);
+  });
+
   test("open and closed status filters are materialized and queried on Convex", async () => {
     const testInstance = setup();
     const openId = await createEntry(testInstance, "Open filter target");

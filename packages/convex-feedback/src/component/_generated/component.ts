@@ -256,6 +256,42 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         },
         Name
       >;
+      listByActor: FunctionReference<
+        "query",
+        "internal",
+        {
+          actorId: string;
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            actorId: string;
+            body: string | null;
+            creationTime: number;
+            deletedAt?: number;
+            depth: number;
+            entryId: string;
+            entryTitle: string | null;
+            id: string;
+            likeCount: number;
+            parentCommentId?: string;
+            replyCount: number;
+            updatedAt?: number;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        },
+        Name
+      >;
       remove: FunctionReference<
         "mutation",
         "internal",
@@ -395,6 +431,63 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             upvoteCount: number;
             viewerHasUpvoted: boolean;
             viewerIsAuthor?: boolean;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        },
+        Name
+      >;
+      listByActor: FunctionReference<
+        "query",
+        "internal",
+        {
+          actorId: string;
+          includeAdminContext?: boolean;
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            actorId: string;
+            body: string;
+            commentCount: number;
+            creationTime: number;
+            id: string;
+            kind: "feedback" | "feature_request" | "bug_report";
+            metadata?: {
+              additional?: Record<string, string | number | boolean>;
+              standard?: Record<string, string | number | boolean>;
+            };
+            priority?: "low" | "medium" | "high";
+            roadmap?: {
+              createdAt: number;
+              creationTime: number;
+              description?: string;
+              feedbackCount: number;
+              id: string;
+              position: number;
+              status: "planned" | "in_progress" | "shipped";
+              title: string;
+              updatedAt: number;
+            };
+            status:
+              | "open"
+              | "under_review"
+              | "planned"
+              | "in_progress"
+              | "completed"
+              | "closed";
+            title: string;
+            updatedAt?: number;
+            upvoteCount: number;
           }>;
           pageStatus?: "SplitRecommended" | "SplitRequired" | null;
           splitCursor?: string | null;
@@ -555,6 +648,60 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           title: string;
         },
         null,
+        Name
+      >;
+    };
+    reactions: {
+      listByActor: FunctionReference<
+        "query",
+        "internal",
+        {
+          actorId: string;
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<
+            | {
+                creationTime: number;
+                entry: {
+                  id: string;
+                  kind: "feedback" | "feature_request" | "bug_report";
+                  status:
+                    | "open"
+                    | "under_review"
+                    | "planned"
+                    | "in_progress"
+                    | "completed"
+                    | "closed";
+                  title: string;
+                } | null;
+                id: string;
+                type: "entry_upvote";
+              }
+            | {
+                comment: {
+                  body: string | null;
+                  entryId: string;
+                  entryTitle: string | null;
+                  id: string;
+                } | null;
+                creationTime: number;
+                id: string;
+                type: "comment_like";
+              }
+          >;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        },
         Name
       >;
     };

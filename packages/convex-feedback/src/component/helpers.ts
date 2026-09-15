@@ -4,8 +4,11 @@ import type { DataModel } from "./_generated/dataModel.js";
 import type { QueryCtx } from "./types.js";
 import type {
   AdminFeedbackEntry,
+  FeedbackActivityComment,
+  FeedbackActivityEntryWithContext,
   FeedbackComment,
   FeedbackEntry,
+  FeedbackReaction,
   RoadmapItem,
 } from "./model.js";
 
@@ -216,5 +219,156 @@ export async function serializeComment(
       ? {}
       : { deletedAt: comment.deletedAt }),
     viewerHasLiked: reaction !== null,
+  };
+}
+
+/**
+ * Serialize an actor-scoped entry. Private diagnostic and triage context is
+ * available only to trusted component consumers that explicitly request it.
+ */
+export async function serializeActivityEntry(
+  ctx: QueryCtx,
+  entry: DataModel["entries"]["document"],
+  includeContext: boolean,
+): Promise<FeedbackActivityEntryWithContext> {
+  const roadmap =
+    includeContext && entry.roadmapId !== undefined
+      ? await ctx.db.get("roadmap", entry.roadmapId)
+      : null;
+
+  return {
+    id: entry._id,
+    creationTime: entry._creationTime,
+    actorId: entry.actorId,
+    kind: entry.kind,
+    status: entry.status,
+    title: entry.title,
+    body: entry.body,
+    upvoteCount: entry.upvoteCount,
+    commentCount: entry.commentCount,
+    ...(entry.updatedAt === undefined ? {} : { updatedAt: entry.updatedAt }),
+    ...(includeContext && entry.metadata === undefined
+      ? {}
+      : includeContext
+        ? { metadata: entry.metadata }
+        : {}),
+    ...(includeContext && entry.priority === undefined
+      ? {}
+      : includeContext
+        ? { priority: entry.priority }
+        : {}),
+    ...(roadmap === null || !includeContext
+      ? {}
+      : { roadmap: serializeRoadmapItem(roadmap) }),
+  };
+}
+
+/** Remove component-only diagnostic and triage context before host exposure. */
+export function stripActivityEntryContext(
+  entry: FeedbackActivityEntryWithContext,
+): Omit<FeedbackActivityEntryWithContext, "metadata" | "priority" | "roadmap"> {
+  return {
+    id: entry.id,
+    creationTime: entry.creationTime,
+    actorId: entry.actorId,
+    kind: entry.kind,
+    status: entry.status,
+    title: entry.title,
+    body: entry.body,
+    upvoteCount: entry.upvoteCount,
+    commentCount: entry.commentCount,
+    ...(entry.updatedAt === undefined ? {} : { updatedAt: entry.updatedAt }),
+  };
+}
+
+/** Serialize an actor-scoped comment without loading its parent comment. */
+export async function serializeActivityComment(
+  ctx: QueryCtx,
+  comment: DataModel["comments"]["document"],
+): Promise<FeedbackActivityComment> {
+  const entry = await ctx.db.get("entries", comment.entryId);
+
+  return {
+    id: comment._id,
+    creationTime: comment._creationTime,
+    entryId: comment.entryId,
+    entryTitle: entry?.title ?? null,
+    ...(comment.parentCommentId === undefined
+      ? {}
+      : { parentCommentId: comment.parentCommentId }),
+    actorId: comment.actorId,
+    depth: comment.depth,
+    body: comment.body ?? null,
+    likeCount: comment.likeCount,
+    replyCount: comment.replyCount,
+    ...(comment.updatedAt === undefined
+      ? {}
+      : { updatedAt: comment.updatedAt }),
+    ...(comment.deletedAt === undefined
+      ? {}
+      : { deletedAt: comment.deletedAt }),
+  };
+}
+
+/**
+ * Serialize a reaction and resolve only the target context needed by an
+ * activity consumer. Target authors are intentionally not included.
+ */
+export async function serializeActivityReaction(
+  ctx: QueryCtx,
+  reaction: DataModel["reactions"]["document"],
+): Promise<FeedbackReaction> {
+  if (reaction.entryId !== undefined) {
+    const entry = await ctx.db.get("entries", reaction.entryId);
+
+    return {
+      type: "entry_upvote",
+      id: reaction._id,
+      creationTime: reaction._creationTime,
+      entry:
+        entry === null
+          ? null
+          : {
+              id: entry._id,
+              title: entry.title,
+              kind: entry.kind,
+              status: entry.status,
+            },
+    };
+  }
+
+  if (reaction.commentId !== undefined) {
+    const comment = await ctx.db.get("comments", reaction.commentId);
+
+    if (comment === null) {
+      return {
+        type: "comment_like",
+        id: reaction._id,
+        creationTime: reaction._creationTime,
+        comment: null,
+      };
+    }
+
+    const entry = await ctx.db.get("entries", comment.entryId);
+    return {
+      type: "comment_like",
+      id: reaction._id,
+      creationTime: reaction._creationTime,
+      comment: {
+        id: comment._id,
+        body: comment.deletedAt === undefined ? comment.body : null,
+        entryId: comment.entryId,
+        entryTitle: entry?.title ?? null,
+      },
+    };
+  }
+
+  // Mutations always write exactly one target, but represent malformed legacy
+  // records as an orphaned entry reaction instead of failing the page.
+  return {
+    type: "entry_upvote",
+    id: reaction._id,
+    creationTime: reaction._creationTime,
+    entry: null,
   };
 }

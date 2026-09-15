@@ -42,6 +42,26 @@ describe("Expo routed feedback contracts", () => {
     });
   });
 
+  test("supports an explicit index entry route", () => {
+    expect(resolveFeedbackRoutes({ entry: "entry/[entryId]/index" })).toEqual({
+      board: "index",
+      entry: "entry/[entryId]/index",
+      edit: "entry/[entryId]/edit",
+      create: "new",
+    });
+    expect(
+      resolveFeedbackRoutes({
+        entry: "entry/[entryId]/index",
+        edit: "entry/[entryId]/edit",
+      }),
+    ).toEqual({
+      board: "index",
+      entry: "entry/[entryId]/index",
+      edit: "entry/[entryId]/edit",
+      create: "new",
+    });
+  });
+
   test("requires the stable entryId dynamic parameter", () => {
     expect(() => resolveFeedbackRoutes({ entry: "[id]" })).toThrow("[entryId]");
     expect(() => resolveFeedbackRoutes({ edit: "edit/[entryId]" })).toThrow(
@@ -61,7 +81,11 @@ describe("Expo routed feedback contracts", () => {
     expect(feedbackEditRouteHref("[entryId]/edit")).toBe("./edit");
     expect(feedbackEditRouteHref("entry/[entryId]/edit")).toBe("./edit");
     expect(feedbackBoardRouteHref("[entryId]", "index")).toBe("../index");
+    expect(feedbackBoardRouteHref("[entryId]/index", "index")).toBe("../index");
     expect(feedbackBoardRouteHref("entry/[entryId]", "index")).toBe(
+      "../../index",
+    );
+    expect(feedbackBoardRouteHref("entry/[entryId]/index", "index")).toBe(
       "../../index",
     );
   });

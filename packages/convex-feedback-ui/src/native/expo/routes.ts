@@ -1,13 +1,24 @@
-import type { Href } from "expo-router";
 import type { RoadmapItem } from "convex-feedback";
+import type { Href } from "expo-router";
 import type { FeedbackRouteNames, RoadmapRouteNames } from "./types.js";
 
 export const defaultFeedbackRoutes: FeedbackRouteNames = {
   board: "index",
-  entry: "[entryId]",
+  entry: "[entryId]/index",
   edit: "[entryId]/edit",
   create: "new",
 };
+
+function normalizeRoute(route: string): string {
+  return route.replace(/^\.\//, "").replace(/\/+$/, "");
+}
+
+function entryRouteDirectory(route: string): string {
+  const normalized = normalizeRoute(route);
+  return normalized.endsWith("/index")
+    ? normalized.slice(0, -"/index".length)
+    : normalized;
+}
 
 export function resolveFeedbackRoutes(
   routes: Partial<FeedbackRouteNames> = {},
@@ -16,7 +27,7 @@ export function resolveFeedbackRoutes(
     ...defaultFeedbackRoutes,
     ...routes,
     ...(routes.edit === undefined && routes.entry !== undefined
-      ? { edit: `${routes.entry}/edit` }
+      ? { edit: `${entryRouteDirectory(routes.entry)}/edit` }
       : {}),
   };
 
@@ -25,7 +36,11 @@ export function resolveFeedbackRoutes(
       'The routed feedback entry route must contain the "[entryId]" dynamic segment.',
     );
   }
-  if (!resolved.edit.startsWith(`${resolved.entry}/`)) {
+  if (
+    !normalizeRoute(resolved.edit).startsWith(
+      `${entryRouteDirectory(resolved.entry)}/`,
+    )
+  ) {
     throw new Error(
       "The routed feedback edit route must be nested under the entry route.",
     );
@@ -79,7 +94,11 @@ export function feedbackBoardRouteHref(
   const entrySegments = entryRoute
     .split("/")
     .filter((segment) => segment.length > 0 && segment !== ".");
-  const parentPrefix = "../".repeat(entrySegments.length);
+  const directorySegments =
+    entrySegments.at(-1) === "index"
+      ? entrySegments.slice(0, -1)
+      : entrySegments;
+  const parentPrefix = "../".repeat(directorySegments.length);
   return feedbackRouteHref(`${parentPrefix}${boardRoute}`);
 }
 

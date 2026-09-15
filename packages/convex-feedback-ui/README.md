@@ -277,16 +277,13 @@ export { CreateFeedbackScreen as default } from "convex-feedback-ui/expo";
 ```ts
 {
   board: "index",
-  entry: "[entryId]",
+  entry: "[entryId]/index",
   edit: "[entryId]/edit",
   create: "new",
 }
 ```
 
 Names can be partially overridden when the files use a different structure.
-The create name identifies its nested route directory, and the entry route must
-retain the `[entryId]` dynamic segment. The edit route must be nested beneath
-the entry route:
 
 ```tsx
 const routes = {

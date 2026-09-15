@@ -45,9 +45,9 @@ export interface FeedbackStackProps {
 export interface FeedbackRouteNames {
   /** Board route. @default "index" */
   board: string;
-  /** Entry route. Must contain `[entryId]`. @default "[entryId]" */
+  /** Entry route. Must contain `[entryId]`. @default "[entryId]/index" */
   entry: string;
-  /** Edit-entry route nested under the entry route. @default "[entryId]/edit" */
+  /** Edit-entry route in the entry route directory. @default "[entryId]/edit" */
   edit: string;
   /** Create-entry modal route. @default "new" */
   create: string;

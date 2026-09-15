@@ -74,6 +74,7 @@ Key colors can be overridden directly:
   primaryColor="#6d5efc"
   backgroundColor="#0d0d10"
   surfaceColor="#17171b"
+  inputColor="#1f1f25"
   textColor="#ffffff"
   mutedColor="#a0a0aa"
   borderColor="#2d2d34"
@@ -96,6 +97,7 @@ import { FeedbackScreen } from "convex-feedback-ui/native";
       primary: "#6d5efc",
       background: "#ffffff",
       surface: "#ffffff",
+      input: "#f7f7fa",
     },
   }}
 />;
@@ -119,6 +121,7 @@ import { FeedbackScreen } from "convex-feedback-ui/expo";
       primary: "#6d5efc",
       background: "#ffffff",
       surface: "#ffffff",
+      input: "#f7f7fa",
     },
   }}
 />;

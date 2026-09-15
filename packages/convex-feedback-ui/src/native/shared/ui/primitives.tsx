@@ -57,6 +57,7 @@ function BoardRoot({
   primaryForeground,
   backgroundColor,
   surfaceColor,
+  inputColor,
   textColor,
   mutedColor,
   borderColor,
@@ -69,6 +70,7 @@ function BoardRoot({
       ...(primaryForeground === undefined ? {} : { primaryForeground }),
       ...(backgroundColor === undefined ? {} : { background: backgroundColor }),
       ...(surfaceColor === undefined ? {} : { surface: surfaceColor }),
+      ...(inputColor === undefined ? {} : { input: inputColor }),
       ...(textColor === undefined ? {} : { text: textColor }),
       ...(mutedColor === undefined ? {} : { mutedText: mutedColor }),
       ...(borderColor === undefined ? {} : { border: borderColor }),
@@ -76,6 +78,7 @@ function BoardRoot({
     }),
     [
       backgroundColor,
+      inputColor,
       borderColor,
       dangerColor,
       mutedColor,
@@ -155,7 +158,7 @@ const BoardSearch = forwardRef<TextInput, BoardSearchProps>(
             borderRadius: Math.max(8, theme.radius - 2),
             paddingHorizontal: 12,
             paddingVertical: 10,
-            backgroundColor: theme.colors.surface,
+            backgroundColor: theme.colors.input,
           },
           style,
         )}
@@ -742,7 +745,7 @@ function FormInput({ style, ...props }: TextInputProps) {
           borderRadius: Math.max(8, theme.radius - 2),
           paddingHorizontal: 11,
           paddingVertical: 9,
-          backgroundColor: theme.colors.surface,
+          backgroundColor: theme.colors.input,
         },
         style,
       )}

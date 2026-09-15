@@ -95,6 +95,7 @@ function StackedRoadmapScreen({
     primaryForeground,
     backgroundColor,
     surfaceColor,
+    inputColor,
     textColor,
     mutedColor,
     borderColor,
@@ -167,6 +168,7 @@ function StackedRoadmapScreen({
         primaryForeground={primaryForeground}
         backgroundColor={backgroundColor}
         surfaceColor={surfaceColor}
+        inputColor={inputColor}
         textColor={textColor}
         mutedColor={mutedColor}
         borderColor={borderColor}

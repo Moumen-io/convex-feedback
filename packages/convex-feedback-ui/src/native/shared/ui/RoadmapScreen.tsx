@@ -122,6 +122,7 @@ export interface RoadmapScreenContentProps extends Pick<
   | "primaryForeground"
   | "backgroundColor"
   | "surfaceColor"
+  | "inputColor"
   | "textColor"
   | "mutedColor"
   | "borderColor"

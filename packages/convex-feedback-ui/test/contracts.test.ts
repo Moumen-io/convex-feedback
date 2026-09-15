@@ -51,8 +51,11 @@ describe("UI contracts", () => {
   });
 
   test("theme overrides preserve fallback tokens", () => {
-    const theme = mergeFeedbackTheme({ colors: { primary: "#000000" } });
+    const theme = mergeFeedbackTheme({
+      colors: { primary: "#000000", input: "#f4f4f4" },
+    });
     expect(theme.colors.primary).toBe("#000000");
+    expect(theme.colors.input).toBe("#f4f4f4");
     expect(theme.colors.border).toBe(defaultFeedbackTheme.colors.border);
     expect(theme.radius).toBe(defaultFeedbackTheme.radius);
   });

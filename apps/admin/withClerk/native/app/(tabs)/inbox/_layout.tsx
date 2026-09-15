@@ -1,16 +1,18 @@
 import { Stack } from "expo-router";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme } from "@/constants/AdminTheme";
 
 export default function InboxLayout() {
+  const theme = useAdminTheme();
+
   return (
     <Stack
       screenOptions={{
         headerShown: true,
         headerTransparent: true,
         headerBackButtonDisplayMode: "minimal",
-        headerTintColor: adminTheme.text,
-        contentStyle: { backgroundColor: adminTheme.background },
+        headerTintColor: theme.text,
+        contentStyle: { backgroundColor: theme.background },
       }}
     >
       <Stack.Screen name="index" options={{ title: "Inbox" }} />

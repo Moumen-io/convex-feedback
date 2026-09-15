@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
 import { useAdminAction } from "@/lib/action";
 import { feedbackHooks } from "@/lib/feedback";
 import { useToolbarIcon } from "@/lib/native-toolbar";
@@ -27,6 +27,8 @@ export default function RoadmapDetailScreen() {
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
   const roadmap = feedbackHooks.useRoadmap();
   const routeItem = parseRoadmapRouteItem(params.item);
   const item =
@@ -71,7 +73,7 @@ export default function RoadmapDetailScreen() {
       <View style={styles.center}>
         <Stack.Screen options={{ title: "Roadmap item" }} />
         {roadmap.status === "LoadingFirstPage" ? (
-          <ActivityIndicator color={adminTheme.primary} />
+          <ActivityIndicator color={theme.primary} />
         ) : (
           <Text style={styles.body}>Roadmap item not found.</Text>
         )}
@@ -87,7 +89,7 @@ export default function RoadmapDetailScreen() {
           icon={closeIcon}
           accessibilityLabel="Close roadmap details"
           onPress={() => router.back()}
-          tintColor={adminTheme.text}
+          tintColor={theme.text}
         >
           Close
         </Stack.Toolbar.Button>
@@ -103,7 +105,7 @@ export default function RoadmapDetailScreen() {
               params: roadmapRouteParams(item),
             })
           }
-          tintColor={adminTheme.primary}
+          tintColor={theme.primary}
         >
           Edit
         </Stack.Toolbar.Button>
@@ -112,7 +114,7 @@ export default function RoadmapDetailScreen() {
           title="Actions"
           accessibilityLabel="Roadmap actions"
           disabled={deleteAction.pending || detachAction.pending}
-          tintColor={adminTheme.text}
+          tintColor={theme.text}
         >
           <Stack.Toolbar.MenuAction
             destructive
@@ -145,7 +147,7 @@ export default function RoadmapDetailScreen() {
           <Text style={styles.sectionTitle}>Attached feedback</Text>
         </View>
         {feedback.status === "LoadingFirstPage" ? (
-          <ActivityIndicator color={adminTheme.primary} />
+          <ActivityIndicator color={theme.primary} />
         ) : feedback.results.length === 0 ? (
           <Text style={styles.empty}>No feedback attached.</Text>
         ) : (
@@ -194,63 +196,62 @@ export default function RoadmapDetailScreen() {
           </Pressable>
         )}
         {feedback.status === "LoadingMore" && (
-          <ActivityIndicator
-            style={styles.pageLoader}
-            color={adminTheme.primary}
-          />
+          <ActivityIndicator style={styles.pageLoader} color={theme.primary} />
         )}
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: adminTheme.background },
-  list: { flex: 1 },
-  content: { flexGrow: 1, gap: 8, paddingTop: 20 },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: adminTheme.background,
-  },
-  body: { color: adminTheme.muted },
-  headerContent: { gap: 12, paddingBottom: 8 },
-  statusBadge: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    backgroundColor: adminTheme.primarySoft,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  statusText: {
-    color: adminTheme.primary,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "capitalize",
-  },
-  description: { color: adminTheme.muted, fontSize: 15, lineHeight: 23 },
-  sectionTitle: { color: adminTheme.text, fontSize: 15, fontWeight: "700" },
-  pageLoader: { paddingVertical: 16 },
-  empty: { color: adminTheme.muted, paddingVertical: 18, textAlign: "center" },
-  loadMore: { alignItems: "center", paddingVertical: 16 },
-  loadMoreText: { color: adminTheme.primary, fontWeight: "600" },
-  feedbackRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: adminTheme.border,
-    paddingVertical: 12,
-  },
-  feedbackLink: { flex: 1, gap: 4 },
-  pressed: { opacity: 0.7 },
-  feedbackTitle: { color: adminTheme.text, fontSize: 14 },
-  feedbackMeta: {
-    color: adminTheme.muted,
-    fontSize: 11,
-    textTransform: "capitalize",
-  },
-  disabled: { opacity: 0.5 },
-  danger: { color: adminTheme.danger, fontWeight: "600" },
-});
+function createStyles(theme: AdminTheme) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: theme.background },
+    list: { flex: 1 },
+    content: { flexGrow: 1, gap: 8, paddingTop: 20 },
+    center: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.background,
+    },
+    body: { color: theme.muted },
+    headerContent: { gap: 12, paddingBottom: 8 },
+    statusBadge: {
+      alignSelf: "flex-start",
+      borderRadius: 999,
+      backgroundColor: theme.primarySoft,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    statusText: {
+      color: theme.primary,
+      fontSize: 12,
+      fontWeight: "700",
+      textTransform: "capitalize",
+    },
+    description: { color: theme.muted, fontSize: 15, lineHeight: 23 },
+    sectionTitle: { color: theme.text, fontSize: 15, fontWeight: "700" },
+    pageLoader: { paddingVertical: 16 },
+    empty: { color: theme.muted, paddingVertical: 18, textAlign: "center" },
+    loadMore: { alignItems: "center", paddingVertical: 16 },
+    loadMoreText: { color: theme.primary, fontWeight: "600" },
+    feedbackRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.border,
+      paddingVertical: 12,
+    },
+    feedbackLink: { flex: 1, gap: 4 },
+    pressed: { opacity: 0.7 },
+    feedbackTitle: { color: theme.text, fontSize: 14 },
+    feedbackMeta: {
+      color: theme.muted,
+      fontSize: 11,
+      textTransform: "capitalize",
+    },
+    disabled: { opacity: 0.5 },
+    danger: { color: theme.danger, fontWeight: "600" },
+  });
+}

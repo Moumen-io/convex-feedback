@@ -1,13 +1,15 @@
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme } from "@/constants/AdminTheme";
 
 export default function TabLayout() {
+  const theme = useAdminTheme();
+
   return (
     <NativeTabs
-      backgroundColor={adminTheme.surface}
-      iconColor={{ default: adminTheme.muted, selected: adminTheme.primary }}
-      tintColor={adminTheme.primary}
+      backgroundColor={theme.surface}
+      iconColor={{ default: theme.muted, selected: theme.primary }}
+      tintColor={theme.primary}
       disableTransparentOnScrollEdge
     >
       <NativeTabs.Trigger name="inbox" disableAutomaticContentInsets>

@@ -2,23 +2,27 @@ import { Stack } from "expo-router";
 
 import { RoadmapProvider } from "convex-feedback-ui/native";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme } from "@/constants/AdminTheme";
 import { feedbackHooks } from "@/lib/feedback";
 
-const adminRoadmapTheme = {
-  colors: {
-    primary: adminTheme.primary,
-    background: adminTheme.background,
-    surface: adminTheme.surface,
-    surfaceMuted: adminTheme.surface,
-    text: adminTheme.text,
-    mutedText: adminTheme.muted,
-    border: adminTheme.border,
-    danger: adminTheme.danger,
-  },
-} as const;
-
 export default function RoadmapLayout() {
+  const theme = useAdminTheme();
+  const adminRoadmapTheme = {
+    colors: {
+      primary: theme.primary,
+      primaryForeground: theme.primaryForeground,
+      background: theme.background,
+      surface: theme.surface,
+      input: theme.input,
+      surfaceMuted: theme.surfaceMuted,
+      text: theme.text,
+      mutedText: theme.mutedText,
+      border: theme.border,
+      danger: theme.danger,
+      success: theme.success,
+    },
+  };
+
   return (
     <RoadmapProvider hooks={feedbackHooks} theme={adminRoadmapTheme}>
       <Stack
@@ -26,8 +30,8 @@ export default function RoadmapLayout() {
           headerShown: true,
           headerTransparent: true,
           headerBackButtonDisplayMode: "minimal",
-          headerTintColor: adminTheme.text,
-          contentStyle: { backgroundColor: adminTheme.background },
+          headerTintColor: theme.text,
+          contentStyle: { backgroundColor: theme.background },
         }}
       >
         <Stack.Screen name="index" options={{ title: "Roadmap" }} />

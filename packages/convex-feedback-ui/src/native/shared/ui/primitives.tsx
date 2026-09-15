@@ -746,6 +746,7 @@ function FormInput({ style, ...props }: TextInputProps) {
           paddingHorizontal: 11,
           paddingVertical: 9,
           backgroundColor: theme.colors.input,
+          maxHeight: 100,
         },
         style,
       )}

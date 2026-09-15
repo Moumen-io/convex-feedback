@@ -7,8 +7,14 @@ import {
 } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { anyApi } from "convex/server";
-import { InboxIcon, MapIcon, ShieldXIcon } from "lucide-react";
-import { ThemeProvider } from "next-themes";
+import {
+  InboxIcon,
+  MapIcon,
+  MoonIcon,
+  ShieldXIcon,
+  SunIcon,
+} from "lucide-react";
+import { ThemeProvider, useTheme } from "next-themes";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -31,7 +37,12 @@ const convex = new ConvexReactClient(convexUrl);
 
 export default function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light">
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
       <ClerkProvider publishableKey={publishableKey}>
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           <AuthGate />
@@ -158,6 +169,7 @@ function AdminShell() {
             CF
           </span>
           <span className="text-sm font-semibold">Feedback admin</span>
+          <ThemeToggle />
         </div>
         <nav className="mx-3 flex flex-1 gap-1 md:mx-0 md:mt-8 md:flex-col">
           {nav.map(({ value, label, icon: Icon }) => (
@@ -195,6 +207,27 @@ function AdminShell() {
         )}
       </div>
     </main>
+  );
+}
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
+  return (
+    <Button
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      size="icon-sm"
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      variant="ghost"
+    >
+      {isDark ? (
+        <SunIcon data-icon="inline-start" />
+      ) : (
+        <MoonIcon data-icon="inline-start" />
+      )}
+    </Button>
   );
 }
 

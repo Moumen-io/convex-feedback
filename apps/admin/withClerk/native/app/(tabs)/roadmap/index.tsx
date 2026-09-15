@@ -10,7 +10,7 @@ import {
   useFeedbackUi,
 } from "convex-feedback-ui/expo";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
 import { useAdminAction } from "@/lib/action";
 import { useToolbarIcon } from "@/lib/native-toolbar";
 import { roadmapRouteParams } from "@/lib/roadmap-route";
@@ -23,6 +23,8 @@ const stages: { value: RoadmapStatus }[] = [
 
 export default function RoadmapScreen() {
   const router = useRouter();
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
   const headerHeight = useStackHeaderHeight();
   const { hooks } = useFeedbackBody();
   const { messages } = useFeedbackUi();
@@ -41,7 +43,7 @@ export default function RoadmapScreen() {
             disabled={roadmap.status === "LoadingMore"}
             accessibilityLabel="Load more roadmap items"
             onPress={() => roadmap.loadMore(hooks.pageSizes.roadmap)}
-            tintColor={adminTheme.text}
+            tintColor={theme.text}
           >
             {roadmap.status === "LoadingMore" ? "Loading…" : "More"}
           </Stack.Toolbar.Button>
@@ -51,7 +53,7 @@ export default function RoadmapScreen() {
           variant="prominent"
           accessibilityLabel="Add roadmap item"
           onPress={() => router.push("/roadmap/new")}
-          tintColor={adminTheme.primary}
+          tintColor={theme.primary}
         >
           New item
         </Stack.Toolbar.Button>
@@ -134,6 +136,9 @@ function MoveButton({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
+
   return (
     <Pressable
       disabled={disabled}
@@ -145,24 +150,26 @@ function MoveButton({
   );
 }
 
-const styles = StyleSheet.create({
-  disabled: { opacity: 0.5 },
-  cardTitle: { color: adminTheme.text, fontSize: 15, fontWeight: "600" },
-  cardBody: { color: adminTheme.muted, fontSize: 14, lineHeight: 20 },
-  cardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  feedbackCount: { color: adminTheme.muted, fontSize: 12 },
-  actions: { flexDirection: "row", gap: 6 },
-  moveButton: {
-    width: 30,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    backgroundColor: adminTheme.primarySoft,
-  },
-  moveText: { color: adminTheme.primary, fontWeight: "700" },
-});
+function createStyles(theme: AdminTheme) {
+  return StyleSheet.create({
+    disabled: { opacity: 0.5 },
+    cardTitle: { color: theme.text, fontSize: 15, fontWeight: "600" },
+    cardBody: { color: theme.muted, fontSize: 14, lineHeight: 20 },
+    cardFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    feedbackCount: { color: theme.muted, fontSize: 12 },
+    actions: { flexDirection: "row", gap: 6 },
+    moveButton: {
+      width: 30,
+      height: 28,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 8,
+      backgroundColor: theme.primarySoft,
+    },
+    moveText: { color: theme.primary, fontWeight: "700" },
+  });
+}

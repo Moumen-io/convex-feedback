@@ -1,7 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
 import { EntryForm } from "@/components/entry-form";
 import { feedbackHooks } from "@/lib/feedback";
 
@@ -9,12 +9,14 @@ export default function EditFeedbackScreen() {
   const { entryId } = useLocalSearchParams<{ entryId: string }>();
   const router = useRouter();
   const entry = feedbackHooks.useAdminEntry(entryId);
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
 
   if (entry === undefined) {
     return (
       <View style={styles.center}>
         <Stack.Screen options={{ title: "Edit feedback" }} />
-        <ActivityIndicator color={adminTheme.primary} />
+        <ActivityIndicator color={theme.primary} />
       </View>
     );
   }
@@ -34,14 +36,16 @@ export default function EditFeedbackScreen() {
   return <EntryForm entry={entry} />;
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    backgroundColor: adminTheme.background,
-  },
-  text: { color: adminTheme.text },
-  close: { color: adminTheme.primary, fontWeight: "600" },
-});
+function createStyles(theme: AdminTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+      backgroundColor: theme.background,
+    },
+    text: { color: theme.text },
+    close: { color: theme.primary, fontWeight: "600" },
+  });
+}

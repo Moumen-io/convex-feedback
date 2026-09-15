@@ -22,7 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
@@ -53,6 +53,8 @@ export default function RootLayout() {
 function AdminGate() {
   const clerk = useAuth({ treatPendingAsSignedOut: false });
   const convexAuth = useConvexAuth();
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
   const [authOpen, setAuthOpen] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const retry = useCallback(() => {
@@ -66,7 +68,7 @@ function AdminGate() {
       <View style={styles.root}>
         {loading ? (
           <Centered>
-            <ActivityIndicator color={adminTheme.primary} />
+            <ActivityIndicator color={theme.primary} />
           </Centered>
         ) : !clerk.isSignedIn || !convexAuth.isAuthenticated ? (
           <Centered>
@@ -76,7 +78,7 @@ function AdminGate() {
             </Text>
             <Button
               title="Sign in"
-              color={adminTheme.primary}
+              color={theme.primary}
               onPress={() => setAuthOpen(true)}
             />
           </Centered>
@@ -97,6 +99,8 @@ function AdminGate() {
 }
 
 function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
   const accessCheck = useQuery_experimental({
     query: anyApi.feedback.isAdmin,
     args: {},
@@ -115,7 +119,7 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
   if (accessCheck.status === "pending") {
     return (
       <Centered>
-        <ActivityIndicator color={adminTheme.primary} />
+        <ActivityIndicator color={theme.primary} />
       </Centered>
     );
   }
@@ -124,7 +128,7 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
       <Centered>
         <Text style={styles.title}>Unable to verify access</Text>
         <Text style={styles.body}>{errorMessage}</Text>
-        <Button title="Retry" color={adminTheme.primary} onPress={onRetry} />
+        <Button title="Retry" color={theme.primary} onPress={onRetry} />
       </Centered>
     );
   }
@@ -143,40 +147,43 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
     <Stack
       screenOptions={{
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: adminTheme.background },
+        contentStyle: { backgroundColor: theme.background },
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="feedback/[entryId]"
-        options={modalScreenOptions("Feedback")}
+        options={modalScreenOptions("Feedback", theme)}
       />
       <Stack.Screen
         name="feedback/new"
-        options={modalScreenOptions("New feedback")}
+        options={modalScreenOptions("New feedback", theme)}
       />
       <Stack.Screen
         name="feedback/[entryId]/edit"
-        options={modalScreenOptions("Edit feedback")}
+        options={modalScreenOptions("Edit feedback", theme)}
       />
       <Stack.Screen
         name="roadmap/new"
-        options={modalScreenOptions("New roadmap item")}
+        options={modalScreenOptions("New roadmap item", theme)}
       />
       <Stack.Screen
         name="roadmap/[roadmapId]"
-        options={modalScreenOptions("Roadmap item")}
+        options={modalScreenOptions("Roadmap item", theme)}
       />
       <Stack.Screen
         name="roadmap/[roadmapId]/edit"
-        options={modalScreenOptions("Edit roadmap item")}
+        options={modalScreenOptions("Edit roadmap item", theme)}
       />
     </Stack>
   );
 }
 
-function modalScreenOptions(title: string): NativeStackNavigationOptions {
+function modalScreenOptions(
+  title: string,
+  theme: AdminTheme,
+): NativeStackNavigationOptions {
   const isIos = Platform.OS === "ios";
 
   return {
@@ -185,31 +192,36 @@ function modalScreenOptions(title: string): NativeStackNavigationOptions {
     headerShown: true,
     headerTransparent: true,
     headerBackVisible: false,
-    contentStyle: { backgroundColor: "transparent" },
+    contentStyle: { backgroundColor: theme.background },
     sheetAllowedDetents: [0.65, 1],
     sheetGrabberVisible: true,
   };
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
+
   return <View style={styles.centered}>{children}</View>;
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: adminTheme.background },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 14,
-    padding: 28,
-  },
-  title: { color: adminTheme.text, fontSize: 21, fontWeight: "700" },
-  body: {
-    maxWidth: 360,
-    color: adminTheme.muted,
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-  },
-});
+function createStyles(theme: AdminTheme) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: theme.background },
+    centered: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 14,
+      padding: 28,
+    },
+    title: { color: theme.text, fontSize: 21, fontWeight: "700" },
+    body: {
+      maxWidth: 360,
+      color: theme.muted,
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: "center",
+    },
+  });
+}

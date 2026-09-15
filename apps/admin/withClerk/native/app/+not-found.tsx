@@ -1,9 +1,12 @@
 import { Link, Stack } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
 
 export default function NotFoundScreen() {
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
+
   return (
     <>
       <Stack.Screen options={{ title: "Not found" }} />
@@ -18,23 +21,25 @@ export default function NotFoundScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: adminTheme.background,
-    padding: 20,
-  },
-  title: {
-    fontSize: 20,
-    color: adminTheme.text,
-    fontWeight: "700",
-  },
-  link: {
-    color: adminTheme.primary,
-    fontSize: 15,
-    marginTop: 15,
-    paddingVertical: 15,
-  },
-});
+function createStyles(theme: AdminTheme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.background,
+      padding: 20,
+    },
+    title: {
+      fontSize: 20,
+      color: theme.text,
+      fontWeight: "700",
+    },
+    link: {
+      color: theme.primary,
+      fontSize: 15,
+      marginTop: 15,
+      paddingVertical: 15,
+    },
+  });
+}

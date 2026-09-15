@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
 import { useAdminAction } from "@/lib/action";
 import { feedbackHooks } from "@/lib/feedback";
 import { useToolbarIcon } from "@/lib/native-toolbar";
@@ -19,6 +19,8 @@ import { useToolbarIcon } from "@/lib/native-toolbar";
 export function RoadmapForm({ item }: { item?: RoadmapItem }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
   const isEdit = item !== undefined;
   const [title, setTitle] = useState(item?.title ?? "");
   const [description, setDescription] = useState(item?.description ?? "");
@@ -82,7 +84,7 @@ export function RoadmapForm({ item }: { item?: RoadmapItem }) {
         value={title}
         onChangeText={setTitle}
         placeholder="Title"
-        placeholderTextColor={adminTheme.muted}
+        placeholderTextColor={theme.muted}
         style={styles.input}
         returnKeyType="next"
       />
@@ -92,7 +94,7 @@ export function RoadmapForm({ item }: { item?: RoadmapItem }) {
         value={description}
         onChangeText={setDescription}
         placeholder="Description"
-        placeholderTextColor={adminTheme.muted}
+        placeholderTextColor={theme.muted}
         style={[styles.input, styles.multiline]}
         multiline
         textAlignVertical="top"
@@ -111,7 +113,7 @@ export function RoadmapForm({ item }: { item?: RoadmapItem }) {
           accessibilityLabel="Cancel"
           disabled={action.pending}
           onPress={() => router.back()}
-          tintColor={adminTheme.text}
+          tintColor={theme.text}
         >
           Cancel
         </Stack.Toolbar.Button>
@@ -123,7 +125,7 @@ export function RoadmapForm({ item }: { item?: RoadmapItem }) {
           accessibilityLabel={isEdit ? "Save changes" : "Create roadmap item"}
           disabled={!title.trim() || action.pending}
           onPress={() => void save()}
-          tintColor={adminTheme.primary}
+          tintColor={theme.primary}
         >
           Save
         </Stack.Toolbar.Button>
@@ -139,27 +141,29 @@ export function RoadmapForm({ item }: { item?: RoadmapItem }) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: adminTheme.background },
-  scroll: { flex: 1, backgroundColor: adminTheme.background },
-  content: { gap: 10, paddingTop: 22 },
-  description: {
-    marginBottom: 8,
-    color: adminTheme.muted,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  label: { color: adminTheme.text, fontSize: 13, fontWeight: "600" },
-  input: {
-    minHeight: 46,
-    borderWidth: 1,
-    borderColor: adminTheme.border,
-    borderRadius: 12,
-    backgroundColor: adminTheme.surface,
-    color: adminTheme.text,
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    fontSize: 15,
-  },
-  multiline: { minHeight: 150 },
-});
+function createStyles(theme: AdminTheme) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: theme.background },
+    scroll: { flex: 1, backgroundColor: theme.background },
+    content: { gap: 10, paddingTop: 22 },
+    description: {
+      marginBottom: 8,
+      color: theme.muted,
+      fontSize: 14,
+      lineHeight: 21,
+    },
+    label: { color: theme.text, fontSize: 13, fontWeight: "600" },
+    input: {
+      minHeight: 46,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      backgroundColor: theme.input,
+      color: theme.text,
+      paddingHorizontal: 13,
+      paddingVertical: 11,
+      fontSize: 15,
+    },
+    multiline: { minHeight: 150, maxHeight: 180 },
+  });
+}

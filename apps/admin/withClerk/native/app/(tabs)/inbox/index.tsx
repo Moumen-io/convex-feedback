@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SearchBarCommands } from "react-native-screens";
 
-import { adminTheme } from "@/constants/AdminTheme";
+import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { feedbackHooks } from "@/lib/feedback";
 import { useToolbarIcon } from "@/lib/native-toolbar";
@@ -43,6 +43,8 @@ function searchText(event: unknown): string {
 export default function InboxScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
   const searchRef = useRef<SearchBarCommands>(null);
   const addIcon = useToolbarIcon("plus", "add");
   const filterIcon = useToolbarIcon(
@@ -82,8 +84,8 @@ export default function InboxScreen() {
           searchRef.current?.clearText();
         }}
         obscureBackground={false}
-        textColor={adminTheme.text}
-        tintColor={adminTheme.primary}
+        textColor={theme.text}
+        tintColor={theme.primary}
       />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
@@ -91,7 +93,7 @@ export default function InboxScreen() {
           variant="prominent"
           accessibilityLabel="Add feedback"
           onPress={() => router.push("/feedback/new")}
-          tintColor={adminTheme.primary}
+          tintColor={theme.primary}
         >
           New feedback
         </Stack.Toolbar.Button>
@@ -99,12 +101,12 @@ export default function InboxScreen() {
           icon={filterIcon}
           title="Filters"
           accessibilityLabel="Filters"
-          tintColor={adminTheme.text}
+          tintColor={theme.text}
         >
           <Stack.Toolbar.Menu
             title="Kind"
             accessibilityLabel="Kind"
-            tintColor={adminTheme.text}
+            tintColor={theme.text}
           >
             {kinds.map((value) => (
               <Stack.Toolbar.MenuAction
@@ -119,7 +121,7 @@ export default function InboxScreen() {
           <Stack.Toolbar.Menu
             title="Status"
             accessibilityLabel="Status"
-            tintColor={adminTheme.text}
+            tintColor={theme.text}
           >
             {statuses.map((value) => (
               <Stack.Toolbar.MenuAction
@@ -134,7 +136,7 @@ export default function InboxScreen() {
           <Stack.Toolbar.Menu
             title="Priority"
             accessibilityLabel="Priority"
-            tintColor={adminTheme.text}
+            tintColor={theme.text}
           >
             {priorities.map((value) => (
               <Stack.Toolbar.MenuAction
@@ -149,7 +151,7 @@ export default function InboxScreen() {
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       {page.status === "LoadingFirstPage" ? (
-        <ActivityIndicator style={styles.loader} color={adminTheme.primary} />
+        <ActivityIndicator style={styles.loader} color={theme.primary} />
       ) : (
         <FlatList
           data={entries}
@@ -201,7 +203,7 @@ export default function InboxScreen() {
             page.status === "LoadingMore" ? (
               <ActivityIndicator
                 style={styles.pageLoader}
-                color={adminTheme.primary}
+                color={theme.primary}
               />
             ) : null
           }
@@ -229,6 +231,9 @@ function EntryRow({
   entry: AdminFeedbackEntry;
   onPress: () => void;
 }) {
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
+
   return (
     <Pressable
       onPress={onPress}
@@ -255,44 +260,46 @@ function EntryRow({
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: adminTheme.background },
-  loader: { flex: 1 },
-  pageLoader: { paddingVertical: 20 },
-  list: { paddingTop: 8 },
-  emptyList: {
-    flexGrow: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  empty: { color: adminTheme.muted, textAlign: "center" },
-  entry: {
-    gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: adminTheme.border,
-    backgroundColor: adminTheme.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 15,
-  },
-  pressed: { opacity: 0.7 },
-  entryTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  entryTitle: {
-    flex: 1,
-    color: adminTheme.text,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  priority: {
-    color: adminTheme.primary,
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  body: { color: adminTheme.muted, fontSize: 14, lineHeight: 20 },
-  meta: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  metaText: {
-    color: adminTheme.muted,
-    fontSize: 11,
-    textTransform: "capitalize",
-  },
-});
+function createStyles(theme: AdminTheme) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: theme.background },
+    loader: { flex: 1 },
+    pageLoader: { paddingVertical: 20 },
+    list: { paddingTop: 8 },
+    emptyList: {
+      flexGrow: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    empty: { color: theme.muted, textAlign: "center" },
+    entry: {
+      gap: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.border,
+      backgroundColor: theme.surface,
+      paddingHorizontal: 14,
+      paddingVertical: 15,
+    },
+    pressed: { opacity: 0.7 },
+    entryTop: { flexDirection: "row", alignItems: "center", gap: 8 },
+    entryTitle: {
+      flex: 1,
+      color: theme.text,
+      fontSize: 15,
+      fontWeight: "600",
+    },
+    priority: {
+      color: theme.primary,
+      fontSize: 11,
+      fontWeight: "700",
+      textTransform: "uppercase",
+    },
+    body: { color: theme.muted, fontSize: 14, lineHeight: 20 },
+    meta: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+    metaText: {
+      color: theme.muted,
+      fontSize: 11,
+      textTransform: "capitalize",
+    },
+  });
+}

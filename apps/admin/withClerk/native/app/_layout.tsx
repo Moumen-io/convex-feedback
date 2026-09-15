@@ -147,6 +147,8 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
     <Stack
       screenOptions={{
         headerShadowVisible: false,
+        headerTintColor: theme.text,
+        headerTitleStyle: { color: theme.text },
         contentStyle: { backgroundColor: theme.background },
       }}
     >
@@ -192,6 +194,8 @@ function modalScreenOptions(
     headerShown: true,
     headerTransparent: true,
     headerBackVisible: false,
+    headerTintColor: theme.text,
+    headerTitleStyle: { color: theme.text },
     contentStyle: { backgroundColor: theme.background },
     sheetAllowedDetents: [0.65, 1],
     sheetGrabberVisible: true,

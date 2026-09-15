@@ -1,4 +1,4 @@
-[![npm version](https://badge.fury.io/js/convex-feedback.svg)](https://badge.fury.io/js/convex-feedback) [![Convex Component](https://www.convex.dev/components/badge/convex-feedback)](https://www.convex.dev/components/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
+![npm version](https://badge.fury.io/js/convex-feedback.svg) ![Convex Component](https://www.convex.dev/components/badge/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
 
 [Vite demo](https://convex-feedback-vite.vercel.app/) • [Expo demo](https://convex-feedback-expo.vercel.app/) • [React Native demo](https://convex-feedback-native.vercel.app/)
 
@@ -6,7 +6,9 @@
 
 A headless, fully typed Convex component for product feedback, feature requests, bug reports, entry upvotes, lazy nested comments, comment likes, full-text search, duplicate suggestions, and admin workflows.
 
-> Looking for a ready-made public interface? [`convex-feedback-ui`](../convex-feedback-ui/README.md) provides optional React DOM and React Native screens and compound primitives. For internal triage, fork the [Clerk admin panel](../../apps/admin/withClerk/README.md).
+> Looking for a ready-made public interface? `[convex-feedback-ui](../convex-feedback-ui/README.md)` provides optional React DOM and React Native screens and compound primitives. For internal triage, fork the [Clerk admin panel](../../apps/admin/withClerk/README.md).
+
+
 
 ## Features
 
@@ -34,11 +36,15 @@ The component owns four tables: `entries`, `comments`, `reactions`, and `roadmap
 - `convex` installed in the host project.
 - React is required only when using `convex-feedback/react`.
 
+
+
 ## Installation
 
 ```bash
 npm install convex-feedback
 ```
+
+
 
 ## 1. Install the component in Convex
 
@@ -61,6 +67,8 @@ Run Convex so the host application's component references are generated:
 ```bash
 npx convex dev
 ```
+
+
 
 ### Automatic `statusFilter` upgrade migration
 
@@ -136,6 +144,8 @@ export const {
 });
 ```
 
+
+
 ### Actor IDs
 
 `actor.id` should be stable for the same user.
@@ -152,6 +162,8 @@ return {
   isAdmin: await isFeedbackAdmin(ctx, identity.tokenIdentifier),
 };
 ```
+
+
 
 ## 3. Configure behavior
 
@@ -255,6 +267,8 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
 });
 ```
 
+
+
 ## 4. Create typed React hooks
 
 If your client uses React or React Native, bind the generated host API once. Calling `createFeedbackHooks()` without an API argument defaults to `anyApi.feedback`; pass the generated namespace explicitly when the component is exposed elsewhere:
@@ -305,8 +319,7 @@ mutation, so a caller that is not the entry author is rejected. Admins retain th
 
 ### Actor-scoped activity
 
-The host wrapper also exposes cursor-paginated activity queries for the
-authenticated actor:
+The host wrapper also exposes cursor-paginated activity queries for the authenticated actor:
 
 ```ts
 const userEntries = await listUserEntries({
@@ -320,22 +333,66 @@ const userReactions = await listUserReactions({
 });
 ```
 
-These wrappers do not accept an `actorId`; they always use the actor returned
-by the configured host callback. Entries include their own content, status,
-timestamps, and counts. Comments include the retained body (including a
-soft-deleted body when it remains stored), `parentCommentId`, and the parent
-entry title without loading a parent-comment body.
+A trusted Convex function can compose these wrappers through the generated host API. `ctx.runQuery` keeps the caller's authentication context, so the configured actor callback still selects the actor and no `actorId` is passed:
 
-Reaction results are discriminated by `type` (`"entry_upvote"` or
-`"comment_like"`) and include reaction creation time plus resolved target
-context. Deleted or orphaned targets are represented with `null` context so a
-page remains readable.
+```ts
+import { api } from "./_generated/api";
+import { query } from "./_generated/server";
 
-Trusted server consumers can call the component-level actor query directly
-with a known `actorId`. `entries.listByActor` additionally accepts
-`includeAdminContext: true` when an export or other server-side workflow needs
-retained metadata, priority, or roadmap context; the normal `listUserEntries`
-wrapper always strips those private fields.
+export const getMyActivity = query({
+  args: {},
+  handler: async (ctx) => {
+    const entryQuery = api.feedback.listUserEntries;
+    const commentQuery = api.feedback.listUserComments;
+    const reactionQuery = api.feedback.listUserReactions;
+    const opts = { cursor: null, numItems: 20 };
+    const entries = await ctx.runQuery(entryQuery, { paginationOpts: opts });
+    const comments = await ctx.runQuery(commentQuery, { paginationOpts: opts });
+    const reactions = await ctx.runQuery(reactionQuery, { paginationOpts: opts });
+    return { entries, comments, reactions };
+  },
+});
+```
+
+These wrappers do not accept an `actorId`; they always use the actor returned by the configured host callback. Entries include their own content, status, timestamps, and counts. Comments include the retained body (including a soft-deleted body when it remains stored), `parentCommentId`, and the parent entry title without loading a parent-comment body.
+
+Reaction results are discriminated by `type` (`"entry_upvote"` or `"comment_like"`) and include reaction creation time plus resolved target context. Deleted or orphaned targets are represented with `null` context so a page remains readable.
+
+Trusted server consumers can call the component-level actor query directly with a known `actorId`. `entries.listByActor` additionally accepts `includeAdminContext: true` when an export or other server-side workflow needs retained metadata, priority, or roadmap context; the normal `listUserEntries` wrapper always strips those private fields.
+
+For example, an internal Convex function can query all three activity feeds for a known actor without requiring request authentication:
+
+```ts
+import { components } from "./_generated/api";
+import { internalQuery } from "./_generated/server";
+import { v } from "convex/values";
+
+export const getActorActivity = internalQuery({
+  args: { actorId: v.string() },
+  handler: async (ctx, args) => {
+    const opts = { cursor: null, numItems: 100 };
+    const entries = await ctx.runQuery(components.feedback.entries.listByActor, {
+      actorId: args.actorId,
+      paginationOpts: opts,
+      includeAdminContext: true
+    });
+
+    const comments = await ctx.runQuery(components.feedback.comments.listByActor, {
+      actorId: args.actorId,
+      paginationOpts: opts
+      });
+      
+    const reactions = await ctx.runQuery(components.feedback.reactions.listByActor, {
+      actorId: args.actorId,
+      paginationOpts: opts
+      });
+      
+    return { entries, comments, reactions };
+  },
+});
+```
+
+
 
 ## Admin panel
 
@@ -361,11 +418,15 @@ Admin entries may have an optional `low`, `medium`, or `high` priority and one r
 
 ## Entry kinds and statuses
 
+
+
 ### Kinds
 
 ```ts
 type EntryKind = "feedback" | "feature_request" | "bug_report";
 ```
+
+
 
 ### Statuses
 
@@ -478,6 +539,7 @@ The mutation result uses `active` to report the authoritative final state return
 
 The wrapper exposes:
 
+
 | Function                | Type     | Purpose                                              |
 | ----------------------- | -------- | ---------------------------------------------------- |
 | `listEntries`           | query    | Paginated entry list with server-side filters/sort   |
@@ -498,6 +560,7 @@ The wrapper exposes:
 | `deleteComment`         | mutation | Soft-delete a comment                                |
 | `setCommentLike`        | mutation | Idempotently set comment like state                  |
 | `createRoadmapForEntry` | mutation | Create a roadmap item and attach an entry atomically |
+
 
 The same wrapper exposes `isAdmin`, cursor-paginated admin list/search queries, admin detail, priority updates, cursor-paginated public roadmap lists, roadmap search/reordering functions, and feedback-to-roadmap attachment functions. Roadmap reads and attached public entries are unauthenticated; roadmap mutations and admin operations resolve the host actor. `isAdmin` and `isAuthenticated` return booleans instead of rejecting a caller. Bounded limits remain on suggestion-style full-text searches such as the roadmap selector.
 
@@ -522,6 +585,8 @@ import type { ComponentApi } from "convex-feedback/_generated/component";
 import feedbackTest from "convex-feedback/test";
 ```
 
+
+
 ## Testing host integrations
 
 The package exposes a `/test` entry point for `convex-test`.
@@ -542,9 +607,11 @@ Use host-level tests when you need to verify your authentication wrapper and pub
 
 ## UI package
 
+
 | Expo                                                                                                | React Native                                                                                                  |
 | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | ![Expo](https://raw.githubusercontent.com/Moumen-io/convex-feedback/main/docs/screenshots/expo.png) | ![React Native](https://raw.githubusercontent.com/Moumen-io/convex-feedback/main/docs/screenshots/native.png) |
+
 
 `convex-feedback` is intentionally headless. For a complete board or customizable primitives, install:
 

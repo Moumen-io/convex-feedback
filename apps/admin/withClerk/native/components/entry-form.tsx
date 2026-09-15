@@ -1,7 +1,15 @@
 import type { AdminFeedbackEntry, EntryKind } from "convex-feedback";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { adminTheme } from "@/constants/AdminTheme";
@@ -97,58 +105,69 @@ export function EntryForm({ entry }: { entry?: AdminFeedbackEntry }) {
           Save
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <ScrollView
+      <KeyboardAvoidingView
         style={styles.screen}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingLeft: 22 + insets.left,
-            paddingRight: 22 + insets.right,
-            paddingBottom: 32,
-          },
-        ]}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <Text style={styles.description}>
-          {isEdit
-            ? "Update the entry details, including its category."
-            : "Capture a new customer signal for the inbox."}
-        </Text>
-        <View style={styles.field}>
-          <Text style={styles.label}>Kind</Text>
-          <Text style={styles.value}>
-            {kinds.find((option) => option.value === kind)?.label}
+        <ScrollView
+          style={styles.scroll}
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={
+            Platform.OS === "ios" ? "interactive" : "on-drag"
+          }
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingLeft: 22 + insets.left,
+              paddingRight: 22 + insets.right,
+              paddingBottom: 32,
+            },
+          ]}
+        >
+          <Text style={styles.description}>
+            {isEdit
+              ? "Update the entry details, including its category."
+              : "Capture a new customer signal for the inbox."}
           </Text>
-          <Text style={styles.hint}>Change it from the native Kind menu.</Text>
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Title</Text>
-          <TextInput
-            autoFocus={!isEdit}
-            editable={!action.pending}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Title"
-            placeholderTextColor={adminTheme.muted}
-            style={styles.input}
-            returnKeyType="next"
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Description</Text>
-          <TextInput
-            editable={!action.pending}
-            value={body}
-            onChangeText={setBody}
-            placeholder="Description"
-            placeholderTextColor={adminTheme.muted}
-            style={[styles.input, styles.multiline]}
-            multiline
-            textAlignVertical="top"
-          />
-        </View>
-      </ScrollView>
+          <View style={styles.field}>
+            <Text style={styles.label}>Kind</Text>
+            <Text style={styles.value}>
+              {kinds.find((option) => option.value === kind)?.label}
+            </Text>
+            <Text style={styles.hint}>
+              Change it from the native Kind menu.
+            </Text>
+          </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Title</Text>
+            <TextInput
+              autoFocus={!isEdit}
+              editable={!action.pending}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Title"
+              placeholderTextColor={adminTheme.muted}
+              style={styles.input}
+              returnKeyType="next"
+            />
+          </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Description</Text>
+            <TextInput
+              editable={!action.pending}
+              value={body}
+              onChangeText={setBody}
+              placeholder="Description"
+              placeholderTextColor={adminTheme.muted}
+              style={[styles.input, styles.multiline]}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 }

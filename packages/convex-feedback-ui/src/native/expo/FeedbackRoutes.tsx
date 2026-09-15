@@ -1,8 +1,7 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Fragment } from "react";
-import { useEffect, useRef, useState } from "react";
-import type { SearchBarCommands } from "react-native-screens";
 import type { EntryKind } from "convex-feedback";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Fragment, useEffect, useRef, useState } from "react";
+import type { SearchBarCommands } from "react-native-screens";
 
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider.js";
@@ -12,17 +11,18 @@ import {
   entryStatusChoices,
 } from "../../shared/helpers.js";
 import { EntryDetail } from "../shared/ui/EntryDetail.js";
-import { EditEntryStackScreen } from "./EditEntryScreen.js";
 import { FeedbackScreenList } from "../shared/ui/FeedbackScreenList.js";
 import { CreateEntryForm } from "../shared/ui/NewEntry.js";
 import { FeedbackBoard } from "../shared/ui/primitives.js";
+import { EditEntryStackScreen } from "./EditEntryScreen.js";
+import { useRoutedFeedback } from "./RoutedFeedbackContext.js";
+import { useRoutedFeedbackModal } from "./RoutedFeedbackModalContext.js";
 import {
   feedbackBoardRouteHref,
   feedbackEditRouteHref,
+  feedbackEntryRouteHref,
   feedbackRouteHref,
 } from "./routes.js";
-import { useRoutedFeedbackModal } from "./RoutedFeedbackModalContext.js";
-import { useRoutedFeedback } from "./RoutedFeedbackContext.js";
 
 export function FeedbackBoardScreen() {
   const {
@@ -56,7 +56,7 @@ export function FeedbackBoardScreen() {
     if ((query || isSearching) && searchRef.current) {
       searchRef.current.blur();
     }
-    router.push(feedbackRouteHref(routes.entry, { entryId }), {
+    router.push(feedbackEntryRouteHref(routes.entry, { entryId }), {
       relativeToDirectory: true,
     });
   };
@@ -292,7 +292,7 @@ export function CreateFeedbackScreen() {
   const [body, setBody] = useState("");
 
   const entryHref = (entryId: string) =>
-    feedbackRouteHref(`../${routes.entry}`, { entryId });
+    feedbackEntryRouteHref(`../${routes.entry}`, { entryId });
 
   return (
     <>

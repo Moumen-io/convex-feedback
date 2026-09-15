@@ -68,6 +68,14 @@ export function feedbackRouteHref(
   return params === undefined ? pathname : { pathname, params };
 }
 
+/** Build the canonical href for an entry route whose file may be `index.tsx`. */
+export function feedbackEntryRouteHref(
+  route: string,
+  params?: Record<string, string>,
+): Href {
+  return feedbackRouteHref(route.replace(/\/index$/, ""), params);
+}
+
 /** Build the edit child href from an entry-detail route. */
 export function feedbackEditRouteHref(route: string): Href {
   const marker = "[entryId]";

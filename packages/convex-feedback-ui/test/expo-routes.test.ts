@@ -1,15 +1,16 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  feedbackBoardRouteHref,
   createFeedbackStackSettings,
+  createRoadmapStackSettings,
   defaultFeedbackRoutes,
-  feedbackEditRouteHref,
+  defaultRoadmapRoutes,
+  feedbackBoardRouteHref,
   feedbackCreateStackSettings,
+  feedbackEditRouteHref,
+  feedbackEntryRouteHref,
   feedbackRouteHref,
   feedbackStackSettings,
-  createRoadmapStackSettings,
-  defaultRoadmapRoutes,
   resolveFeedbackRoutes,
   resolveRoadmapRoutes,
   roadmapRouteHref,
@@ -72,6 +73,18 @@ describe("Expo routed feedback contracts", () => {
   test("builds relative route hrefs with optional parameters", () => {
     expect(feedbackRouteHref("new")).toBe("./new");
     expect(feedbackRouteHref("./new")).toBe("./new");
+    expect(
+      feedbackEntryRouteHref("[entryId]/index", { entryId: "entry-1" }),
+    ).toEqual({
+      pathname: "./[entryId]",
+      params: { entryId: "entry-1" },
+    });
+    expect(
+      feedbackEntryRouteHref("entry/[entryId]", { entryId: "entry-1" }),
+    ).toEqual({
+      pathname: "./entry/[entryId]",
+      params: { entryId: "entry-1" },
+    });
     expect(
       feedbackRouteHref("entry/[entryId]", { entryId: "entry-1" }),
     ).toEqual({

@@ -13,11 +13,11 @@ export default function TabLayout() {
       disableTransparentOnScrollEdge
     >
       <NativeTabs.Trigger name="inbox" disableAutomaticContentInsets>
-        <NativeTabs.Trigger.Label>Inbox</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label hidden>Inbox</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="tray.full.fill" md="inbox" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="roadmap" disableAutomaticContentInsets>
-        <NativeTabs.Trigger.Label>Roadmap</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label hidden>Roadmap</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="map.fill" md="map" />
       </NativeTabs.Trigger>
     </NativeTabs>

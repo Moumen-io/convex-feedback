@@ -69,7 +69,7 @@
   width: 100%;
   border: 1px solid var(--cf-border);
   border-radius: calc(var(--cf-radius) * 0.75);
-  background: var(--cf-surface);
+  background: var(--cf-input);
   color: var(--cf-text);
   padding: 10px 12px;
   font: inherit;
@@ -94,6 +94,132 @@
   border-radius: var(--cf-radius);
   background: var(--cf-surface);
 }
+:where(.cf-board) :where(.cf-roadmap-card) {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid var(--cf-border);
+  border-radius: calc(var(--cf-radius) * 0.9);
+  padding: 14px;
+  background: var(--cf-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+:where(.cf-board) :where(.cf-roadmap-card:hover) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--cf-primary) 35%, var(--cf-border));
+  box-shadow: 0 8px 20px rgb(20 20 35 / 0.06);
+}
+:where(.cf-board) :where(.cf-roadmap-card:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--cf-primary) 25%, transparent);
+  outline-offset: 2px;
+}
+:where(.cf-board) :where(.cf-roadmap-board) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: var(--cf-space);
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-border);
+}
+:where(.cf-board) :where(.cf-roadmap-column) {
+  min-width: 0;
+  background: var(--cf-background);
+}
+:where(.cf-board) :where(.cf-roadmap-column__header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 58px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--cf-border);
+  background: color-mix(in srgb, var(--cf-background) 94%, var(--cf-surface));
+}
+:where(.cf-board) :where(.cf-roadmap-column__heading) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+:where(.cf-board) :where(.cf-roadmap-column__heading h3) {
+  margin: 0;
+  font-size: 0.9rem;
+}
+:where(.cf-board) :where(.cf-roadmap-column__count),
+:where(.cf-board) :where(.cf-roadmap-card__count) {
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+:where(.cf-board) :where(.cf-roadmap-column__list) {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 180px;
+  padding: 10px;
+}
+:where(.cf-board) :where(.cf-roadmap-column__empty) {
+  margin: 0;
+  padding: 28px 10px;
+  color: var(--cf-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  text-align: center;
+}
+:where(.cf-board) :where(.cf-roadmap-status__dot) {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--cf-primary);
+}
+:where(.cf-board) :where(.cf-roadmap-status) {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--cf-surface-muted);
+  color: var(--cf-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+:where(.cf-board) :where(.cf-roadmap-card__meta) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+:where(.cf-board) :where(.cf-roadmap-card__title) {
+  font-size: 1rem;
+  line-height: 1.35;
+}
+:where(.cf-board) :where(.cf-roadmap-card__body) {
+  overflow: hidden;
+  color: var(--cf-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+:where(.cf-board) :where(.cf-roadmap-card__link) {
+  color: var(--cf-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+:where(.cf-board) :where(.cf-roadmap-detail__header) {
+  display: grid;
+  gap: 10px;
+}
 :where(.cf-board) :where(.cf-entry__content) {
   min-width: 0;
   cursor: pointer;
@@ -101,6 +227,12 @@
 :where(.cf-board) :where(.cf-entry__title) {
   margin: 5px 0 3px;
   font-size: 1rem;
+}
+:where(.cf-board) :where(.cf-roadmap-entry__content .cf-entry__title) {
+  overflow: hidden;
+  display: -webkit-box;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
 }
 :where(.cf-board) :where(.cf-entry__body) {
   margin: 0;
@@ -115,6 +247,12 @@
   flex-wrap: wrap;
   color: var(--cf-muted);
   font-size: 0.8rem;
+}
+:where(.cf-board) :where(.cf-entry__detail-header) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 :where(.cf-board) :where(.cf-entry__kind) {
   color: var(--cf-muted);
@@ -174,6 +312,11 @@
   padding-inline: 0;
   background: transparent;
   color: var(--cf-primary);
+}
+:where(.cf-board) :where(.cf-button:disabled),
+:where(.cf-board) :where(.cf-upvote:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 :where(.cf-board) :where(.cf-form) {
   display: grid;
@@ -243,6 +386,36 @@
   display: grid;
   gap: 14px;
 }
+:where(.cf-board) :where(.cf-roadmap-meta) {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.82rem;
+}
+:where(.cf-board) :where(.cf-roadmap-meta > div) {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 8px;
+}
+:where(.cf-board) :where(.cf-roadmap-meta dt) {
+  font-weight: 600;
+}
+:where(.cf-board) :where(.cf-roadmap-meta dd) {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+:where(.cf-board) :where(.cf-action-error) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--cf-danger) 35%, var(--cf-border));
+  border-radius: 8px;
+  color: var(--cf-danger);
+  font-size: 0.82rem;
+}
 :where(.cf-board) :where(.cf-discussion) {
   margin-top: 8px;
 }
@@ -306,6 +479,10 @@
     width: 40px;
     min-height: 48px;
   }
+  :where(.cf-board) :where(.cf-roadmap-board) {
+    grid-template-columns: repeat(3, minmax(17rem, 1fr));
+    overflow-x: auto;
+  }
 }
 :where(.cf-board) :where(.cf-confirm-backdrop) {
   position: fixed;
@@ -333,6 +510,40 @@
   margin: 0;
   color: var(--cf-muted);
   line-height: 1.5;
+}
+
+:where(.cf-board) :where(.cf-edit-dialog) {
+  width: min(100%, 560px);
+  max-height: min(90vh, 720px);
+  overflow: auto;
+}
+
+:where(.cf-board) :where(.cf-edit-dialog h3) {
+  margin: 0;
+}
+
+:where(.cf-board) :where(.cf-edit-form) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+:where(.cf-board) :where(.cf-edit-entry__kind) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--cf-border);
+  border-radius: calc(var(--cf-radius) * 0.75);
+  background: var(--cf-surface-muted);
+  color: var(--cf-muted);
+  font-size: 0.86rem;
+}
+
+:where(.cf-board) :where(.cf-edit-entry__kind strong) {
+  color: var(--cf-text);
 }
 
 :where(.cf-board) :where(.cf-metadata-dialog) {

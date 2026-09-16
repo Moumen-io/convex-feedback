@@ -1,19 +1,28 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Fragment } from "react";
-import { useEffect, useRef, useState } from "react";
-import type { SearchBarCommands } from "react-native-screens";
 import type { EntryKind } from "convex-feedback";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Fragment, useEffect, useRef, useState } from "react";
+import type { SearchBarCommands } from "react-native-screens";
 
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider.js";
-import { createEntryLabel, entryStatusChoices } from "../../shared/helpers.js";
+import {
+  allowAuthenticatedAction,
+  createEntryLabel,
+  entryStatusChoices,
+} from "../../shared/helpers.js";
 import { EntryDetail } from "../shared/ui/EntryDetail.js";
 import { FeedbackScreenList } from "../shared/ui/FeedbackScreenList.js";
 import { CreateEntryForm } from "../shared/ui/NewEntry.js";
 import { FeedbackBoard } from "../shared/ui/primitives.js";
-import { feedbackRouteHref } from "./routes.js";
-import { useRoutedFeedbackModal } from "./RoutedFeedbackModalContext.js";
+import { EditEntryStackScreen } from "./EditEntryScreen.js";
 import { useRoutedFeedback } from "./RoutedFeedbackContext.js";
+import { useRoutedFeedbackModal } from "./RoutedFeedbackModalContext.js";
+import {
+  feedbackBoardRouteHref,
+  feedbackEditRouteHref,
+  feedbackEntryRouteHref,
+  feedbackRouteHref,
+} from "./routes.js";
 
 export function FeedbackBoardScreen() {
   const {
@@ -24,6 +33,8 @@ export function FeedbackBoardScreen() {
     enabledKinds,
     statusFilter,
     setStatusFilter,
+    isAuthenticated,
+    onUnauthenticated,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const {
@@ -45,7 +56,7 @@ export function FeedbackBoardScreen() {
     if ((query || isSearching) && searchRef.current) {
       searchRef.current.blur();
     }
-    router.push(feedbackRouteHref(routes.entry, { entryId }), {
+    router.push(feedbackEntryRouteHref(routes.entry, { entryId }), {
       relativeToDirectory: true,
     });
   };
@@ -72,11 +83,15 @@ export function FeedbackBoardScreen() {
           }
           variant="prominent"
           accessibilityLabel={createEntryLabel(enabledKinds, messages)}
-          onPress={() =>
+          disabled={isAuthenticated === undefined}
+          onPress={() => {
+            if (!allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) {
+              return;
+            }
             router.push(feedbackRouteHref(routes.create), {
               relativeToDirectory: true,
-            })
-          }
+            });
+          }}
           tintColor={theme.colors.primary}
         >
           {createEntryLabel(enabledKinds, messages)}
@@ -100,7 +115,12 @@ export function FeedbackBoardScreen() {
       <Stack.SearchBar
         ref={searchRef}
         placeholder={messages.board.searchPlaceholder}
-        onChangeText={(event) => setQuery(event.nativeEvent.text)}
+        onChangeText={(event) =>
+          setQuery(
+            (event as unknown as { nativeEvent: { text: string } }).nativeEvent
+              .text,
+          )
+        }
         onFocus={() => setIsSearching(true)}
         onBlur={() => setIsSearching(query.trim().length > 0)}
         obscureBackground={false}
@@ -155,39 +175,105 @@ export function FeedbackEntryScreen() {
   return <FeedbackEntryRouteContent entryId={entryId} />;
 }
 
-function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
+export function FeedbackEditScreen() {
+  const params = useLocalSearchParams<{
+    entryId?: string | string[];
+  }>();
+  const entryId = Array.isArray(params.entryId)
+    ? params.entryId[0]
+    : params.entryId;
+
+  if (!entryId) {
+    throw new Error(
+      'FeedbackEditScreen requires an "entryId" dynamic route parameter.',
+    );
+  }
+
+  return <FeedbackEditRouteContent entryId={entryId} />;
+}
+
+function FeedbackEditRouteContent({ entryId }: { entryId: string }) {
   const { hooks } = useFeedbackBody();
-  const { messages, theme } = useFeedbackUi();
-  const { colors, androidToolbarIcons } = useRoutedFeedback();
-  const modal = useRoutedFeedbackModal();
+  const { androidToolbarIcons, colors } = useRoutedFeedback();
   const router = useRouter();
   const entry = hooks.useEntry(entryId);
 
   return (
+    <EditEntryStackScreen
+      entry={entry}
+      onRequestClose={() => router.back()}
+      colors={colors}
+      androidToolbarIcons={androidToolbarIcons}
+    />
+  );
+}
+
+function FeedbackEntryRouteContent({ entryId }: { entryId: string }) {
+  const { hooks } = useFeedbackBody();
+  const { messages, theme } = useFeedbackUi();
+  const { routes, colors, androidToolbarIcons } = useRoutedFeedback();
+  const router = useRouter();
+  const entry = hooks.useEntry(entryId);
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace(feedbackBoardRouteHref(routes.entry, routes.board), {
+        relativeToDirectory: true,
+      });
+    }
+  };
+
+  return (
     <>
-      {entry && <Stack.Screen options={{ headerTitle: entry.title }} />}
+      <Stack.Screen
+        options={{
+          headerTitle: entry?.title ?? messages.board.title,
+          headerBackVisible: false,
+        }}
+      />
       <FeedbackBoard.Root {...colors}>
         <FeedbackBoard.List style={{ padding: theme.spacing }}>
           <EntryDetail
             entryId={entryId}
             hideBackButton
-            onBack={() => router.back()}
+            hideEditButton
+            onBack={goBack}
           />
         </FeedbackBoard.List>
       </FeedbackBoard.Root>
-      {modal && (
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "chevron.backward"
+              : androidToolbarIcons.back
+          }
+          accessibilityLabel={messages.entry.back}
+          onPress={goBack}
+          tintColor={theme.colors.text}
+        >
+          {messages.entry.back}
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      {entry?.viewerIsAuthor === true && (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
             icon={
               process.env.EXPO_OS === "ios"
-                ? "xmark"
-                : androidToolbarIcons.close
+                ? "pencil"
+                : androidToolbarIcons.edit
             }
-            accessibilityLabel={messages.form.cancel}
-            onPress={modal.dismiss}
-            tintColor={theme.colors.text}
+            accessibilityLabel={messages.entry.edit}
+            onPress={() =>
+              router.push(feedbackEditRouteHref(routes.edit), {
+                relativeToDirectory: true,
+              })
+            }
+            tintColor={theme.colors.primary}
           >
-            {messages.form.cancel}
+            {messages.entry.edit}
           </Stack.Toolbar.Button>
         </Stack.Toolbar>
       )}
@@ -206,7 +292,7 @@ export function CreateFeedbackScreen() {
   const [body, setBody] = useState("");
 
   const entryHref = (entryId: string) =>
-    feedbackRouteHref(routes.entry, { entryId });
+    feedbackEntryRouteHref(`../${routes.entry}`, { entryId });
 
   return (
     <>
@@ -228,7 +314,9 @@ export function CreateFeedbackScreen() {
               router.push(entryHref(entryId), { relativeToDirectory: true })
             }
             onCreated={(entryId) => {
-              router.dismissTo(entryHref(entryId));
+              router.dismissTo(entryHref(entryId), {
+                relativeToDirectory: true,
+              });
             }}
           />
         </FeedbackBoard.List>

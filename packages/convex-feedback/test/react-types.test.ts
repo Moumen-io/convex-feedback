@@ -35,9 +35,11 @@ declare const generatedApi: GeneratedApi;
 declare const generatedReturningApi: GeneratedReturningApi;
 
 function assertHookTypes() {
+  const defaultHooks = createFeedbackHooks();
   const throwingHooks = createFeedbackHooks(generatedApi.feedback);
   const returningHooks = createFeedbackHooks(generatedReturningApi.feedback);
 
+  expectTypeOf(defaultHooks).toEqualTypeOf<FeedbackHooks>();
   expectTypeOf(throwingHooks).toEqualTypeOf<FeedbackHooks>();
   expectTypeOf(returningHooks).toEqualTypeOf<
     FeedbackHooks<{ kind: "rate_limited" }>

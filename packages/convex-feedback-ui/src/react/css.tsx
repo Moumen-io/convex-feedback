@@ -11,6 +11,7 @@ export interface FeedbackCssVariables extends CSSProperties {
   "--cf-primary"?: string;
   "--cf-background"?: string;
   "--cf-surface"?: string;
+  "--cf-input"?: string;
   "--cf-surface-muted"?: string;
   "--cf-text"?: string;
   "--cf-muted"?: string;
@@ -29,6 +30,7 @@ export function feedbackCssVariables(
     "--cf-primary": colors.primaryColor ?? theme.colors.primary,
     "--cf-background": colors.backgroundColor ?? theme.colors.background,
     "--cf-surface": colors.surfaceColor ?? theme.colors.surface,
+    "--cf-input": colors.inputColor ?? theme.colors.input,
     "--cf-surface-muted": theme.colors.surfaceMuted,
     "--cf-text": colors.textColor ?? theme.colors.text,
     "--cf-muted": colors.mutedColor ?? theme.colors.mutedText,

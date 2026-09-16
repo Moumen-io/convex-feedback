@@ -12,10 +12,12 @@ import {
 
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider";
+import { allowAuthenticatedAction } from "../../../shared/helpers.js";
 import type { FeedbackScreenEntryModalProps } from "../../../shared/types";
 import { collectEntryMetadata } from "../../../shared/metadata";
 import { EntryDetail } from "./EntryDetail";
 import { ChoiceChips, FeedbackForm } from "./primitives";
+import { useNativeAction } from "../helpers.js";
 
 export function CreateEntryModal({
   onRequestClose,
@@ -167,11 +169,17 @@ export function CreateEntryForm({
   onBodyChange: (body: string) => void;
   onOpenSuggestion: (id: string) => void;
 }) {
-  const { hooks, enabledKinds, collectMetadata, collectStandardMetadata } =
-    useFeedbackBody();
+  const {
+    hooks,
+    enabledKinds,
+    collectMetadata,
+    collectStandardMetadata,
+    isAuthenticated,
+    onUnauthenticated,
+  } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
-  const [submitting, setSubmitting] = useState(false);
   const create = hooks.useCreateEntry();
+  const action = useNativeAction();
   const similar = hooks.useSimilarEntries({ title, body, kind, limit: 3 });
 
   const suggestions = useMemo(() => {
@@ -180,13 +188,16 @@ export function CreateEntryForm({
   }, [similar]);
 
   const submit = async () => {
-    if (submitting || title.trim().length === 0 || body.trim().length === 0) {
+    if (
+      action.pending ||
+      title.trim().length === 0 ||
+      body.trim().length === 0
+    ) {
       return;
     }
+    if (!allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) return;
 
-    setSubmitting(true);
-
-    try {
+    await action.run(async () => {
       const metadata = await collectEntryMetadata(
         collectMetadata,
         kind,
@@ -200,14 +211,12 @@ export function CreateEntryForm({
           ...(metadata === undefined ? {} : { metadata }),
         }),
       );
-    } finally {
-      setSubmitting(false);
-    }
+    }, "Could not submit feedback");
   };
 
   const requestSubmit = () => {
     if (
-      submitting ||
+      action.pending ||
       similar === undefined ||
       title.trim().length === 0 ||
       body.trim().length === 0
@@ -365,7 +374,11 @@ export function CreateEntryForm({
           ))}
         </View>
       ) : null}
-      <FeedbackForm.Submit submitting={submitting} onPress={requestSubmit} />
+      <FeedbackForm.Submit
+        submitting={action.pending}
+        disabled={isAuthenticated === undefined || action.pending}
+        onPress={requestSubmit}
+      />
     </FeedbackForm.Root>
   );
 }

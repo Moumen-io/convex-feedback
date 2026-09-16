@@ -6,6 +6,7 @@ export const defaultFeedbackTheme: FeedbackTheme = {
     primaryForeground: "#ffffff",
     background: "#ffffff",
     surface: "#ffffff",
+    input: "#ffffff",
     surfaceMuted: "#f6f6f8",
     text: "#17171a",
     mutedText: "#68686f",

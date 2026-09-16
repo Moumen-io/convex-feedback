@@ -65,6 +65,10 @@ import { FeedbackScreen } from "convex-feedback-ui/native";
 
 See **[convex-feedback-ui](./packages/convex-feedback-ui/README.md)** for web/native setup, theming, localization, compound primitives, and custom component rendering.
 
+### Admin panel
+
+Fork either standalone Clerk reference app under [`apps/admin/withClerk`](./apps/admin/withClerk/README.md): a Vite + Tailwind + shadcn web app or an Expo app using native tabs. Expose the complete host feedback API, return `isAdmin` from the host actor resolver, copy the selected app's `.env.example`, and set its Convex and Clerk variables before deploying. Priority remains internal; roadmap data is available through the public roadmap API and does not alter the public feedback UI.
+
 ## Packages
 
 | Package                                                       | Purpose                                         |
@@ -72,7 +76,7 @@ See **[convex-feedback-ui](./packages/convex-feedback-ui/README.md)** for web/na
 | [convex-feedback](./packages/convex-feedback/README.md)       | Headless Convex component and typed React hooks |
 | [convex-feedback-ui](./packages/convex-feedback-ui/README.md) | Optional React DOM and React Native UI          |
 
-The repository also contains a shared example backend and deployable web/native demos under `packages/example-*`.
+The repository also contains a shared example backend and deployable public web/native demos under `packages/example-*`, plus the standalone [Clerk admin clients](./apps/admin/withClerk/README.md).
 
 ## Reporting bugs and issues
 

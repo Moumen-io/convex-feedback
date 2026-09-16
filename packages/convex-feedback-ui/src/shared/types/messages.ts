@@ -1,4 +1,4 @@
-import type { EntryKind, EntryStatus } from "convex-feedback";
+import type { EntryKind, EntryStatus, RoadmapStatus } from "convex-feedback";
 
 /**
  * Localizable package-owned UI copy used by both React DOM and React Native.
@@ -40,6 +40,39 @@ export interface FeedbackMessages {
     loadMore: string;
   };
 
+  /** Public roadmap copy. */
+  roadmap: {
+    /** Main roadmap heading. */
+    title: string;
+
+    /** Supporting copy shown near the roadmap heading. */
+    subtitle: string;
+
+    /** Search input placeholder. */
+    searchPlaceholder: string;
+
+    /** Display labels for each roadmap stage. */
+    statuses: Record<RoadmapStatus, string>;
+
+    /** Formats the number of feedback items attached to an item. */
+    linkedEntries: (count: number) => string;
+
+    /** Empty-state copy for a roadmap stage column. */
+    emptyStage: string;
+
+    /** Empty-state copy when the roadmap has no items. */
+    noItems: string;
+
+    /** Empty-state copy when a search produces no results. */
+    noSearchResults: string;
+
+    /** Heading for feedback shown on a roadmap item. */
+    attachedFeedback: string;
+
+    /** Empty-state copy when an item has no attached feedback. */
+    noAttachedFeedback: string;
+  };
+
   /** Localized display labels for each fixed entry kind. */
   kinds: Record<EntryKind, string>;
 
@@ -66,11 +99,14 @@ export interface FeedbackMessages {
     /** Label for opening an entry. */
     open: string;
 
+    /** Label for editing an entry authored by the current viewer. */
+    edit: string;
+
     /** Label for returning to the feedback list. */
     back: string;
   };
 
-  /** Moderator-only diagnostic metadata copy. */
+  /** Admin-only diagnostic metadata copy. */
   metadata: {
     /** Action that opens the metadata viewer. */
     view: string;
@@ -91,7 +127,7 @@ export interface FeedbackMessages {
     close: string;
   };
 
-  /** Create-entry form copy. */
+  /** Entry form copy. */
   form: {
     /** Entry-kind field label. */
     kind: string;
@@ -110,6 +146,24 @@ export interface FeedbackMessages {
 
     /** Create-entry submit CTA. */
     submit: string;
+
+    /** Heading for the entry-edit form. */
+    editTitle: string;
+
+    /** Supporting copy for the entry-edit form. */
+    editDescription: string;
+
+    /** Entry-edit submit CTA. */
+    saveChanges: string;
+
+    /** Native error-dialog title for an entry edit failure. */
+    editError: string;
+
+    /** Empty state shown when an entry cannot be loaded for editing. */
+    editNotFound: string;
+
+    /** Retry action shown after an entry edit failure. */
+    retry: string;
 
     /** Generic form/dialog cancel action. */
     cancel: string;
@@ -176,6 +230,13 @@ export interface FeedbackMessageOverrides {
   /** Board copy overrides. */
   board?: Partial<FeedbackMessages["board"]> | undefined;
 
+  /** Roadmap copy overrides. */
+  roadmap?:
+    | (Omit<Partial<FeedbackMessages["roadmap"]>, "statuses"> & {
+        statuses?: Partial<FeedbackMessages["roadmap"]["statuses"]>;
+      })
+    | undefined;
+
   /** Entry-kind label overrides. */
   kinds?: Partial<FeedbackMessages["kinds"]> | undefined;
 
@@ -194,7 +255,7 @@ export interface FeedbackMessageOverrides {
   /** Diagnostic metadata copy overrides. */
   metadata?: Partial<FeedbackMessages["metadata"]> | undefined;
 
-  /** Create-entry form copy overrides. */
+  /** Entry form copy overrides. */
   form?: Partial<FeedbackMessages["form"]> | undefined;
 
   /** Comment-thread copy overrides. */

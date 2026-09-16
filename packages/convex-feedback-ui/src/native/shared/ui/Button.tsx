@@ -5,16 +5,19 @@ export function Button({
   label,
   onPress,
   variant = "default",
+  disabled = false,
 }: {
   label: string;
   onPress: () => void;
   variant?: "default" | "primary";
+  disabled?: boolean;
 }) {
   const { theme } = useFeedbackUi();
   const primary = variant === "primary";
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={{
         alignSelf: primary ? "center" : "flex-start",
         paddingVertical: 8,
@@ -23,6 +26,7 @@ export function Button({
         borderWidth: 1,
         borderColor: primary ? theme.colors.primary : theme.colors.border,
         backgroundColor: primary ? theme.colors.primary : undefined,
+        opacity: disabled ? 0.55 : 1,
       }}
     >
       <Text

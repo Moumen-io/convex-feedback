@@ -29,8 +29,10 @@ export function FeedbackBodyProvider({
   collectStandardMetadata,
   transformComments,
   renderActor,
+  onUnauthenticated,
   children,
 }: PropsWithChildren<FeedbackScreenProviderProps>) {
+  const isAuthenticated = hooks.useIsAuthenticated();
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -40,7 +42,7 @@ export function FeedbackBodyProvider({
 
   const updateDebouncedQuery = useMemo(
     () => debounce(setDebouncedQuery, debounceDuration),
-    [],
+    [debounceDuration],
   );
 
   useEffect(() => {
@@ -48,6 +50,10 @@ export function FeedbackBodyProvider({
 
     return updateDebouncedQuery.cancel;
   }, [query, updateDebouncedQuery]);
+
+  useEffect(() => {
+    setIsSearching(query.trim().length > 0);
+  }, [query, setIsSearching]);
 
   const value = {
     query,
@@ -76,6 +82,8 @@ export function FeedbackBodyProvider({
     collectStandardMetadata,
     transformComments,
     renderActor,
+    onUnauthenticated,
+    isAuthenticated,
   } satisfies FeedbackScreenBodyContextValue;
 
   return (
@@ -89,9 +97,7 @@ export function useFeedbackBody(): FeedbackScreenBodyContextValue {
   const context = useContext(FeedbackBodyContext);
 
   if (!context) {
-    throw new Error(
-      "useOnboardingFlow must be used inside OnboardingFlowProvider",
-    );
+    throw new Error("useFeedbackBody must be used inside FeedbackBodyProvider");
   }
 
   return context;

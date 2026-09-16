@@ -94,6 +94,633 @@ describe("convex-feedback component", () => {
 
     expect(entry?.upvoteCount).toBe(1);
     expect(entry?.viewerHasUpvoted).toBe(true);
+    expect(entry?.viewerIsAuthor).toBe(true);
+  });
+
+  test("only the entry author or an admin can edit entry content", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance);
+    const updateArgs = {
+      entryId,
+      title: "Updated title",
+      body: "Updated body.",
+      editableByAuthor: true,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    };
+
+    await expect(
+      testInstance.mutation(api.entries.update, {
+        ...updateArgs,
+        actor: { id: "different-author" },
+      }),
+    ).rejects.toThrow("Not authorized to edit this entry.");
+
+    await expect(
+      testInstance.query(api.entries.get, {
+        entryId,
+        viewerActorId: "different-author",
+      }),
+    ).resolves.toMatchObject({ viewerIsAuthor: false });
+
+    await testInstance.mutation(api.entries.update, {
+      ...updateArgs,
+      actor: { id: "author-1" },
+    });
+
+    await expect(
+      testInstance.query(api.entries.get, {
+        entryId,
+        viewerActorId: "author-1",
+      }),
+    ).resolves.toMatchObject({
+      title: "Updated title",
+      body: "Updated body.",
+      viewerIsAuthor: true,
+    });
+  });
+
+  test("only admins can change an entry kind", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance);
+    const updateArgs = {
+      entryId,
+      title: "Updated title",
+      body: "Updated body.",
+      editableByAuthor: true,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    };
+
+    await expect(
+      testInstance.mutation(api.entries.update, {
+        ...updateArgs,
+        actor: { id: "author-1" },
+        kind: "bug_report",
+      }),
+    ).rejects.toThrow("Admin access is required to change entry kind.");
+
+    await testInstance.mutation(api.entries.update, {
+      ...updateArgs,
+      actor: { id: "admin-1", isAdmin: true },
+      kind: "bug_report",
+    });
+
+    const updated = await testInstance.query(api.entries.get, { entryId });
+    expect(updated).toMatchObject({
+      kind: "bug_report",
+      title: "Updated title",
+      body: "Updated body.",
+    });
+  });
+
+  test("admin priority stays private from public entries", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance, "Admin triage target");
+    const actor = { id: "admin-1", isAdmin: true } as const;
+
+    await testInstance.mutation(api.entries.setPriority, {
+      actor,
+      entryId,
+      priority: "high",
+    });
+
+    const publicEntry = await testInstance.query(api.entries.get, { entryId });
+    expect(publicEntry).not.toHaveProperty("priority");
+
+    const adminEntry = await testInstance.query(api.admin.getEntry, {
+      entryId,
+      viewerActorId: actor.id,
+    });
+    expect(adminEntry?.priority).toBe("high");
+
+    const filtered = await testInstance.query(api.admin.listEntries, {
+      priority: "high",
+      paginationOpts: { cursor: null, numItems: 10 },
+      viewerActorId: actor.id,
+    });
+    expect(filtered.page.map((entry) => entry.id)).toEqual([entryId]);
+  });
+
+  test("roadmap uses fractional positions and deletion detaches feedback", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const entryId = await createEntry(testInstance, "Roadmap target");
+    const firstId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "First item",
+      status: "planned",
+    });
+    const secondId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Second item",
+      status: "planned",
+    });
+    const movedPosition = await testInstance.mutation(api.roadmap.move, {
+      actor,
+      roadmapId: secondId,
+      status: "planned",
+      nextItemId: firstId,
+    });
+    expect(movedPosition).toBe(0);
+
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor,
+      roadmapId: firstId,
+      entryId,
+    });
+    const attachedItem = await testInstance.run((ctx) =>
+      ctx.db.get("roadmap", firstId),
+    );
+    expect(attachedItem?.feedbackCount).toBe(1);
+
+    await testInstance.mutation(api.roadmap.remove, {
+      actor,
+      roadmapId: firstId,
+    });
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+    const storedEntry = await testInstance.run((ctx) =>
+      ctx.db.get("entries", entryId),
+    );
+    expect(storedEntry?.roadmapId).toBeUndefined();
+  });
+
+  test("hides roadmap items from list and search while deletion is pending", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Pending deletion roadmap",
+      status: "planned",
+    });
+
+    await testInstance.mutation(api.roadmap.remove, { actor, roadmapId });
+
+    const [listed, searched] = await Promise.all([
+      testInstance.query(api.roadmap.list, {
+        paginationOpts: { cursor: null, numItems: 10 },
+        status: "planned",
+      }),
+      testInstance.query(api.roadmap.search, {
+        searchQuery: "pending deletion",
+        limit: 10,
+      }),
+    ]);
+
+    expect(listed.page.map((item) => item.id)).not.toContain(roadmapId);
+    expect(searched.map((item) => item.id)).not.toContain(roadmapId);
+  });
+
+  test("creates and attaches a roadmap item atomically", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const entryId = await createEntry(testInstance, "Roadmap attachment");
+    const previousRoadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Previous roadmap",
+      status: "planned",
+    });
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor,
+      roadmapId: previousRoadmapId,
+      entryId,
+    });
+
+    const roadmapId = await testInstance.mutation(api.roadmap.createForEntry, {
+      actor,
+      title: "Replacement roadmap",
+      description: "Created with its feedback attachment.",
+      status: "in_progress",
+      entryId,
+    });
+
+    const stored = await testInstance.run(async (ctx) => ({
+      entry: await ctx.db.get("entries", entryId),
+      previous: await ctx.db.get("roadmap", previousRoadmapId),
+      current: await ctx.db.get("roadmap", roadmapId),
+    }));
+    expect(stored.entry?.roadmapId).toBe(roadmapId);
+    expect(stored.previous?.feedbackCount).toBe(0);
+    expect(stored.current?.feedbackCount).toBe(1);
+
+    const missingEntryId = await createEntry(testInstance, "Missing entry");
+    await testInstance.run((ctx) => ctx.db.delete("entries", missingEntryId));
+    await expect(
+      testInstance.mutation(api.roadmap.createForEntry, {
+        actor,
+        title: "Should roll back",
+        status: "planned",
+        entryId: missingEntryId,
+      }),
+    ).rejects.toThrow("Entry not found.");
+
+    const roadmapTitles = await testInstance.run((ctx) =>
+      ctx.db
+        .query("roadmap")
+        .collect()
+        .then((items) => items.map((item) => item.title)),
+    );
+    expect(roadmapTitles).not.toContain("Should roll back");
+  });
+
+  test("lists attached roadmap entries through the public entry shape", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const entryId = await createEntry(testInstance, "Public roadmap entry");
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Public roadmap",
+      status: "planned",
+    });
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor,
+      roadmapId,
+      entryId,
+    });
+
+    const result = await testInstance.query(api.roadmap.listFeedback, {
+      roadmapId,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0]).toMatchObject({
+      id: entryId,
+      title: "Public roadmap entry",
+    });
+    expect(result.page[0]).not.toHaveProperty("priority");
+  });
+
+  test("roadmap deletion self-schedules beyond 100 entries", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Bulk cleanup roadmap",
+      status: "planned",
+    });
+
+    const entryIds = await testInstance.run(async (ctx) => {
+      const ids: Id<"entries">[] = [];
+      for (let index = 0; index < 101; index += 1) {
+        ids.push(
+          await ctx.db.insert("entries", {
+            actorId: "bulk-author-" + index,
+            kind: "feedback",
+            status: "open",
+            statusFilter: "open",
+            title: "Bulk entry " + index,
+            body: "Bulk cleanup body",
+            normalizedTitle: "bulk entry " + index,
+            searchText: "Bulk entry " + index + "\nBulk cleanup body",
+            upvoteCount: 0,
+            commentCount: 0,
+            roadmapId,
+          }),
+        );
+      }
+      await ctx.db.patch("roadmap", roadmapId, { feedbackCount: ids.length });
+      return ids;
+    });
+
+    await testInstance.mutation(api.roadmap.remove, { actor, roadmapId });
+
+    const pending = await testInstance.run(async (ctx) => ({
+      roadmap: await ctx.db.get("roadmap", roadmapId),
+    }));
+    expect(pending.roadmap?.deletingAt).toEqual(expect.any(Number));
+
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const cleaned = await testInstance.run(async (ctx) => ({
+      roadmap: await ctx.db.get("roadmap", roadmapId),
+      entries: await Promise.all(
+        entryIds.map((entryId) => ctx.db.get("entries", entryId)),
+      ),
+    }));
+    expect(cleaned.roadmap).toBeNull();
+    expect(
+      cleaned.entries.every(
+        (entry) => entry !== null && entry.roadmapId === undefined,
+      ),
+    ).toBe(true);
+  });
+
+  test("admin inbox and roadmap lists use cursor pagination", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    for (const title of [
+      "Paged feedback one",
+      "Paged feedback two",
+      "Paged feedback three",
+    ]) {
+      await createEntry(testInstance, title);
+    }
+
+    const firstEntries = await testInstance.query(api.admin.listEntries, {
+      paginationOpts: { cursor: null, numItems: 2 },
+      viewerActorId: actor.id,
+    });
+    const remainingEntries = await testInstance.query(api.admin.listEntries, {
+      paginationOpts: { cursor: firstEntries.continueCursor, numItems: 2 },
+      viewerActorId: actor.id,
+    });
+    expect(firstEntries.page).toHaveLength(2);
+    expect(remainingEntries.page).toHaveLength(1);
+    expect(remainingEntries.isDone).toBe(true);
+
+    for (const title of ["Roadmap one", "Roadmap two", "Roadmap three"]) {
+      await testInstance.mutation(api.roadmap.create, {
+        actor,
+        title,
+        status: "planned",
+      });
+    }
+    const firstRoadmap = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: null, numItems: 2 },
+      status: "planned",
+    });
+    const remainingRoadmap = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: firstRoadmap.continueCursor, numItems: 2 },
+      status: "planned",
+    });
+    expect(firstRoadmap.page).toHaveLength(2);
+    expect(remainingRoadmap.page).toHaveLength(1);
+    expect(remainingRoadmap.isDone).toBe(true);
+  });
+
+  test("actor activity queries are isolated and cursor-paginated", async () => {
+    const testInstance = setup();
+    const activityActor = "activity-author";
+
+    const createActivityEntry = async (
+      title: string,
+      actorId = activityActor,
+    ) =>
+      await testInstance.mutation(api.entries.create, {
+        actorId,
+        kind: "feature_request",
+        title,
+        body: `${title} body`,
+        defaultStatus: "open",
+        enabledKinds: ["feedback", "feature_request", "bug_report"],
+        maxTitleLength: 160,
+        maxBodyLength: 10_000,
+      });
+
+    const firstEntryId = await createActivityEntry("Actor entry one");
+    await createActivityEntry("Other actor entry", "other-author");
+    const secondEntryId = await createActivityEntry("Actor entry two");
+
+    const firstPage = await testInstance.query(api.entries.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 1 },
+    });
+    const secondPage = await testInstance.query(api.entries.listByActor, {
+      actorId: activityActor,
+      paginationOpts: {
+        cursor: firstPage.continueCursor,
+        numItems: 1,
+      },
+    });
+
+    expect(firstPage.page).toHaveLength(1);
+    expect(secondPage.page).toHaveLength(1);
+    expect(
+      [...firstPage.page, ...secondPage.page].map((entry) => entry.id).sort(),
+    ).toEqual([firstEntryId, secondEntryId].sort());
+    expect(
+      [...firstPage.page, ...secondPage.page].every(
+        (entry) => entry.actorId === activityActor,
+      ),
+    ).toBe(true);
+    expect(firstPage.page[0]).not.toHaveProperty("metadata");
+
+    await testInstance.mutation(api.entries.setPriority, {
+      actor: { id: "admin-author", isAdmin: true },
+      entryId: firstEntryId,
+      priority: "high",
+    });
+    await testInstance.mutation(api.entries.update, {
+      actor: { id: activityActor },
+      entryId: firstEntryId,
+      title: "Actor entry one updated",
+      body: "Updated actor entry body",
+      editableByAuthor: true,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+
+    const contextEntryId = await testInstance.mutation(api.entries.create, {
+      actorId: activityActor,
+      kind: "bug_report",
+      title: "Context entry",
+      body: "Context body",
+      defaultStatus: "open",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+      metadata: { standard: { platform: "web" } },
+    });
+    await testInstance.mutation(api.entries.setPriority, {
+      actor: { id: "admin-author", isAdmin: true },
+      entryId: contextEntryId,
+      priority: "medium",
+    });
+
+    const contextPage = await testInstance.query(api.entries.listByActor, {
+      actorId: activityActor,
+      includeAdminContext: true,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    const contextEntry = contextPage.page.find(
+      (entry) => entry.id === contextEntryId,
+    );
+    expect(contextEntry).toMatchObject({
+      metadata: { standard: { platform: "web" } },
+      priority: "medium",
+    });
+
+    const entryForComments = await createActivityEntry(
+      "Comment context entry",
+      "other-author",
+    );
+    const parentCommentId = await testInstance.mutation(api.comments.create, {
+      actorId: "other-author",
+      entryId: entryForComments,
+      body: "Other actor parent",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    const ownCommentId = await testInstance.mutation(api.comments.create, {
+      actorId: activityActor,
+      entryId: entryForComments,
+      parentCommentId,
+      body: "Retained actor comment",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    await testInstance.mutation(api.comments.remove, {
+      actor: { id: activityActor },
+      commentId: ownCommentId,
+      deletableByAuthor: true,
+    });
+
+    const comments = await testInstance.query(api.comments.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(comments.page).toHaveLength(1);
+    expect(comments.page[0]).toMatchObject({
+      id: ownCommentId,
+      body: "Retained actor comment",
+      entryId: entryForComments,
+      entryTitle: "Comment context entry",
+      parentCommentId,
+    });
+    expect(comments.page[0]).not.toHaveProperty("parentCommentBody");
+  });
+
+  test("actor reaction activity resolves mixed and orphaned targets safely", async () => {
+    const testInstance = setup();
+    const activityActor = "reaction-author";
+
+    const ownEntryId = await testInstance.mutation(api.entries.create, {
+      actorId: activityActor,
+      kind: "feature_request",
+      title: "Own entry",
+      body: "Own entry body",
+      defaultStatus: "open",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+    const otherEntryId = await testInstance.mutation(api.entries.create, {
+      actorId: "other-author",
+      kind: "bug_report",
+      title: "Other entry",
+      body: "Other entry body",
+      defaultStatus: "under_review",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+    await testInstance.mutation(api.entries.setUpvote, {
+      actorId: activityActor,
+      entryId: otherEntryId,
+      desiredState: true,
+    });
+
+    const commentId = await testInstance.mutation(api.comments.create, {
+      actorId: "other-author",
+      entryId: otherEntryId,
+      body: "Comment to like",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    await testInstance.mutation(api.comments.setLike, {
+      actorId: activityActor,
+      commentId,
+      desiredState: true,
+    });
+    await testInstance.mutation(api.comments.remove, {
+      actor: { id: "other-author" },
+      commentId,
+      deletableByAuthor: true,
+    });
+
+    const orphanEntryId = await testInstance.mutation(api.entries.create, {
+      actorId: "other-author",
+      kind: "feedback",
+      title: "Deleted entry",
+      body: "This target will be removed",
+      defaultStatus: "open",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+    await testInstance.mutation(api.entries.setUpvote, {
+      actorId: activityActor,
+      entryId: orphanEntryId,
+      desiredState: true,
+    });
+    await testInstance.run((ctx) => ctx.db.delete("entries", orphanEntryId));
+
+    const firstPage = await testInstance.query(api.reactions.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 2 },
+    });
+    const secondPage = await testInstance.query(api.reactions.listByActor, {
+      actorId: activityActor,
+      paginationOpts: {
+        cursor: firstPage.continueCursor,
+        numItems: 2,
+      },
+    });
+    const finalPage = await testInstance.query(api.reactions.listByActor, {
+      actorId: activityActor,
+      paginationOpts: {
+        cursor: secondPage.continueCursor,
+        numItems: 2,
+      },
+    });
+    const reactions = [...firstPage.page, ...secondPage.page];
+
+    expect(reactions).toHaveLength(4);
+    expect(reactions.map((reaction) => reaction.type)).toEqual(
+      expect.arrayContaining(["entry_upvote", "comment_like"]),
+    );
+
+    const ownEntryReaction = reactions.find(
+      (reaction) =>
+        reaction.type === "entry_upvote" && reaction.entry?.id === ownEntryId,
+    );
+    expect(ownEntryReaction).toMatchObject({
+      type: "entry_upvote",
+      entry: {
+        id: ownEntryId,
+        title: "Own entry",
+        kind: "feature_request",
+        status: "open",
+      },
+    });
+    if (ownEntryReaction?.type === "entry_upvote") {
+      expect(ownEntryReaction.entry).not.toHaveProperty("actorId");
+    }
+
+    const deletedCommentReaction = reactions.find(
+      (reaction) =>
+        reaction.type === "comment_like" && reaction.comment?.id === commentId,
+    );
+    expect(deletedCommentReaction).toMatchObject({
+      type: "comment_like",
+      comment: {
+        id: commentId,
+        body: null,
+        entryId: otherEntryId,
+        entryTitle: "Other entry",
+      },
+    });
+
+    const orphanReaction = reactions.find(
+      (reaction) => reaction.type === "entry_upvote" && reaction.entry === null,
+    );
+    expect(orphanReaction).toMatchObject({
+      type: "entry_upvote",
+      entry: null,
+    });
+    expect(finalPage.page).toHaveLength(0);
+    expect(finalPage.isDone).toBe(true);
   });
 
   test("open and closed status filters are materialized and queried on Convex", async () => {
@@ -103,12 +730,12 @@ describe("convex-feedback component", () => {
     const closedId = await createEntry(testInstance, "Closed filter target");
 
     await testInstance.mutation(api.entries.setStatus, {
-      actor: { id: "moderator-1", isModerator: true },
+      actor: { id: "admin-1", isAdmin: true },
       entryId: plannedId,
       status: "planned",
     });
     await testInstance.mutation(api.entries.setStatus, {
-      actor: { id: "moderator-1", isModerator: true },
+      actor: { id: "admin-1", isAdmin: true },
       entryId: closedId,
       status: "closed",
     });
@@ -191,7 +818,7 @@ describe("convex-feedback component", () => {
     ).resolves.toEqual({ updated: 0, hasMore: false });
   });
 
-  test("entry metadata is returned only by moderator get queries", async () => {
+  test("entry metadata is returned only by admin get queries", async () => {
     const testInstance = setup();
     const metadata = {
       standard: { platform: "web", screenWidth: 1440 },
@@ -214,20 +841,20 @@ describe("convex-feedback component", () => {
       entryId,
       viewerActorId: "member-1",
     });
-    const moderator = await testInstance.query(api.entries.get, {
+    const admin = await testInstance.query(api.entries.get, {
       entryId,
-      viewerActorId: "moderator-1",
-      viewerIsModerator: true,
+      viewerActorId: "admin-1",
+      viewerIsAdmin: true,
     });
     const list = await testInstance.query(api.entries.list, {
       paginationOpts: { numItems: 10, cursor: null },
       sort: "newest",
-      viewerActorId: "moderator-1",
+      viewerActorId: "admin-1",
     });
 
     expect(anonymous).not.toHaveProperty("metadata");
     expect(member).not.toHaveProperty("metadata");
-    expect(moderator?.metadata).toEqual(metadata);
+    expect(admin?.metadata).toEqual(metadata);
     expect(list.page[0]).not.toHaveProperty("metadata");
   });
 

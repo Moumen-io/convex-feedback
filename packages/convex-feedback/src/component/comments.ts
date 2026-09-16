@@ -10,10 +10,13 @@ import {
   assertActorId,
   assertPositiveInteger,
   normalizeRequiredText,
+  serializeActivityComment,
   serializeComment,
 } from "./helpers.js";
 import {
+  activityCommentValidator,
   actorValidator,
+  actorIsAdmin,
   commentSortValidator,
   entryStatusFilterForStatus,
   publicCommentValidator,
@@ -65,6 +68,40 @@ export const list = query({
         result.page.map((comment) =>
           serializeComment(ctx, comment, args.viewerActorId),
         ),
+      ),
+    };
+  },
+});
+
+/**
+ * List comments created by a known actor. The actor is supplied by trusted
+ * component/server callers; the host-facing wrapper resolves it from the
+ * current request instead of accepting it from clients.
+ *
+ * Unlike the ordinary conversation query, this activity query retains the
+ * stored body of soft-deleted comments and resolves only the parent entry
+ * title. It does not load a parent comment body.
+ */
+export const listByActor = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    actorId: v.string(),
+  },
+  returns: paginationResultValidator(activityCommentValidator),
+  handler: async (ctx, args) => {
+    assertActorId(args.actorId);
+
+    const db = paginator(ctx.db, schema);
+    const result = await db
+      .query("comments")
+      .withIndex("by_actor", (q) => q.eq("actorId", args.actorId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    return {
+      ...result,
+      page: await Promise.all(
+        result.page.map((comment) => serializeActivityComment(ctx, comment)),
       ),
     };
   },
@@ -156,7 +193,7 @@ export const update = mutation({
     }
 
     const canEdit =
-      args.actor.isModerator ||
+      actorIsAdmin(args.actor) ||
       (args.editableByAuthor && comment.actorId === args.actor.id);
     if (!canEdit) throw new ConvexError("Not authorized to edit this comment.");
 
@@ -187,7 +224,7 @@ export const remove = mutation({
     if (comment.deletedAt !== undefined) return null;
 
     const canDelete =
-      args.actor.isModerator ||
+      actorIsAdmin(args.actor) ||
       (args.deletableByAuthor && comment.actorId === args.actor.id);
     if (!canDelete) {
       throw new ConvexError("Not authorized to delete this comment.");

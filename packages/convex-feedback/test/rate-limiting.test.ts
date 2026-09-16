@@ -64,7 +64,7 @@ describe("feedback rate limiting", () => {
     const rejection = new Error("limited");
     const limiter = vi.fn((): Promise<void> => Promise.reject(rejection));
     const api = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+      actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
       rateLimiters: { createEntry: limiter },
     });
 
@@ -87,7 +87,7 @@ describe("feedback rate limiting", () => {
       retryAt: v.number(),
     });
     const api = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+      actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
       rateLimiters: {
         createEntry: () => Promise.resolve(rejected),
       },
@@ -115,7 +115,7 @@ describe("feedback rate limiting", () => {
   test("treats undefined as a pass and runs the component mutation", async () => {
     const runMutation = vi.fn(() => Promise.resolve("entry-1"));
     const api = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+      actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
       rateLimiters: { createEntry: () => Promise.resolve(undefined) },
       config: {
         rateLimiting: {
@@ -140,7 +140,7 @@ describe("feedback rate limiting", () => {
     const nullLimiter = (() =>
       Promise.resolve(null)) as unknown as FeedbackRateLimiter;
     const api = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+      actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
       rateLimiters: { createEntry: nullLimiter },
     });
 
@@ -161,7 +161,7 @@ describe("feedback rate limiting", () => {
       kind: "rate_limited";
     }>;
     const api = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+      actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
       rateLimiters: { createEntry: nullLimiter },
       config: {
         rateLimiting: {
@@ -181,11 +181,11 @@ describe("feedback rate limiting", () => {
     expect(runMutation).not.toHaveBeenCalled();
   });
 
-  test("bypasses moderators by default and can opt them into limits", async () => {
+  test("bypasses admins by default and can opt them into limits", async () => {
     const runMutation = vi.fn(() => Promise.resolve(null));
     const limiter = vi.fn(() => Promise.resolve(undefined));
     const defaultApi = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "moderator-1", isModerator: true }),
+      actor: () => Promise.resolve({ id: "admin-1", isAdmin: true }),
       rateLimiters: { editContent: limiter },
     });
 
@@ -197,23 +197,41 @@ describe("feedback rate limiting", () => {
     expect(limiter).not.toHaveBeenCalled();
 
     const limitedApi = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "moderator-1", isModerator: true }),
+      actor: () => Promise.resolve({ id: "admin-1", isAdmin: true }),
       rateLimiters: { editContent: limiter },
-      config: { rateLimiting: { limitModerators: true } },
+      config: { rateLimiting: { limitAdmins: true } },
     });
     await invokeMutation(
       limitedApi.setEntryStatus,
       mutationContext(runMutation),
       { entryId: "entry-1", status: "planned" },
     );
-    expect(limiter).toHaveBeenCalledWith(expect.anything(), "moderator-1");
+    expect(limiter).toHaveBeenCalledWith(expect.anything(), "admin-1");
   });
 
-  test("rejects non-moderator status changes before rate limiting", async () => {
+  test("supports deprecated moderator names for authorization and limits", async () => {
+    const runMutation = vi.fn(() => Promise.resolve(null));
+    const limiter = vi.fn(() => Promise.resolve(undefined));
+    const api = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve({ id: "moderator-1", isModerator: true }),
+      rateLimiters: { editContent: limiter },
+      config: { rateLimiting: { limitModerators: true } },
+    });
+
+    await invokeMutation(api.setEntryStatus, mutationContext(runMutation), {
+      entryId: "entry-1",
+      status: "planned",
+    });
+
+    expect(limiter).toHaveBeenCalledWith(expect.anything(), "moderator-1");
+    expect(runMutation).toHaveBeenCalledOnce();
+  });
+
+  test("rejects non-admin status changes before rate limiting", async () => {
     const runMutation = vi.fn();
     const limiter = vi.fn(() => Promise.resolve(undefined));
     const api = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+      actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
       rateLimiters: { editContent: limiter },
     });
 
@@ -222,7 +240,7 @@ describe("feedback rate limiting", () => {
         entryId: "entry-1",
         status: "planned",
       }),
-    ).rejects.toThrow("Moderator permissions are required.");
+    ).rejects.toThrow("Admin permissions are required.");
     expect(limiter).not.toHaveBeenCalled();
     expect(runMutation).not.toHaveBeenCalled();
   });
@@ -234,9 +252,9 @@ describe("feedback rate limiting", () => {
     const editContent = vi.fn(() => Promise.resolve(undefined));
     const reactions = vi.fn(() => Promise.resolve(undefined));
     const api = exposeFeedbackApi(component, {
-      actor: () => Promise.resolve({ id: "moderator-1", isModerator: true }),
+      actor: () => Promise.resolve({ id: "admin-1", isAdmin: true }),
       rateLimiters: { createEntry, createComment, editContent, reactions },
-      config: { rateLimiting: { limitModerators: true } },
+      config: { rateLimiting: { limitAdmins: true } },
     });
     const ctx = mutationContext(runMutation);
 
@@ -277,12 +295,12 @@ describe("feedback rate limiting", () => {
 
 // @ts-expect-error Return behavior requires a `returns` validator.
 exposeFeedbackApi(component, {
-  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
   config: { rateLimiting: { behavior: "return" } },
 });
 
 exposeFeedbackApi(component, {
-  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
   rateLimiters: {
     // @ts-expect-error Throwing limiters may only resolve to void/undefined.
     createEntry: () => Promise.resolve(null),
@@ -290,7 +308,7 @@ exposeFeedbackApi(component, {
 });
 
 exposeFeedbackApi(component, {
-  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
   config: {
     rateLimiting: {
       behavior: "return",
@@ -301,7 +319,7 @@ exposeFeedbackApi(component, {
 });
 
 exposeFeedbackApi(component, {
-  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
   config: {
     rateLimiting: {
       behavior: "return",
@@ -312,7 +330,7 @@ exposeFeedbackApi(component, {
 });
 
 exposeFeedbackApi(component, {
-  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
   rateLimiters: {
     // @ts-expect-error Null does not match this return-mode validator.
     createEntry: () => Promise.resolve(null),
@@ -326,7 +344,7 @@ exposeFeedbackApi(component, {
 });
 
 exposeFeedbackApi(component, {
-  actor: () => Promise.resolve({ id: "actor-1", isModerator: false }),
+  actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
   rateLimiters: {
     // @ts-expect-error Rejection values must match the configured validator.
     createEntry: () => Promise.resolve("rate_limited"),

@@ -1,16 +1,19 @@
 {
   "name": "convex-feedback-monorepo",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A type-safe Convex feedback component and cross-platform React UI primitives.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/Moumen-io/convex-feedback.git"
   },
+  "packageManager": "npm@11.19.1",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*",
+    "apps/admin/withClerk/*"
   ],
   "scripts": {
     "build:packages": "npm run build -w convex-feedback && npm run build -w convex-feedback-ui",
@@ -22,10 +25,11 @@
     "codegen": "npm run codegen:component && npm run build -w convex-feedback && npm run codegen:example",
     "lint": "npm run lint -w convex-feedback && npm run lint -w convex-feedback-ui",
     "test": "npm run test -w convex-feedback && npm run test -w convex-feedback-ui",
+    "test:apps": "npm run build -w convex-feedback-admin-web && npm run typecheck -w convex-feedback-admin-native",
     "typecheck": "npm run typecheck -w convex-feedback && npm run typecheck -w convex-feedback-ui",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "test:all": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run build",
+    "test:all": "npm run typecheck && npm run lint && npm run test && npm run test:apps && npm run format:check && npm run build",
     "dev:web": "npm run dev -w convex-feedback-example-web",
     "dev:ios": "npm run dev:ios -w convex-feedback-example-expo",
     "dev:ios:routed": "npm run dev:ios -w convex-feedback-example-expo-routed",

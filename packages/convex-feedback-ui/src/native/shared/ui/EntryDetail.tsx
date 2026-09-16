@@ -3,18 +3,28 @@ import { ActivityIndicator, Text, View } from "react-native";
 
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider";
+import { allowAuthenticatedAction } from "../../../shared/helpers.js";
 import type { FeedbackScreenEntryDetailProps } from "../../../shared/types";
 import { Button } from "./Button";
 import { CommentBranch } from "./CommentBranch";
+import { EditEntryModal } from "./EditEntry.js";
 import { FeedbackEntry, FeedbackForm } from "./primitives";
 import { MetadataModal } from "./MetadataModal";
+import { useNativeAction } from "../helpers.js";
 
 export function EntryDetail({
   entryId,
   onBack,
   hideBackButton,
+  hideEditButton = false,
 }: FeedbackScreenEntryDetailProps) {
-  const { hooks, commentSort, transformComments } = useFeedbackBody();
+  const {
+    hooks,
+    commentSort,
+    transformComments,
+    isAuthenticated,
+    onUnauthenticated,
+  } = useFeedbackBody();
 
   const { messages, theme } = useFeedbackUi();
   const entry = hooks.useEntry(entryId);
@@ -23,6 +33,22 @@ export function EntryDetail({
   const createComment = hooks.useCreateComment();
   const [body, setBody] = useState("");
   const [showMetadata, setShowMetadata] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const upvoteAction = useNativeAction();
+  const commentAction = useNativeAction();
+
+  const toggleUpvote = (desiredState: boolean) => {
+    if (
+      !allowAuthenticatedAction(isAuthenticated, onUnauthenticated) ||
+      upvoteAction.pending
+    ) {
+      return;
+    }
+    void upvoteAction.run(
+      () => setUpvote({ entryId, desiredState }),
+      "Could not update vote",
+    );
+  };
   const visible = useMemo(
     () => transformComments?.(comments.results) ?? comments.results,
     [comments.results, transformComments],
@@ -57,17 +83,40 @@ export function EntryDetail({
       )}
       <FeedbackEntry.Root entry={entry}>
         <FeedbackEntry.Upvote
-          onToggle={(active) =>
-            void setUpvote({ entryId, desiredState: active })
-          }
+          disabled={isAuthenticated === undefined || upvoteAction.pending}
+          onToggle={toggleUpvote}
         />
         <FeedbackEntry.Content style={{ gap: 5 }}>
-          <FeedbackEntry.Status />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
+            <View style={{ flex: 1, gap: 5 }}>
+              <FeedbackEntry.Kind />
+              <FeedbackEntry.Status />
+            </View>
+            {!hideEditButton && entry.viewerIsAuthor === true && (
+              <Button
+                label={messages.entry.edit}
+                onPress={() => setEditOpen(true)}
+              />
+            )}
+          </View>
           <FeedbackEntry.Title />
           <FeedbackEntry.Body />
           <FeedbackEntry.CommentCount />
         </FeedbackEntry.Content>
       </FeedbackEntry.Root>
+      {editOpen && (
+        <EditEntryModal
+          entry={entry}
+          onRequestClose={() => setEditOpen(false)}
+        />
+      )}
       {entry.metadata !== undefined && (
         <Button
           label={messages.metadata.view}
@@ -92,10 +141,20 @@ export function EntryDetail({
           placeholder={messages.comments.placeholder}
         />
         <FeedbackForm.Submit
-          onPress={async () => {
+          disabled={isAuthenticated === undefined || commentAction.pending}
+          submitting={commentAction.pending}
+          onPress={() => {
             if (body.trim().length === 0) return;
-            await createComment({ entryId, body });
-            setBody("");
+            if (
+              !allowAuthenticatedAction(isAuthenticated, onUnauthenticated) ||
+              commentAction.pending
+            ) {
+              return;
+            }
+            void commentAction.run(async () => {
+              await createComment({ entryId, body });
+              setBody("");
+            }, "Could not add comment");
           }}
         >
           {messages.comments.submit}
@@ -106,9 +165,11 @@ export function EntryDetail({
           <CommentBranch key={comment.id} comment={comment} entryId={entryId} />
         ))}
       </View>
-      {comments.status === "CanLoadMore" && (
+      {(comments.status === "CanLoadMore" ||
+        comments.status === "LoadingMore") && (
         <Button
           label={messages.comments.loadMore}
+          disabled={comments.status === "LoadingMore"}
           onPress={() => comments.loadMore(hooks.pageSizes.comments)}
         />
       )}

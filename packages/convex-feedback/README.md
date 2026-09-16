@@ -1,12 +1,12 @@
-[![npm version](https://badge.fury.io/js/convex-feedback.svg)](https://badge.fury.io/js/convex-feedback) [![Convex Component](https://www.convex.dev/components/badge/convex-feedback)](https://www.convex.dev/components/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
+![npm version](https://badge.fury.io/js/convex-feedback.svg) ![Convex Component](https://www.convex.dev/components/badge/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
 
 [Vite demo](https://convex-feedback-vite.vercel.app/) • [Expo demo](https://convex-feedback-expo.vercel.app/) • [React Native demo](https://convex-feedback-native.vercel.app/)
 
 # convex-feedback
 
-A headless, fully typed Convex component for product feedback, feature requests, bug reports, entry upvotes, lazy nested comments, comment likes, full-text search, and duplicate suggestions.
+A headless, fully typed Convex component for product feedback, feature requests, bug reports, entry upvotes, lazy nested comments, comment likes, full-text search, duplicate suggestions, and admin workflows.
 
-> Looking for a ready-made interface? `[convex-feedback-ui](../convex-feedback-ui/README.md)` provides optional React DOM and React Native screens and compound primitives on top of this package.
+> Looking for a ready-made public interface? `[convex-feedback-ui](../convex-feedback-ui/README.md)` provides optional React DOM and React Native screens and compound primitives. For internal triage, fork the [Clerk admin panel](../../apps/admin/withClerk/README.md).
 
 ## Features
 
@@ -18,13 +18,15 @@ A headless, fully typed Convex component for product feedback, feature requests,
 - Indexed `top` / `newest` / `oldest` comment ordering.
 - Convex full-text search.
 - Exact-title + full-text duplicate suggestions.
-- Host-controlled authentication and moderator permissions.
+- Host-controlled authentication and admin permissions.
+- Indexed actor-scoped activity for entries, comments, and reactions.
+- Admin priority and roadmap workflows.
 - Optional host-defined mutation rate limiting.
 - Configurable limits and behavior
 - Typed React hooks.
 - `convex-test` helper entry point.
 
-The component owns only three tables: `entries`, `comments`, and `reactions`.
+The component owns four tables: `entries`, `comments`, `reactions`, and `roadmap`.
 
 ## Requirements
 
@@ -95,12 +97,31 @@ export const {
   createEntry,
   updateEntry,
   setEntryStatus,
+  isAdmin,
+  isAuthenticated,
+  adminListEntries,
+  adminGetEntry,
+  adminSearchEntries,
+  setEntryPriority,
+  listUserEntries,
   setEntryUpvote,
   listComments,
+  listUserComments,
+  listUserReactions,
   createComment,
   updateComment,
   deleteComment,
   setCommentLike,
+  listRoadmap,
+  searchRoadmap,
+  createRoadmap,
+  createRoadmapForEntry,
+  updateRoadmap,
+  deleteRoadmap,
+  moveRoadmapItem,
+  attachFeedbackToRoadmap,
+  detachFeedbackFromRoadmap,
+  listRoadmapFeedback,
 } = exposeFeedbackApi(components.feedback, {
   actor: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -109,7 +130,7 @@ export const {
 
     return {
       id: identity.tokenIdentifier,
-      isModerator: false,
+      isAdmin: false,
     };
   },
 });
@@ -121,14 +142,14 @@ export const {
 
 The component does not store a user/profile table. Keep display names, avatars, roles, and profile data in your application.
 
-### Moderators
+### Admins
 
-Return `isModerator: true` for actors that may perform moderator-only operations such as status changes.
+Return `isAdmin: true` for actors that may perform admin-only operations such as status changes. The deprecated `isModerator` actor field remains accepted for compatibility when `isAdmin` is omitted; if both are present, `isAdmin` takes precedence.
 
 ```ts
 return {
   id: identity.tokenIdentifier,
-  isModerator: await isFeedbackModerator(ctx, identity.tokenIdentifier),
+  isAdmin: await isFeedbackAdmin(ctx, identity.tokenIdentifier),
 };
 ```
 
@@ -194,7 +215,7 @@ The groups cover:
 - `editContent`: entry edits, status changes, comment edits, and comment deletion;
 - `reactions`: entry upvotes and comment likes.
 
-Moderators bypass all limiters by default. Set `limitModerators: true` to apply them to moderators as well. `setEntryStatus` always requires a moderator, regardless of rate-limit configuration.
+Admins bypass all limiters by default. Set `limitAdmins: true` to apply them to admins as well. The deprecated `limitModerators` option is accepted when `limitAdmins` is omitted, with `limitAdmins` taking precedence. Admin mutations always require an admin, regardless of rate-limit configuration.
 
 To return a value to the client instead of throwing, use `"return"` behavior and provide its Convex validator. In this mode, `undefined` means the request is allowed; any defined value is returned immediately and the feedback mutation does not run. The validator is required by TypeScript and its inferred type is added to every mutation's result type.
 
@@ -228,7 +249,7 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
     rateLimiting: {
       behavior: "return",
       returns: rateLimitRejection,
-      limitModerators: false,
+      limitAdmins: false,
     },
   },
 });
@@ -236,7 +257,7 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
 
 ## 4. Create typed React hooks
 
-If your client uses React or React Native, bind the generated host API once:
+If your client uses React or React Native, bind the generated host API once. Calling `createFeedbackHooks()` without an API argument defaults to `anyApi.feedback`; pass the generated namespace explicitly when the component is exposed elsewhere:
 
 ```ts
 // src/feedback.ts
@@ -277,7 +298,118 @@ Entry metadata is optional, creation-only, and contains flat string, number, or 
 
 Reserved keys are rejected with a field-specific error.
 
-Metadata is intentionally absent from entry lists, searches, and duplicate suggestions. `getEntry` includes it only when the host's server-side actor resolver returns `isModerator: true`; ordinary and anonymous callers receive no `metadata` property.
+Metadata is intentionally absent from entry lists, searches, and duplicate suggestions. `getEntry` includes it only when the host's server-side actor resolver returns `isAdmin: true`; ordinary and anonymous callers receive no `metadata` property.
+
+Public entry results include `viewerIsAuthor` when returned by the current wrapper deployment. It is computed from the server-resolved actor and the stored entry author; clients should use it only to present author-only UI such as an Edit action. `updateEntry` still rechecks ownership in the component
+mutation, so a caller that is not the entry author is rejected. Admins retain their existing permission to edit entries through the admin workflow.
+
+### Actor-scoped activity
+
+The host wrapper also exposes cursor-paginated activity queries for the authenticated actor:
+
+```ts
+const userEntries = await listUserEntries({
+  paginationOpts: { cursor: null, numItems: 20 },
+});
+const userComments = await listUserComments({
+  paginationOpts: { cursor: null, numItems: 20 },
+});
+const userReactions = await listUserReactions({
+  paginationOpts: { cursor: null, numItems: 20 },
+});
+```
+
+A trusted Convex function can compose these wrappers through the generated host API. `ctx.runQuery` keeps the caller's authentication context, so the configured actor callback still selects the actor and no `actorId` is passed:
+
+```ts
+import { api } from "./_generated/api";
+import { query } from "./_generated/server";
+
+export const getMyActivity = query({
+  args: {},
+  handler: async (ctx) => {
+    const entryQuery = api.feedback.listUserEntries;
+    const commentQuery = api.feedback.listUserComments;
+    const reactionQuery = api.feedback.listUserReactions;
+    const opts = { cursor: null, numItems: 20 };
+    const entries = await ctx.runQuery(entryQuery, { paginationOpts: opts });
+    const comments = await ctx.runQuery(commentQuery, { paginationOpts: opts });
+    const reactions = await ctx.runQuery(reactionQuery, {
+      paginationOpts: opts,
+    });
+    return { entries, comments, reactions };
+  },
+});
+```
+
+These wrappers do not accept an `actorId`; they always use the actor returned by the configured host callback. Entries include their own content, status, timestamps, and counts. Comments include the retained body (including a soft-deleted body when it remains stored), `parentCommentId`, and the parent entry title without loading a parent-comment body.
+
+Reaction results are discriminated by `type` (`"entry_upvote"` or `"comment_like"`) and include reaction creation time plus resolved target context. Deleted or orphaned targets are represented with `null` context so a page remains readable.
+
+Trusted server consumers can call the component-level actor query directly with a known `actorId`. `entries.listByActor` additionally accepts `includeAdminContext: true` when an export or other server-side workflow needs retained metadata, priority, or roadmap context; the normal `listUserEntries` wrapper always strips those private fields.
+
+For example, an internal Convex function can query all three activity feeds for a known actor without requiring request authentication:
+
+```ts
+import { components } from "./_generated/api";
+import { internalQuery } from "./_generated/server";
+import { v } from "convex/values";
+
+export const getActorActivity = internalQuery({
+  args: { actorId: v.string() },
+  handler: async (ctx, args) => {
+    const opts = { cursor: null, numItems: 100 };
+    const entries = await ctx.runQuery(
+      components.feedback.entries.listByActor,
+      {
+        actorId: args.actorId,
+        paginationOpts: opts,
+        includeAdminContext: true,
+      },
+    );
+
+    const comments = await ctx.runQuery(
+      components.feedback.comments.listByActor,
+      {
+        actorId: args.actorId,
+        paginationOpts: opts,
+      },
+    );
+
+    const reactions = await ctx.runQuery(
+      components.feedback.reactions.listByActor,
+      {
+        actorId: args.actorId,
+        paginationOpts: opts,
+      },
+    );
+
+    return { entries, comments, reactions };
+  },
+});
+```
+
+## Admin panel
+
+The standalone [Vite and Expo Clerk admin apps](../../apps/admin/withClerk/README.md) provide an inbox, entry detail workflow, and a stage-based roadmap. They are reference applications to fork and deploy, not reusable UI exports.
+
+The host actor is the authorization boundary. With Clerk, expose a trusted session claim (for example, one derived from Clerk public metadata) and map it in the host only:
+
+```ts
+actor: async (ctx) => {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) return null;
+
+  return {
+    id: identity.tokenIdentifier,
+    isAdmin: identity.isAdmin === true,
+  };
+},
+```
+
+Set the claim and Convex Clerk provider using Clerk's current integration instructions, then export the complete wrapper API shown above as `convex/feedback.ts`. Both reference apps use `anyApi.feedback` by default and reactively check `isAdmin` at their root, offering retry when the access check fails; every admin query and mutation still rechecks the actor on the server.
+
+Admin entries may have an optional `low`, `medium`, or `high` priority and one roadmap relation. Deleting a roadmap item detaches all related feedback. Public entry queries and the existing public UI do not expose priority, while roadmap reads are public.
 
 ## Entry kinds and statuses
 
@@ -307,6 +439,15 @@ const results = feedbackHooks.useSearchEntries({
   limit: 10,
 });
 ```
+
+Admin full-text search keeps the search index for relevance-ranked results,
+but uses component-safe custom pagination. Convex's native `.paginate()` is
+not supported inside component queries, so the component reads search results
+with `.take()` and returns an opaque offset cursor instead. This works with
+`usePaginatedQuery` from `convex-helpers/react`, but later pages may reread
+earlier matches and can shift if matching documents change between requests.
+See Convex's [component pagination documentation](https://docs.convex.dev/components/authoring#pagination)
+for the native pagination limitation.
 
 ## Duplicate suggestions
 
@@ -389,21 +530,28 @@ The mutation result uses `active` to report the authoritative final state return
 
 The wrapper exposes:
 
-| Function             | Type     | Purpose                                            |
-| -------------------- | -------- | -------------------------------------------------- |
-| `listEntries`        | query    | Paginated entry list with server-side filters/sort |
-| `getEntry`           | query    | Fetch one entry                                    |
-| `searchEntries`      | query    | Full-text search                                   |
-| `findSimilarEntries` | query    | Exact + similar duplicate suggestions              |
-| `createEntry`        | mutation | Create feedback                                    |
-| `updateEntry`        | mutation | Edit author-owned/moderated feedback               |
-| `setEntryStatus`     | mutation | Moderator workflow status change                   |
-| `setEntryUpvote`     | mutation | Idempotently set entry upvote state                |
-| `listComments`       | query    | One paginated direct-child comment level           |
-| `createComment`      | mutation | Create comment or reply                            |
-| `updateComment`      | mutation | Edit a comment                                     |
-| `deleteComment`      | mutation | Soft-delete a comment                              |
-| `setCommentLike`     | mutation | Idempotently set comment like state                |
+| Function                | Type     | Purpose                                              |
+| ----------------------- | -------- | ---------------------------------------------------- |
+| `listEntries`           | query    | Paginated entry list with server-side filters/sort   |
+| `getEntry`              | query    | Fetch one entry                                      |
+| `searchEntries`         | query    | Full-text search                                     |
+| `findSimilarEntries`    | query    | Exact + similar duplicate suggestions                |
+| `isAuthenticated`       | query    | Whether the current request has an actor             |
+| `createEntry`           | mutation | Create feedback                                      |
+| `updateEntry`           | mutation | Edit feedback; admins may also change its kind       |
+| `setEntryStatus`        | mutation | Admin workflow status change                         |
+| `setEntryUpvote`        | mutation | Idempotently set entry upvote state                  |
+| `listUserEntries`       | query    | Entries created by the authenticated actor           |
+| `listComments`          | query    | One paginated direct-child comment level             |
+| `listUserComments`      | query    | Comments created by the authenticated actor          |
+| `listUserReactions`     | query    | Entry upvotes and comment likes by the actor         |
+| `createComment`         | mutation | Create comment or reply                              |
+| `updateComment`         | mutation | Edit a comment                                       |
+| `deleteComment`         | mutation | Soft-delete a comment                                |
+| `setCommentLike`        | mutation | Idempotently set comment like state                  |
+| `createRoadmapForEntry` | mutation | Create a roadmap item and attach an entry atomically |
+
+The same wrapper exposes `isAdmin`, cursor-paginated admin list/search queries, admin detail, priority updates, cursor-paginated public roadmap lists, roadmap search/reordering functions, and feedback-to-roadmap attachment functions. Roadmap reads and attached public entries are unauthenticated; roadmap mutations and admin operations resolve the host actor. `isAdmin` and `isAuthenticated` return booleans instead of rejecting a caller. Bounded limits remain on suggestion-style full-text searches such as the roadmap selector.
 
 Every public argument/result type is exported and documented for editor IntelliSense.
 

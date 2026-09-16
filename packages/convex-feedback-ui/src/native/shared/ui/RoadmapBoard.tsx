@@ -54,6 +54,8 @@ export interface RoadmapBoardProps {
   bottomInset?: number;
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  /** Additional styles for each stage column. */
+  stageStyle?: StyleProp<ViewStyle>;
 }
 
 export interface RoadmapBoardCardProps extends Pick<
@@ -117,6 +119,7 @@ export function RoadmapBoard({
   bottomInset,
   style,
   contentContainerStyle,
+  stageStyle,
 }: RoadmapBoardProps) {
   const insets = useSafeAreaInsets();
   const resolvedBottomInset = bottomInset ?? insets.bottom;
@@ -173,6 +176,7 @@ export function RoadmapBoard({
                 borderColor: resolvedColors.border,
                 backgroundColor: resolvedColors.surfaceMuted,
               },
+              stageStyle,
             ]}
           >
             <View

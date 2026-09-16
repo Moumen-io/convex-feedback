@@ -5,9 +5,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   RoadmapBoard,
   RoadmapBoardCard,
-  useStackHeaderHeight,
   useFeedbackBody,
   useFeedbackUi,
+  useStackHeaderHeight,
 } from "convex-feedback-ui/expo";
 
 import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
@@ -64,6 +64,8 @@ export default function RoadmapScreen() {
           ...stage,
           label: messages.roadmap.statuses[stage.value],
         }))}
+        style={{ marginBottom: -20 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
         topInset={headerHeight}
         loading={roadmap.status === "LoadingFirstPage"}
         emptyLabel={messages.roadmap.emptyStage}

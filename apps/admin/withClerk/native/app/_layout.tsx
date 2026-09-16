@@ -155,7 +155,7 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
-        name="feedback/[entryId]"
+        name="feedback/[entryId]/index"
         options={modalScreenOptions("Feedback", theme)}
       />
       <Stack.Screen
@@ -171,7 +171,7 @@ function AdminAccessCheck({ onRetry }: { onRetry: () => void }) {
         options={modalScreenOptions("New roadmap item", theme)}
       />
       <Stack.Screen
-        name="roadmap/[roadmapId]"
+        name="roadmap/[roadmapId]/index"
         options={modalScreenOptions("Roadmap item", theme)}
       />
       <Stack.Screen

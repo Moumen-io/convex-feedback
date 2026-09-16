@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -80,7 +81,7 @@ export default function FeedbackDetailScreen() {
       </Stack.Toolbar>
       {entry && (
         <Stack.Toolbar placement={Platform.OS === "ios" ? "bottom" : "right"}>
-          {Platform.OS === "ios" && <Stack.Toolbar.Spacer />}
+          <Stack.Toolbar.Spacer hidden={Platform.OS !== "ios"} />
           <Stack.Toolbar.Button
             icon={editIcon}
             accessibilityLabel="Edit feedback"
@@ -94,7 +95,7 @@ export default function FeedbackDetailScreen() {
           >
             Edit
           </Stack.Toolbar.Button>
-          {Platform.OS === "ios" && <Stack.Toolbar.Spacer />}
+          <Stack.Toolbar.Spacer hidden={Platform.OS !== "ios"} />
           <Stack.Toolbar.Menu
             icon={statusIcon}
             title="Status"
@@ -145,16 +146,27 @@ export default function FeedbackDetailScreen() {
               </Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu>
-          {entry.metadata !== undefined && (
-            <Stack.Toolbar.Button
-              icon={metadataIcon}
-              accessibilityLabel="Show metadata"
-              onPress={() => setMetadataOpen(true)}
-              tintColor={theme.text}
-            >
-              Metadata
-            </Stack.Toolbar.Button>
-          )}
+
+          <Stack.Toolbar.Button
+            icon={metadataIcon}
+            accessibilityLabel="Show metadata"
+            onPress={() => {
+              if (entry.metadata === undefined) {
+                Alert.alert(
+                  "Metadata was not collected",
+                  "To collect metadata, pass the `collectMetadata` option to the Feedback Component or manually collect it and attach it to the entry if you're using the primitives/hooks directly.",
+                );
+                return;
+              }
+
+              setMetadataOpen(true);
+            }}
+            tintColor={
+              entry.metadata === undefined ? theme.warning : theme.text
+            }
+          >
+            Metadata
+          </Stack.Toolbar.Button>
         </Stack.Toolbar>
       )}
       {entry === undefined ? (

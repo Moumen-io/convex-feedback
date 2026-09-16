@@ -6,9 +6,12 @@ export type AdminTheme = FeedbackColors & {
   muted: string;
   /** Legacy alias used by compact selected-state surfaces. */
   primarySoft: string;
+  warning: string;
 };
 
-function createAdminTheme(colors: FeedbackColors): AdminTheme {
+function createAdminTheme(
+  colors: FeedbackColors & { warning: string },
+): AdminTheme {
   return {
     ...colors,
     muted: colors.mutedText,
@@ -28,6 +31,7 @@ export const lightAdminTheme = createAdminTheme({
   border: "#D8E0F2",
   danger: "#C83B59",
   success: "#1D9B72",
+  warning: "#F5A623",
 });
 
 export const darkAdminTheme = createAdminTheme({
@@ -42,6 +46,7 @@ export const darkAdminTheme = createAdminTheme({
   border: "#2D3C61",
   danger: "#FF8EAB",
   success: "#71D5B0",
+  warning: "#FFB869",
 });
 
 export function useAdminTheme(): AdminTheme {

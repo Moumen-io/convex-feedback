@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
+import { MetadataModal } from "@/components/metadata-modal";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useAdminAction } from "@/lib/action";
 import { feedbackHooks } from "@/lib/feedback";
@@ -54,11 +55,13 @@ export default function FeedbackDetailScreen() {
   const action = useAdminAction();
   const upvoteAction = useAdminAction();
   const [roadmapSearch, setRoadmapSearch] = useState("");
+  const [metadataOpen, setMetadataOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(roadmapSearch, 300);
   const roadmapResults = feedbackHooks.useSearchRoadmap(debouncedSearch);
   const closeIcon = useToolbarIcon("xmark", "close");
   const statusIcon = useToolbarIcon("checkmark.circle", "check_circle");
   const priorityIcon = useToolbarIcon("flag", "flag");
+  const metadataIcon = useToolbarIcon("info.circle", "info");
   const editIcon = useToolbarIcon("pencil", "edit");
 
   return (
@@ -126,6 +129,16 @@ export default function FeedbackDetailScreen() {
               </Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu>
+          {entry.metadata !== undefined && (
+            <Stack.Toolbar.Button
+              icon={metadataIcon}
+              accessibilityLabel="Show metadata"
+              onPress={() => setMetadataOpen(true)}
+              tintColor={theme.text}
+            >
+              Metadata
+            </Stack.Toolbar.Button>
+          )}
           <Stack.Toolbar.Button
             icon={editIcon}
             accessibilityLabel="Edit feedback"
@@ -318,6 +331,14 @@ export default function FeedbackDetailScreen() {
           <View style={styles.divider} />
           <Discussion entryId={entry.id} />
         </ScrollView>
+      )}
+      {entry && entry.metadata !== undefined && (
+        <MetadataModal
+          metadata={entry.metadata}
+          entryTitle={entry.title}
+          visible={metadataOpen}
+          onClose={() => setMetadataOpen(false)}
+        />
       )}
     </>
   );

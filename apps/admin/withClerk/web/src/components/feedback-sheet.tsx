@@ -9,6 +9,7 @@ import {
   CheckIcon,
   ChevronUp,
   CornerDownRightIcon,
+  InfoIcon,
   MessageSquareIcon,
   PencilIcon,
   PlusIcon,
@@ -64,6 +65,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { MetadataDialog } from "@/components/metadata-dialog";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useAdminAction } from "@/lib/action";
 import { feedbackHooks } from "@/lib/feedback";
@@ -103,6 +105,7 @@ export function FeedbackSheet({
   const detachRoadmap = feedbackHooks.useDetachFeedbackFromRoadmap();
   const action = useAdminAction();
   const [editOpen, setEditOpen] = useState(false);
+  const [metadataOpen, setMetadataOpen] = useState(false);
 
   return (
     <Sheet
@@ -110,6 +113,7 @@ export function FeedbackSheet({
       onOpenChange={(open) => {
         if (!open) {
           setEditOpen(false);
+          setMetadataOpen(false);
           onClose();
         }
       }}
@@ -132,18 +136,30 @@ export function FeedbackSheet({
                   #{entry.id}
                 </span>
               </div>
-              <div className="flex items-start justify-between gap-3 pr-8">
+              <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
                 <SheetTitle className="text-xl leading-tight">
                   {entry.title}
                 </SheetTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditOpen(true)}
-                >
-                  <PencilIcon data-icon="inline-start" />
-                  Edit
-                </Button>
+                <div className="flex shrink-0 items-center gap-2">
+                  {entry.metadata !== undefined && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMetadataOpen(true)}
+                    >
+                      <InfoIcon data-icon="inline-start" />
+                      Show metadata
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditOpen(true)}
+                  >
+                    <PencilIcon data-icon="inline-start" />
+                    Edit
+                  </Button>
+                </div>
               </div>
               <SheetDescription>
                 Submitted {new Date(entry.creationTime).toLocaleDateString()}
@@ -264,6 +280,14 @@ export function FeedbackSheet({
           entry={entry}
           open={editOpen}
           onOpenChange={setEditOpen}
+        />
+      )}
+      {entry && entry.metadata !== undefined && (
+        <MetadataDialog
+          metadata={entry.metadata}
+          entryTitle={entry.title}
+          open={metadataOpen}
+          onOpenChange={setMetadataOpen}
         />
       )}
     </Sheet>

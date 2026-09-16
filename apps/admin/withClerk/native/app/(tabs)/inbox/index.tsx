@@ -5,9 +5,11 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  StyleProp,
   StyleSheet,
   Text,
   View,
+  ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SearchBarCommands } from "react-native-screens";
@@ -176,11 +178,8 @@ export default function InboxScreen() {
               : [
                   styles.list,
                   {
-                    paddingBottom: 24,
                     paddingLeft: 12 + insets.left,
                     paddingRight: 12 + insets.right,
-                    borderRadius: 24,
-                    overflow: "hidden",
                   },
                 ]
           }
@@ -188,6 +187,7 @@ export default function InboxScreen() {
             entries.length === 0
               ? styles.emptyList
               : {
+                  paddingBottom: 24,
                   borderRadius: 24,
                   overflow: "hidden",
                 }
@@ -207,9 +207,16 @@ export default function InboxScreen() {
               />
             ) : null
           }
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <EntryRow
               entry={item}
+              style={
+                index === 0
+                  ? styles.topRadius
+                  : index === entries.length - 1
+                    ? styles.bottomRadius
+                    : {}
+              }
               onPress={() =>
                 router.push({
                   pathname: "/feedback/[entryId]",
@@ -227,9 +234,11 @@ export default function InboxScreen() {
 function EntryRow({
   entry,
   onPress,
+  style,
 }: {
   entry: AdminFeedbackEntry;
   onPress: () => void;
+  style?: StyleProp<ViewStyle>;
 }) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
@@ -237,7 +246,7 @@ function EntryRow({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.entry, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.entry, pressed && styles.pressed, style]}
     >
       <View style={styles.entryTop}>
         <Text numberOfLines={1} style={styles.entryTitle}>
@@ -280,6 +289,8 @@ function createStyles(theme: AdminTheme) {
       paddingHorizontal: 14,
       paddingVertical: 15,
     },
+    topRadius: { borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+    bottomRadius: { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
     pressed: { opacity: 0.7 },
     entryTop: { flexDirection: "row", alignItems: "center", gap: 8 },
     entryTitle: {

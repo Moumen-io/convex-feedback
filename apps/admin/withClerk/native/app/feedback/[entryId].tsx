@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,8 +13,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
 import { MetadataModal } from "@/components/metadata-modal";
+import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useAdminAction } from "@/lib/action";
 import { feedbackHooks } from "@/lib/feedback";
@@ -78,7 +79,22 @@ export default function FeedbackDetailScreen() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       {entry && (
-        <Stack.Toolbar placement="right">
+        <Stack.Toolbar placement={Platform.OS === "ios" ? "bottom" : "right"}>
+          {Platform.OS === "ios" && <Stack.Toolbar.Spacer />}
+          <Stack.Toolbar.Button
+            icon={editIcon}
+            accessibilityLabel="Edit feedback"
+            onPress={() =>
+              router.push({
+                pathname: "/feedback/[entryId]/edit",
+                params: { entryId: entry.id },
+              })
+            }
+            tintColor={theme.primary}
+          >
+            Edit
+          </Stack.Toolbar.Button>
+          {Platform.OS === "ios" && <Stack.Toolbar.Spacer />}
           <Stack.Toolbar.Menu
             icon={statusIcon}
             title="Status"
@@ -139,19 +155,6 @@ export default function FeedbackDetailScreen() {
               Metadata
             </Stack.Toolbar.Button>
           )}
-          <Stack.Toolbar.Button
-            icon={editIcon}
-            accessibilityLabel="Edit feedback"
-            onPress={() =>
-              router.push({
-                pathname: "/feedback/[entryId]/edit",
-                params: { entryId: entry.id },
-              })
-            }
-            tintColor={theme.primary}
-          >
-            Edit
-          </Stack.Toolbar.Button>
         </Stack.Toolbar>
       )}
       {entry === undefined ? (
@@ -164,6 +167,11 @@ export default function FeedbackDetailScreen() {
         <ScrollView
           style={styles.screen}
           contentInsetAdjustmentBehavior="automatic"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={
+            Platform.OS === "ios" ? "interactive" : "on-drag"
+          }
+          automaticallyAdjustKeyboardInsets
           contentContainerStyle={[
             styles.content,
             {

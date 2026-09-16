@@ -8,8 +8,6 @@ A headless, fully typed Convex component for product feedback, feature requests,
 
 > Looking for a ready-made public interface? `[convex-feedback-ui](../convex-feedback-ui/README.md)` provides optional React DOM and React Native screens and compound primitives. For internal triage, fork the [Clerk admin panel](../../apps/admin/withClerk/README.md).
 
-
-
 ## Features
 
 - Feedback, feature requests, and bug reports.
@@ -36,15 +34,11 @@ The component owns four tables: `entries`, `comments`, `reactions`, and `roadmap
 - `convex` installed in the host project.
 - React is required only when using `convex-feedback/react`.
 
-
-
 ## Installation
 
 ```bash
 npm install convex-feedback
 ```
-
-
 
 ## 1. Install the component in Convex
 
@@ -67,8 +61,6 @@ Run Convex so the host application's component references are generated:
 ```bash
 npx convex dev
 ```
-
-
 
 ### Automatic `statusFilter` upgrade migration
 
@@ -144,8 +136,6 @@ export const {
 });
 ```
 
-
-
 ### Actor IDs
 
 `actor.id` should be stable for the same user.
@@ -162,8 +152,6 @@ return {
   isAdmin: await isFeedbackAdmin(ctx, identity.tokenIdentifier),
 };
 ```
-
-
 
 ## 3. Configure behavior
 
@@ -267,8 +255,6 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
 });
 ```
 
-
-
 ## 4. Create typed React hooks
 
 If your client uses React or React Native, bind the generated host API once. Calling `createFeedbackHooks()` without an API argument defaults to `anyApi.feedback`; pass the generated namespace explicitly when the component is exposed elsewhere:
@@ -348,7 +334,9 @@ export const getMyActivity = query({
     const opts = { cursor: null, numItems: 20 };
     const entries = await ctx.runQuery(entryQuery, { paginationOpts: opts });
     const comments = await ctx.runQuery(commentQuery, { paginationOpts: opts });
-    const reactions = await ctx.runQuery(reactionQuery, { paginationOpts: opts });
+    const reactions = await ctx.runQuery(reactionQuery, {
+      paginationOpts: opts,
+    });
     return { entries, comments, reactions };
   },
 });
@@ -371,28 +359,35 @@ export const getActorActivity = internalQuery({
   args: { actorId: v.string() },
   handler: async (ctx, args) => {
     const opts = { cursor: null, numItems: 100 };
-    const entries = await ctx.runQuery(components.feedback.entries.listByActor, {
-      actorId: args.actorId,
-      paginationOpts: opts,
-      includeAdminContext: true
-    });
+    const entries = await ctx.runQuery(
+      components.feedback.entries.listByActor,
+      {
+        actorId: args.actorId,
+        paginationOpts: opts,
+        includeAdminContext: true,
+      },
+    );
 
-    const comments = await ctx.runQuery(components.feedback.comments.listByActor, {
-      actorId: args.actorId,
-      paginationOpts: opts
-      });
-      
-    const reactions = await ctx.runQuery(components.feedback.reactions.listByActor, {
-      actorId: args.actorId,
-      paginationOpts: opts
-      });
-      
+    const comments = await ctx.runQuery(
+      components.feedback.comments.listByActor,
+      {
+        actorId: args.actorId,
+        paginationOpts: opts,
+      },
+    );
+
+    const reactions = await ctx.runQuery(
+      components.feedback.reactions.listByActor,
+      {
+        actorId: args.actorId,
+        paginationOpts: opts,
+      },
+    );
+
     return { entries, comments, reactions };
   },
 });
 ```
-
-
 
 ## Admin panel
 
@@ -418,15 +413,11 @@ Admin entries may have an optional `low`, `medium`, or `high` priority and one r
 
 ## Entry kinds and statuses
 
-
-
 ### Kinds
 
 ```ts
 type EntryKind = "feedback" | "feature_request" | "bug_report";
 ```
-
-
 
 ### Statuses
 
@@ -539,7 +530,6 @@ The mutation result uses `active` to report the authoritative final state return
 
 The wrapper exposes:
 
-
 | Function                | Type     | Purpose                                              |
 | ----------------------- | -------- | ---------------------------------------------------- |
 | `listEntries`           | query    | Paginated entry list with server-side filters/sort   |
@@ -560,7 +550,6 @@ The wrapper exposes:
 | `deleteComment`         | mutation | Soft-delete a comment                                |
 | `setCommentLike`        | mutation | Idempotently set comment like state                  |
 | `createRoadmapForEntry` | mutation | Create a roadmap item and attach an entry atomically |
-
 
 The same wrapper exposes `isAdmin`, cursor-paginated admin list/search queries, admin detail, priority updates, cursor-paginated public roadmap lists, roadmap search/reordering functions, and feedback-to-roadmap attachment functions. Roadmap reads and attached public entries are unauthenticated; roadmap mutations and admin operations resolve the host actor. `isAdmin` and `isAuthenticated` return booleans instead of rejecting a caller. Bounded limits remain on suggestion-style full-text searches such as the roadmap selector.
 
@@ -585,8 +574,6 @@ import type { ComponentApi } from "convex-feedback/_generated/component";
 import feedbackTest from "convex-feedback/test";
 ```
 
-
-
 ## Testing host integrations
 
 The package exposes a `/test` entry point for `convex-test`.
@@ -607,11 +594,9 @@ Use host-level tests when you need to verify your authentication wrapper and pub
 
 ## UI package
 
-
 | Expo                                                                                                | React Native                                                                                                  |
 | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | ![Expo](https://raw.githubusercontent.com/Moumen-io/convex-feedback/main/docs/screenshots/expo.png) | ![React Native](https://raw.githubusercontent.com/Moumen-io/convex-feedback/main/docs/screenshots/native.png) |
-
 
 `convex-feedback` is intentionally headless. For a complete board or customizable primitives, install:
 

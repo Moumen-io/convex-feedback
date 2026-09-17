@@ -1,51 +1,29 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { EditFeedbackScreen } from "convex-feedback-admin-app-screens/native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
-import { EntryForm } from "@/components/entry-form";
-import { feedbackHooks } from "@/lib/feedback";
+import { EntryFormToolbar } from "../new";
+import { useAdminTheme } from "@/constants/AdminTheme";
+import { useToolbarIcon } from "@/lib/native-toolbar";
 
-export default function EditFeedbackScreen() {
+export default function EditFeedbackScreenRoute() {
   const { entryId } = useLocalSearchParams<{ entryId: string }>();
   const router = useRouter();
-  const entry = feedbackHooks.useAdminEntry(entryId);
   const theme = useAdminTheme();
-  const styles = createStyles(theme);
+  const closeIcon = useToolbarIcon("xmark", "close");
+  const kindIcon = useToolbarIcon("tag", "label");
+  const saveIcon = useToolbarIcon("checkmark", "check");
 
-  if (entry === undefined) {
-    return (
-      <View style={styles.center}>
-        <Stack.Screen options={{ title: "Edit feedback" }} />
-        <ActivityIndicator color={theme.primary} />
-      </View>
-    );
-  }
-
-  if (entry === null) {
-    return (
-      <View style={styles.center}>
-        <Stack.Screen options={{ title: "Edit feedback" }} />
-        <Text style={styles.text}>Feedback not found.</Text>
-        <Text style={styles.close} onPress={() => router.back()}>
-          Close
-        </Text>
-      </View>
-    );
-  }
-
-  return <EntryForm entry={entry} />;
-}
-
-function createStyles(theme: AdminTheme) {
-  return StyleSheet.create({
-    center: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 12,
-      backgroundColor: theme.background,
-    },
-    text: { color: theme.text },
-    close: { color: theme.primary, fontWeight: "600" },
-  });
+  return (
+    <EditFeedbackScreen
+      entryId={entryId}
+      onClose={() => router.back()}
+      renderToolbar={(props) => (
+        <EntryFormToolbar
+          icons={{ close: closeIcon, kind: kindIcon, save: saveIcon }}
+          props={props}
+          theme={theme}
+        />
+      )}
+    />
+  );
 }

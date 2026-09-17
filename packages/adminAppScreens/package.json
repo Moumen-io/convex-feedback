@@ -1,7 +1,7 @@
 {
   "name": "convex-feedback-admin-app-screens",
   "version": "0.1.0",
-  "description": "Shared settings and account-management screens for convex-feedback admin apps.",
+  "description": "Shared UI and presentation logic for convex-feedback admin apps.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -10,6 +10,7 @@
   "private": true,
   "type": "module",
   "files": [
+    "components.json",
     "dist",
     "src",
     "README.md"
@@ -24,6 +25,11 @@
       "types": "./dist/web/index.d.ts",
       "default": "./dist/web/index.js"
     },
+    "./web/styles.css": "./src/web/styles.css",
+    "./web/ui/*": {
+      "types": "./dist/web/ui/*.d.ts",
+      "default": "./dist/web/ui/*.js"
+    },
     "./native": {
       "types": "./dist/native/index.d.ts",
       "default": "./dist/native/index.js"
@@ -35,14 +41,36 @@
     "prepack": "npm run build"
   },
   "peerDependencies": {
+    "@base-ui/react": ">=1.8.0",
+    "@expo/ui": ">=57.0.0",
+    "convex-feedback": ">=0.2.0-beta.12",
+    "convex-feedback-ui": ">=0.2.0-beta.12",
+    "expo": ">=57.0.0",
     "lucide-react": ">=0.468.0",
     "lucide-react-native": ">=0.468.0",
+    "next-themes": ">=0.4.0",
     "react": ">=18.2.0",
     "react-dom": ">=18.2.0",
     "react-native": ">=0.83.0",
-    "react-native-safe-area-context": ">=5.4.0"
+    "react-native-safe-area-context": ">=5.4.0",
+    "sonner": ">=2.0.0"
   },
   "peerDependenciesMeta": {
+    "@base-ui/react": {
+      "optional": true
+    },
+    "@expo/ui": {
+      "optional": true
+    },
+    "convex-feedback": {
+      "optional": true
+    },
+    "convex-feedback-ui": {
+      "optional": true
+    },
+    "expo": {
+      "optional": true
+    },
     "lucide-react": {
       "optional": true
     },
@@ -57,17 +85,40 @@
     },
     "react-native-safe-area-context": {
       "optional": true
+    },
+    "next-themes": {
+      "optional": true
+    },
+    "sonner": {
+      "optional": true
     }
   },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "class-variance-authority": "^0.7.1",
+    "cmdk": "^1.1.1",
+    "cn": "^0.2.6",
+    "shadcn": "^4.21.0",
+    "tailwindcss": "^4.3.3",
+    "tw-animate-css": "^1.4.0"
+  },
   "devDependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@expo/ui": "^57.0.18",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "convex-feedback": "^0.2.0-beta.12",
+    "convex-feedback-ui": "*",
+    "expo": "~57.0.22",
     "lucide-react": "^1.45.0",
     "lucide-react-native": "^1.46.0",
+    "next-themes": "^0.4.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-safe-area-context": "~5.7.0"
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-worklets": "0.10.1",
+    "sonner": "^2.0.8"
   },
   "types": "./dist/shared/index.d.ts",
   "module": "./dist/shared/index.js"

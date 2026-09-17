@@ -12,6 +12,11 @@ import {
   AdminAppFrame,
   AdminAccountModal,
   AdminSettingsScreen,
+  Button,
+  InboxView,
+  RoadmapView,
+  Skeleton,
+  Toaster,
 } from "convex-feedback-admin-app-screens/web";
 import {
   ConvexReactClient,
@@ -24,12 +29,6 @@ import { InboxIcon, MapIcon, Settings2Icon, ShieldXIcon } from "lucide-react";
 import { ThemeProvider, useTheme } from "next-themes";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-
-import { InboxView } from "@/components/inbox";
-import { RoadmapView } from "@/components/roadmap-view";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Toaster } from "@/components/ui/sonner";
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const convexUrl = import.meta.env.VITE_CONVEX_URL;

@@ -1,9 +1,12 @@
 # Admin app screens
 
-This package contains the provider-neutral settings and account-management
-surfaces used by the admin app variants.
+`convex-feedback-admin-app-screens` owns the reusable admin presentation layer:
+settings, account-management shells, inbox/roadmap screens, native feedback
+forms and detail screens, data hooks, action helpers, theme primitives, and the
+web Shadcn components used by those screens.
 
-The platform entry points intentionally keep authentication out of the package:
+Authentication providers, Convex provider setup, and routing remain in each
+app variant. Provider-owned account UI is passed to the shared modal:
 
 ```tsx
 import {
@@ -18,9 +21,11 @@ import {
 </AdminAccountModal>;
 ```
 
-The Clerk, WorkOS, or other provider-specific prebuilt component can be passed
-as the modal child. This keeps account UI and settings layout shared while
-leaving auth state, routing, and mutations in each app variant.
+Native variants can wrap their auth/router scaffold with
+`NativeAppProviders`. It provides `SafeAreaProvider` and the shared admin theme
+context. Native color selection and predefined color selection use Expo UI
+controls; the iOS build uses the native SwiftUI color picker.
 
-For Tailwind v4 consumers, include the package source in the host stylesheet's
-`@source` list so the package's utility classes are included in the build.
+The package exports the copied Shadcn setup at `components.json`, all UI
+components under `convex-feedback-admin-app-screens/web/ui/*`, and the shared
+stylesheet at `convex-feedback-admin-app-screens/web/styles.css`.

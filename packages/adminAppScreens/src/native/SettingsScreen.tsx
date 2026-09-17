@@ -1,12 +1,10 @@
+import { Host, Picker } from "@expo/ui";
 import {
-  Check,
   ChevronRight,
   KeyRound,
   LogOut,
   Monitor,
   Moon,
-  Palette,
-  ShieldCheck,
   Sun,
   UserRound,
 } from "lucide-react-native";
@@ -17,16 +15,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
 import {
   ADMIN_COLOR_PRESETS,
-  type AdminColorPreset,
   type AdminSettingsScreenProps,
   type AdminThemeMode,
 } from "../shared/index.js";
+import { NativeAccentColorPicker } from "./controls/NativeAccentColorPicker";
 import { useAdminScreenTheme, type AdminScreenTheme } from "./theme.js";
 
 const themeOptions: {
@@ -59,16 +56,9 @@ export function AdminSettingsScreen({
   const styles = createStyles(theme);
   const [themeMode, setThemeMode] = useState<AdminThemeMode>(themeModeProp);
   const [accentColor, setAccentColor] = useState(accentColorProp);
-  const [customColor, setCustomColor] = useState(accentColorProp);
 
-  useEffect(() => {
-    setThemeMode(themeModeProp);
-  }, [themeModeProp]);
-
-  useEffect(() => {
-    setAccentColor(accentColorProp);
-    setCustomColor(accentColorProp);
-  }, [accentColorProp]);
+  useEffect(() => setThemeMode(themeModeProp), [themeModeProp]);
+  useEffect(() => setAccentColor(accentColorProp), [accentColorProp]);
 
   const changeThemeMode = (nextMode: AdminThemeMode) => {
     setThemeMode(nextMode);
@@ -77,56 +67,39 @@ export function AdminSettingsScreen({
 
   const changeAccentColor = (nextColor: string) => {
     setAccentColor(nextColor);
-    setCustomColor(nextColor);
     onAccentColorChange?.(nextColor);
   };
 
+  const selectedPreset = colorPresets.find(
+    (preset) => preset.value.toLowerCase() === accentColor.toLowerCase(),
+  );
+  const selectedPresetId = selectedPreset?.id ?? "custom";
   const accountName = account?.name ?? "Admin account";
   const accountEmail = account?.email ?? "Signed-in account";
-  const accountInitials = getInitials(accountName, accountEmail);
 
   return (
     <ScrollView
-      style={styles.screen}
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
       showsVerticalScrollIndicator={false}
+      style={styles.screen}
     >
       <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>WORKSPACE PREFERENCES</Text>
-          <Text style={styles.title}>Settings</Text>
-          <Text style={styles.subtitle}>
-            Tune the way your feedback workspace looks, then manage the account
-            that has access to it.
-          </Text>
-        </View>
-        <View style={styles.headerIcon}>
-          <Palette color={theme.primary} size={22} strokeWidth={1.8} />
-        </View>
+        <Text style={styles.title}>Settings</Text>
       </View>
 
       <View style={styles.section}>
-        <SectionIntro
-          eyebrow="APPEARANCE"
-          title="Make it yours"
-          description="Small visual choices make a busy admin surface easier to scan."
-          theme={theme}
-        />
+        <Text style={styles.sectionTitle}>Appearance</Text>
         <View style={styles.sectionBody}>
-          <SettingLabel
-            title="Theme"
-            description="Choose the surface that feels right for this workspace."
-            theme={theme}
-          />
+          <Text style={styles.settingTitle}>Theme</Text>
           <View style={styles.themeOptions}>
             {themeOptions.map(({ value, label, Icon }) => {
               const selected = themeMode === value;
               return (
                 <Pressable
-                  key={value}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
+                  key={value}
                   onPress={() => changeThemeMode(value)}
                   style={({ pressed }) => [
                     styles.themeOption,
@@ -152,74 +125,51 @@ export function AdminSettingsScreen({
             })}
           </View>
 
-          <SettingLabel
-            title="Accent color"
-            description="Use one clear color to keep active states easy to find."
-            theme={theme}
-          />
-          <View style={styles.colorGrid}>
-            {colorPresets.map((preset) => (
-              <ColorPresetButton
-                key={preset.id}
-                preset={preset}
-                selected={
-                  accentColor.toLowerCase() === preset.value.toLowerCase()
-                }
-                theme={theme}
-                onSelect={() => changeAccentColor(preset.value)}
-              />
-            ))}
-          </View>
-
+          <Text style={styles.settingTitle}>Accent color</Text>
+          <Host style={styles.pickerHost}>
+            <Picker
+              appearance="menu"
+              onValueChange={(value) => {
+                const preset = colorPresets.find(
+                  (candidate) => candidate.id === value,
+                );
+                if (preset) changeAccentColor(preset.value);
+              }}
+              selectedValue={selectedPresetId}
+            >
+              {colorPresets.map((preset) => (
+                <Picker.Item
+                  key={preset.id}
+                  label={preset.label}
+                  value={preset.id}
+                />
+              ))}
+              <Picker.Item label="Custom" value="custom" />
+            </Picker>
+          </Host>
           <View style={styles.customColorRow}>
             <View
-              style={[
-                styles.customSwatch,
-                {
-                  backgroundColor: isHexColor(customColor)
-                    ? customColor
-                    : theme.primary,
-                },
-              ]}
+              style={[styles.customSwatch, { backgroundColor: accentColor }]}
             />
-            <View style={styles.customColorCopy}>
-              <Text style={styles.customColorTitle}>Custom color</Text>
-              <Text style={styles.customColorDescription}>
-                Enter a six-digit hex value to preview it.
-              </Text>
-            </View>
-            <TextInput
-              autoCapitalize="characters"
-              autoCorrect={false}
-              maxLength={7}
-              onChangeText={(value) => {
-                const nextValue = value.toUpperCase();
-                setCustomColor(nextValue);
-                if (isHexColor(nextValue)) changeAccentColor(nextValue);
-              }}
-              placeholder="#2563EB"
-              placeholderTextColor={theme.mutedText}
-              style={styles.colorInput}
-              value={customColor}
+            <NativeAccentColorPicker
+              onChange={changeAccentColor}
+              value={isHexColor(accentColor) ? accentColor : "#2563EB"}
             />
           </View>
         </View>
       </View>
 
       <View style={[styles.section, styles.accountSection]}>
-        <SectionIntro
-          eyebrow="ACCOUNT"
-          title="Access and security"
-          description="Keep your profile current and control how you leave the workspace."
-          theme={theme}
-        />
+        <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.sectionBody}>
           <View style={styles.accountSummary}>
             {account?.imageUrl ? (
               <Image source={{ uri: account.imageUrl }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarText}>{accountInitials}</Text>
+                <Text style={styles.avatarText}>
+                  {getInitials(accountName, accountEmail)}
+                </Text>
               </View>
             )}
             <View style={styles.accountCopy}>
@@ -230,132 +180,42 @@ export function AdminSettingsScreen({
                 {accountEmail}
               </Text>
             </View>
-            <View style={styles.adminBadge}>
-              <ShieldCheck color={theme.primary} size={13} />
-              <Text style={styles.adminBadgeText}>Admin</Text>
-            </View>
           </View>
 
           <ActionRow
             Icon={UserRound}
-            title="Manage account"
-            description="Profile details, sign-in methods, and security settings"
-            theme={theme}
             onPress={onManageAccount}
+            theme={theme}
+            title="Manage account"
           />
           <ActionRow
             Icon={KeyRound}
-            title="Security"
-            description="Manage passwords and multi-factor authentication"
-            theme={theme}
             onPress={onManageAccount}
+            theme={theme}
+            title="Manage security"
           />
           <ActionRow
             Icon={LogOut}
-            title="Sign out"
-            description="End this admin session on the current device"
             destructive
-            theme={theme}
             onPress={onSignOut}
+            theme={theme}
+            title="Sign out"
           />
         </View>
       </View>
-
-      <View style={styles.footer}>
-        <View style={styles.footerDot} />
-        <Text style={styles.footerText}>
-          Changes are ready to apply across this admin app.
-        </Text>
-      </View>
     </ScrollView>
-  );
-}
-
-function SectionIntro({
-  eyebrow,
-  title,
-  description,
-  theme,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  theme: AdminScreenTheme;
-}) {
-  const styles = createStyles(theme);
-
-  return (
-    <View>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionDescription}>{description}</Text>
-    </View>
-  );
-}
-
-function SettingLabel({
-  title,
-  description,
-  theme,
-}: {
-  title: string;
-  description: string;
-  theme: AdminScreenTheme;
-}) {
-  const styles = createStyles(theme);
-
-  return (
-    <View style={styles.settingLabel}>
-      <Text style={styles.settingTitle}>{title}</Text>
-      <Text style={styles.settingDescription}>{description}</Text>
-    </View>
-  );
-}
-
-function ColorPresetButton({
-  preset,
-  selected,
-  theme,
-  onSelect,
-}: {
-  preset: AdminColorPreset;
-  selected: boolean;
-  theme: AdminScreenTheme;
-  onSelect: () => void;
-}) {
-  const styles = createStyles(theme);
-
-  return (
-    <Pressable
-      accessibilityLabel={`${preset.label}: ${preset.description}`}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onSelect}
-      style={({ pressed }) => [
-        styles.colorPreset,
-        selected && styles.colorPresetSelected,
-        pressed && styles.pressed,
-      ]}
-    >
-      <View style={[styles.colorSwatch, { backgroundColor: preset.value }]}>
-        {selected && <Check color="#FFFFFF" size={13} strokeWidth={3} />}
-      </View>
-      <Text style={styles.colorPresetLabel}>{preset.label}</Text>
-    </Pressable>
   );
 }
 
 function ActionRow({
   Icon,
   title,
-  description,
   destructive = false,
   theme,
   onPress,
 }: {
   Icon: typeof UserRound;
   title: string;
-  description: string;
   destructive?: boolean;
   theme: AdminScreenTheme;
   onPress?: () => void;
@@ -368,15 +228,12 @@ function ActionRow({
       onPress={onPress}
       style={({ pressed }) => [
         styles.actionRow,
-        destructive ? styles.actionRowDestructive : null,
+        destructive && styles.actionRowDestructive,
         pressed && styles.pressed,
       ]}
     >
       <View
-        style={[
-          styles.actionIcon,
-          destructive ? styles.actionIconDestructive : null,
-        ]}
+        style={[styles.actionIcon, destructive && styles.actionIconDestructive]}
       >
         <Icon
           color={destructive ? theme.danger : theme.mutedText}
@@ -384,14 +241,9 @@ function ActionRow({
           strokeWidth={1.8}
         />
       </View>
-      <View style={styles.actionCopy}>
-        <Text style={[styles.actionTitle, destructive && styles.dangerText]}>
-          {title}
-        </Text>
-        <Text numberOfLines={2} style={styles.actionDescription}>
-          {description}
-        </Text>
-      </View>
+      <Text style={[styles.actionTitle, destructive && styles.dangerText]}>
+        {title}
+      </Text>
       <ChevronRight
         color={destructive ? theme.danger : theme.mutedText}
         size={17}
@@ -421,93 +273,48 @@ function createStyles(theme: AdminScreenTheme) {
     screen: { flex: 1, backgroundColor: theme.background },
     content: { paddingHorizontal: 20, paddingBottom: 32 },
     header: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 18,
-      borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       paddingTop: 24,
       paddingBottom: 24,
-    },
-    headerCopy: { flex: 1 },
-    eyebrow: {
-      color: theme.primary,
-      fontSize: 10,
-      fontWeight: "800",
-      letterSpacing: 1.5,
     },
     title: {
       color: theme.text,
       fontSize: 32,
       fontWeight: "700",
       letterSpacing: -1,
-      marginTop: 8,
-    },
-    subtitle: {
-      maxWidth: 430,
-      color: theme.mutedText,
-      fontSize: 14,
-      lineHeight: 21,
-      marginTop: 10,
-    },
-    headerIcon: {
-      alignItems: "center",
-      justifyContent: "center",
-      width: 48,
-      height: 48,
-      borderRadius: 15,
-      backgroundColor: theme.surfaceMuted,
     },
     section: {
-      gap: 24,
-      borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       paddingVertical: 28,
     },
     accountSection: { paddingBottom: 30 },
-    sectionBody: { gap: 16 },
-    sectionTitle: {
-      color: theme.text,
-      fontSize: 17,
-      fontWeight: "700",
-      marginTop: 6,
-    },
-    sectionDescription: {
-      color: theme.mutedText,
-      fontSize: 12,
-      lineHeight: 18,
-      marginTop: 6,
-    },
-    settingLabel: { gap: 4 },
+    sectionBody: { gap: 14 },
+    sectionTitle: { color: theme.text, fontSize: 17, fontWeight: "700" },
     settingTitle: { color: theme.text, fontSize: 14, fontWeight: "700" },
-    settingDescription: {
-      color: theme.mutedText,
-      fontSize: 12,
-      lineHeight: 18,
-    },
     themeOptions: {
+      backgroundColor: theme.surfaceMuted,
+      borderRadius: 16,
       flexDirection: "row",
       gap: 8,
-      borderRadius: 16,
-      backgroundColor: theme.surfaceMuted,
       padding: 5,
     },
     themeOption: {
-      flex: 1,
       alignItems: "center",
-      gap: 8,
       borderRadius: 12,
+      flex: 1,
+      gap: 8,
       paddingHorizontal: 8,
       paddingVertical: 12,
     },
     themeOptionSelected: {
       backgroundColor: theme.surface,
+      elevation: 2,
       shadowColor: "#000000",
+      shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.08,
       shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
     },
     themeOptionLabel: {
       color: theme.mutedText,
@@ -515,89 +322,39 @@ function createStyles(theme: AdminScreenTheme) {
       fontWeight: "600",
     },
     themeOptionLabelSelected: { color: theme.text },
-    colorGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    colorPreset: {
-      flexGrow: 1,
-      flexBasis: "28%",
-      alignItems: "center",
-      gap: 8,
-      minWidth: 74,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 14,
-      backgroundColor: theme.surface,
-      paddingHorizontal: 8,
-      paddingVertical: 12,
-    },
-    colorPresetSelected: {
-      borderColor: theme.primary,
-      backgroundColor: theme.surfaceMuted,
-    },
-    colorSwatch: {
-      alignItems: "center",
-      justifyContent: "center",
-      width: 27,
-      height: 27,
-      borderRadius: 14,
-      shadowColor: "#000000",
-      shadowOpacity: 0.12,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 1 },
-      elevation: 1,
-    },
-    colorPresetLabel: { color: theme.text, fontSize: 11, fontWeight: "600" },
+    pickerHost: { minHeight: 44, width: "100%" },
     customColorRow: {
-      flexDirection: "row",
       alignItems: "center",
-      gap: 11,
-      borderWidth: 1,
+      backgroundColor: theme.surfaceMuted,
       borderColor: theme.border,
       borderRadius: 15,
-      backgroundColor: theme.surfaceMuted,
-      padding: 11,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 12,
+      padding: 10,
     },
     customSwatch: {
-      width: 34,
-      height: 34,
+      borderColor: "#0000001A",
       borderRadius: 11,
       borderWidth: 1,
-      borderColor: "#0000001A",
-    },
-    customColorCopy: { flex: 1, gap: 2 },
-    customColorTitle: { color: theme.text, fontSize: 12, fontWeight: "700" },
-    customColorDescription: {
-      color: theme.mutedText,
-      fontSize: 11,
-      lineHeight: 16,
-    },
-    colorInput: {
-      width: 84,
-      height: 36,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 9,
-      backgroundColor: theme.surface,
-      color: theme.text,
-      fontFamily: "monospace",
-      fontSize: 11,
-      paddingHorizontal: 9,
-      textAlign: "center",
+      height: 34,
+      width: 34,
     },
     accountSummary: {
-      flexDirection: "row",
       alignItems: "center",
-      gap: 11,
-      borderWidth: 1,
+      backgroundColor: theme.surfaceMuted,
       borderColor: theme.border,
       borderRadius: 16,
-      backgroundColor: theme.surfaceMuted,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 11,
       padding: 13,
     },
-    avatar: { width: 43, height: 43, borderRadius: 22 },
+    avatar: { borderRadius: 22, height: 43, width: 43 },
     avatarFallback: {
       alignItems: "center",
-      justifyContent: "center",
       backgroundColor: theme.primary,
+      justifyContent: "center",
     },
     avatarText: {
       color: theme.primaryForeground,
@@ -607,53 +364,33 @@ function createStyles(theme: AdminScreenTheme) {
     accountCopy: { flex: 1, gap: 3 },
     accountName: { color: theme.text, fontSize: 13, fontWeight: "700" },
     accountEmail: { color: theme.mutedText, fontSize: 11 },
-    adminBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      borderRadius: 999,
-      backgroundColor: theme.surface,
-      paddingHorizontal: 8,
-      paddingVertical: 5,
-    },
-    adminBadgeText: { color: theme.primary, fontSize: 10, fontWeight: "700" },
     actionRow: {
-      flexDirection: "row",
       alignItems: "center",
-      gap: 11,
-      borderWidth: 1,
+      backgroundColor: theme.surface,
       borderColor: theme.border,
       borderRadius: 16,
-      backgroundColor: theme.surface,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 11,
       padding: 13,
     },
     actionRowDestructive: { borderColor: `${theme.danger}55` },
     actionIcon: {
       alignItems: "center",
+      backgroundColor: theme.surfaceMuted,
+      borderRadius: 11,
+      height: 35,
       justifyContent: "center",
       width: 35,
-      height: 35,
-      borderRadius: 11,
-      backgroundColor: theme.surfaceMuted,
     },
     actionIconDestructive: { backgroundColor: `${theme.danger}18` },
-    actionCopy: { flex: 1, gap: 3 },
-    actionTitle: { color: theme.text, fontSize: 13, fontWeight: "700" },
+    actionTitle: {
+      color: theme.text,
+      flex: 1,
+      fontSize: 13,
+      fontWeight: "700",
+    },
     dangerText: { color: theme.danger },
-    actionDescription: { color: theme.mutedText, fontSize: 11, lineHeight: 16 },
     pressed: { opacity: 0.65 },
-    footer: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 7,
-      paddingTop: 18,
-    },
-    footerDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: theme.primary,
-    },
-    footerText: { color: theme.mutedText, fontSize: 11 },
   });
 }

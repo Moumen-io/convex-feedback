@@ -1,56 +1,33 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { EditRoadmapScreen } from "convex-feedback-admin-app-screens/native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { RoadmapForm } from "@/components/roadmap-form";
-import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
-import { feedbackHooks } from "@/lib/feedback";
+import { RoadmapFormToolbar } from "../new";
+import { useAdminTheme } from "@/constants/AdminTheme";
+import { useToolbarIcon } from "@/lib/native-toolbar";
 import { parseRoadmapRouteItem } from "@/lib/roadmap-route";
 
-export default function EditRoadmapScreen() {
+export default function EditRoadmapScreenRoute() {
   const params = useLocalSearchParams<{
     roadmapId: string;
     item?: string | string[];
   }>();
   const router = useRouter();
-  const roadmap = feedbackHooks.useRoadmap();
   const theme = useAdminTheme();
-  const styles = createStyles(theme);
-  const routeItem = parseRoadmapRouteItem(params.item);
-  const item =
-    roadmap.results.find((candidate) => candidate.id === params.roadmapId) ??
-    routeItem;
+  const closeIcon = useToolbarIcon("xmark", "close");
+  const saveIcon = useToolbarIcon("checkmark", "check");
 
-  if (!item) {
-    return (
-      <View style={styles.center}>
-        <Stack.Screen options={{ title: "Edit roadmap item" }} />
-        {roadmap.status === "LoadingFirstPage" ? (
-          <ActivityIndicator color={theme.primary} />
-        ) : (
-          <>
-            <Text style={styles.text}>Roadmap item not found.</Text>
-            <Text style={styles.close} onPress={() => router.back()}>
-              Close
-            </Text>
-          </>
-        )}
-      </View>
-    );
-  }
-
-  return <RoadmapForm item={item} />;
-}
-
-function createStyles(theme: AdminTheme) {
-  return StyleSheet.create({
-    center: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 12,
-      backgroundColor: theme.background,
-    },
-    text: { color: theme.text },
-    close: { color: theme.primary, fontWeight: "600" },
-  });
+  return (
+    <EditRoadmapScreen
+      onClose={() => router.back()}
+      renderToolbar={(props) => (
+        <RoadmapFormToolbar
+          icons={{ close: closeIcon, save: saveIcon }}
+          props={props}
+          theme={theme}
+        />
+      )}
+      roadmapId={params.roadmapId}
+      routeItem={parseRoadmapRouteItem(params.item)}
+    />
+  );
 }

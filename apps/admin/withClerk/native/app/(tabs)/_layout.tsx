@@ -12,15 +12,27 @@ export default function TabLayout() {
       tintColor={theme.primary}
       disableTransparentOnScrollEdge
     >
-      <NativeTabs.Trigger name="inbox" disableAutomaticContentInsets>
+      <NativeTabs.Trigger
+        accessibilityLabel="Inbox"
+        name="inbox"
+        disableAutomaticContentInsets
+      >
         <NativeTabs.Trigger.Label hidden>Inbox</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="tray.full.fill" md="inbox" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="roadmap" disableAutomaticContentInsets>
+      <NativeTabs.Trigger
+        accessibilityLabel="Roadmap"
+        name="roadmap"
+        disableAutomaticContentInsets
+      >
         <NativeTabs.Trigger.Label hidden>Roadmap</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="map.fill" md="map" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="settings" disableAutomaticContentInsets>
+      <NativeTabs.Trigger
+        accessibilityLabel="Settings"
+        name="settings"
+        disableAutomaticContentInsets
+      >
         <NativeTabs.Trigger.Label hidden>Settings</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="gearshape.fill" md="settings" />
       </NativeTabs.Trigger>

@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Button } from "./ui/button.js";
+
 export interface AdminNavigationItem<TValue extends string = string> {
   value: TValue;
   label: string;
@@ -44,24 +46,22 @@ export function AdminAppFrame<TValue extends string>({
           {navigation.map(({ value, label, icon: Icon }) => {
             const selected = activeView === value;
             return (
-              <button
+              <Button
                 key={value}
-                type="button"
                 aria-current={selected ? "page" : undefined}
-                className={`group flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent px-2.5 text-sm font-medium whitespace-nowrap outline-none transition-all focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:justify-start ${
-                  selected
-                    ? "bg-secondary text-secondary-foreground"
-                    : "text-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                className="h-8 shrink-0 justify-center md:justify-start"
                 onClick={() => onViewChange(value)}
+                size="sm"
+                variant={selected ? "secondary" : "ghost"}
               >
                 <Icon
                   aria-hidden="true"
-                  className="size-4 shrink-0"
+                  className="shrink-0"
+                  data-icon="inline-start"
                   strokeWidth={1.8}
                 />
                 <span className="hidden sm:inline">{label}</span>
-              </button>
+              </Button>
             );
           })}
         </nav>

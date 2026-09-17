@@ -1,3 +1,1 @@
-import { createFeedbackHooks } from "convex-feedback/react";
-
-export const feedbackHooks = createFeedbackHooks();
+export { feedbackHooks } from "convex-feedback-admin-app-screens/native";

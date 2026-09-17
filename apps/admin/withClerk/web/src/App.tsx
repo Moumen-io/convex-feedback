@@ -9,6 +9,7 @@ import {
 } from "@clerk/react";
 import type { RoadmapItem } from "convex-feedback";
 import {
+  AdminAppFrame,
   AdminAccountModal,
   AdminSettingsScreen,
 } from "convex-feedback-admin-app-screens/web";
@@ -186,59 +187,37 @@ function AdminShell() {
 
   return (
     <>
-      <main className="grid min-h-svh bg-background md:grid-cols-[13rem_minmax(0,1fr)]">
-        <aside className="flex items-center justify-between border-b bg-sidebar px-3 py-3 md:flex-col md:items-stretch md:border-r md:border-b-0 md:py-4">
-          <div className="flex items-center gap-2 px-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
-              CF
-            </span>
-            <span className="text-sm font-semibold">Feedback admin</span>
-          </div>
-          <nav className="mx-3 flex flex-1 gap-1 md:mx-0 md:mt-8 md:flex-col">
-            {nav.map(({ value, label, icon: Icon }) => (
-              <Button
-                key={value}
-                variant={view === value ? "secondary" : "ghost"}
-                className="justify-start"
-                onClick={() => changeView(value)}
-              >
-                <Icon data-icon="inline-start" />{" "}
-                <span className="hidden sm:inline">{label}</span>
-              </Button>
-            ))}
-          </nav>
-          <div className="hidden items-center justify-between gap-2 px-2 md:flex">
-            <span className="text-xs text-muted-foreground">Admin</span>
-            <UserButton />
-          </div>
-        </aside>
-        <div className="flex min-h-0 min-w-0 flex-col md:h-svh">
-          {view === "inbox" && (
-            <InboxView
-              entryId={selectedEntryId}
-              onEntryIdChange={setSelectedEntryId}
-              onOpenRoadmap={openRoadmap}
-            />
-          )}
-          {view === "roadmap" && (
-            <RoadmapView
-              selectedId={selectedRoadmapId}
-              selectedItem={selectedRoadmapItem}
-              onSelectedIdChange={setSelectedRoadmapId}
-              onOpenEntry={openEntry}
-            />
-          )}
-          {view === "settings" && (
-            <AdminSettingsScreen
-              account={account}
-              onManageAccount={() => setAccountOpen(true)}
-              onSignOut={() => void signOut()}
-              onThemeModeChange={setTheme}
-              themeMode={themeMode}
-            />
-          )}
-        </div>
-      </main>
+      <AdminAppFrame
+        accountSlot={<UserButton />}
+        activeView={view}
+        navigation={nav}
+        onViewChange={changeView}
+      >
+        {view === "inbox" && (
+          <InboxView
+            entryId={selectedEntryId}
+            onEntryIdChange={setSelectedEntryId}
+            onOpenRoadmap={openRoadmap}
+          />
+        )}
+        {view === "roadmap" && (
+          <RoadmapView
+            selectedId={selectedRoadmapId}
+            selectedItem={selectedRoadmapItem}
+            onSelectedIdChange={setSelectedRoadmapId}
+            onOpenEntry={openEntry}
+          />
+        )}
+        {view === "settings" && (
+          <AdminSettingsScreen
+            account={account}
+            onManageAccount={() => setAccountOpen(true)}
+            onSignOut={() => void signOut()}
+            onThemeModeChange={setTheme}
+            themeMode={themeMode}
+          />
+        )}
+      </AdminAppFrame>
       <AdminAccountModal onOpenChange={setAccountOpen} open={accountOpen}>
         <UserProfile routing="hash" />
       </AdminAccountModal>

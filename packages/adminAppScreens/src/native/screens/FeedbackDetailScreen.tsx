@@ -4,7 +4,7 @@ import type {
   EntryStatus,
   RoadmapItem,
 } from "convex-feedback";
-import type { ReactNode } from "react";
+import { Stack } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -24,12 +24,13 @@ import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useDebouncedValue } from "../hooks/use-debounced-value.js";
 import { useAdminAction } from "../lib/action.js";
 import { feedbackHooks } from "../lib/feedback.js";
+import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
 function displayValue(value: string): string {
   return value.replaceAll("_", " ");
 }
 
-export interface FeedbackDetailToolbarProps {
+interface FeedbackDetailToolbarProps {
   entry: AdminFeedbackEntry | null | undefined;
   pending: boolean;
   onClose: () => void;
@@ -44,7 +45,6 @@ export interface FeedbackDetailScreenProps {
   onClose: () => void;
   onEdit: (entryId: string) => void;
   onOpenRoadmap: (roadmap: RoadmapItem) => void;
-  renderToolbar?: (props: FeedbackDetailToolbarProps) => ReactNode;
 }
 
 export function FeedbackDetailScreen({
@@ -52,7 +52,6 @@ export function FeedbackDetailScreen({
   onClose,
   onEdit,
   onOpenRoadmap,
-  renderToolbar,
 }: FeedbackDetailScreenProps) {
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
@@ -99,15 +98,15 @@ export function FeedbackDetailScreen({
 
   return (
     <>
-      {renderToolbar?.({
-        entry,
-        onClose,
-        onEdit,
-        onPriorityChange: changePriority,
-        onShowMetadata: showMetadata,
-        onStatusChange: changeStatus,
-        pending: action.pending,
-      })}
+      <FeedbackToolbar
+        entry={entry}
+        onClose={onClose}
+        onEdit={onEdit}
+        onPriorityChange={changePriority}
+        onShowMetadata={showMetadata}
+        onStatusChange={changeStatus}
+        pending={action.pending}
+      />
       {entry === undefined ? (
         <ActivityIndicator style={styles.loader} color={theme.primary} />
       ) : entry === null ? (
@@ -293,6 +292,113 @@ export function FeedbackDetailScreen({
           visible={metadataOpen}
           onClose={() => setMetadataOpen(false)}
         />
+      )}
+    </>
+  );
+}
+
+function FeedbackToolbar({
+  entry,
+  onClose,
+  onEdit,
+  onPriorityChange,
+  onShowMetadata,
+  onStatusChange,
+  pending,
+}: FeedbackDetailToolbarProps) {
+  const theme = useAdminTheme();
+  const closeIcon = useToolbarIcon("xmark", "close");
+  const statusIcon = useToolbarIcon("checkmark.circle", "check_circle");
+  const priorityIcon = useToolbarIcon("flag", "flag");
+  const metadataIcon = useToolbarIcon("info.circle", "info");
+  const editIcon = useToolbarIcon("pencil", "edit");
+  const statuses: { value: EntryStatus; label: string }[] = [
+    { value: "open", label: "Open" },
+    { value: "under_review", label: "Under review" },
+    { value: "planned", label: "Planned" },
+    { value: "in_progress", label: "In progress" },
+    { value: "completed", label: "Completed" },
+    { value: "closed", label: "Closed" },
+  ];
+  const priorities: { value: EntryPriority | null; label: string }[] = [
+    { value: null, label: "None" },
+    { value: "low", label: "Low" },
+    { value: "medium", label: "Medium" },
+    { value: "high", label: "High" },
+  ];
+
+  return (
+    <>
+      <Stack.Screen options={{ title: entry?.title ?? "Feedback" }} />
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Close feedback details"
+          icon={closeIcon}
+          onPress={onClose}
+          tintColor={theme.text}
+        >
+          Close
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      {entry && (
+        <Stack.Toolbar placement={Platform.OS === "ios" ? "bottom" : "right"}>
+          <Stack.Toolbar.Spacer hidden={Platform.OS !== "ios"} />
+          <Stack.Toolbar.Button
+            accessibilityLabel="Edit feedback"
+            icon={editIcon}
+            onPress={() => onEdit(entry.id)}
+            tintColor={theme.primary}
+          >
+            Edit
+          </Stack.Toolbar.Button>
+          <Stack.Toolbar.Spacer hidden={Platform.OS !== "ios"} />
+          <Stack.Toolbar.Menu
+            accessibilityLabel="Change status"
+            disabled={pending}
+            icon={statusIcon}
+            tintColor={theme.text}
+            title="Status"
+          >
+            {statuses.map(({ value, label }) => (
+              <Stack.Toolbar.MenuAction
+                disabled={pending}
+                isOn={entry.status === value}
+                key={value}
+                onPress={() => onStatusChange(value)}
+              >
+                {label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu
+            accessibilityLabel="Change priority"
+            disabled={pending}
+            icon={priorityIcon}
+            tintColor={theme.text}
+            title="Priority"
+          >
+            {priorities.map(({ value, label }) => (
+              <Stack.Toolbar.MenuAction
+                disabled={pending}
+                isOn={(entry.priority ?? null) === value}
+                key={value ?? "none"}
+                onPress={() => onPriorityChange(value)}
+              >
+                {label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Button
+            accessibilityLabel="Show metadata"
+            icon={metadataIcon}
+            onPress={onShowMetadata}
+            tintColor={
+              entry.metadata === undefined ? theme.warning : theme.text
+            }
+          >
+            Metadata
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
       )}
     </>
   );

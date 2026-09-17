@@ -1,7 +1,4 @@
-import {
-  FeedbackDetailScreen,
-  FeedbackToolbar,
-} from "convex-feedback-admin-app-screens/native";
+import { FeedbackDetailScreen } from "convex-feedback-admin-app-screens/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { roadmapRouteParams } from "@/lib/roadmap-route";
@@ -26,7 +23,6 @@ export default function FeedbackDetailRoute() {
           params: roadmapRouteParams(item),
         })
       }
-      renderToolbar={(toolbar) => <FeedbackToolbar toolbar={toolbar} />}
     />
   );
 }

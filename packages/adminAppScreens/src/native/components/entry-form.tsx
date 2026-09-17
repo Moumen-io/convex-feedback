@@ -1,5 +1,5 @@
 import type { AdminFeedbackEntry, EntryKind } from "convex-feedback";
-import type { ReactNode } from "react";
+import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useAdminAction } from "../lib/action.js";
 import { feedbackHooks } from "../lib/feedback.js";
+import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
 const kinds: { value: EntryKind; label: string }[] = [
   { value: "feedback", label: "Feedback" },
@@ -22,7 +23,7 @@ const kinds: { value: EntryKind; label: string }[] = [
   { value: "bug_report", label: "Bug report" },
 ];
 
-export interface EntryFormToolbarProps {
+interface EntryFormToolbarProps {
   isEdit: boolean;
   pending: boolean;
   kind: EntryKind;
@@ -36,10 +37,9 @@ export interface EntryFormToolbarProps {
 export interface EntryFormProps {
   entry?: AdminFeedbackEntry;
   onClose: () => void;
-  renderToolbar?: (props: EntryFormToolbarProps) => ReactNode;
 }
 
-export function EntryForm({ entry, onClose, renderToolbar }: EntryFormProps) {
+export function EntryForm({ entry, onClose }: EntryFormProps) {
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
   const styles = createStyles(theme);
@@ -131,16 +131,16 @@ export function EntryForm({ entry, onClose, renderToolbar }: EntryFormProps) {
 
   return (
     <>
-      {renderToolbar?.({
-        body,
-        isEdit,
-        kind,
-        onClose,
-        pending: action.pending,
-        save: () => void save(),
-        setKind,
-        title,
-      })}
+      <EntryFormToolbar
+        body={body}
+        isEdit={isEdit}
+        kind={kind}
+        onClose={onClose}
+        pending={action.pending}
+        save={() => void save()}
+        setKind={setKind}
+        title={title}
+      />
       {Platform.OS === "ios" ? (
         formContent
       ) : (
@@ -148,6 +148,60 @@ export function EntryForm({ entry, onClose, renderToolbar }: EntryFormProps) {
           {formContent}
         </KeyboardAvoidingView>
       )}
+    </>
+  );
+}
+
+function EntryFormToolbar(props: EntryFormToolbarProps) {
+  const theme = useAdminTheme();
+  const closeIcon = useToolbarIcon("xmark", "close");
+  const kindIcon = useToolbarIcon("tag", "label");
+  const saveIcon = useToolbarIcon("checkmark", "check");
+
+  return (
+    <>
+      <Stack.Screen options={{ title: "New feedback" }} />
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Cancel"
+          disabled={props.pending}
+          icon={closeIcon}
+          onPress={props.onClose}
+          tintColor={theme.text}
+        >
+          Cancel
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          accessibilityLabel="Change feedback kind"
+          disabled={props.pending}
+          icon={kindIcon}
+          tintColor={theme.text}
+          title="Kind"
+        >
+          {kinds.map(({ value, label }) => (
+            <Stack.Toolbar.MenuAction
+              disabled={props.pending}
+              isOn={props.kind === value}
+              key={value}
+              onPress={() => props.setKind(value)}
+            >
+              {label}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
+        <Stack.Toolbar.Button
+          accessibilityLabel="Create feedback"
+          disabled={!props.title.trim() || !props.body.trim() || props.pending}
+          icon={saveIcon}
+          onPress={props.save}
+          tintColor={theme.primary}
+          variant="done"
+        >
+          Save
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
     </>
   );
 }

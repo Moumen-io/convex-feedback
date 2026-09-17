@@ -1,21 +1,17 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { EntryForm } from "../components/entry-form.js";
-import type { EntryFormToolbarProps } from "../components/entry-form.js";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { feedbackHooks } from "../lib/feedback.js";
-import type { ReactNode } from "react";
 
 export interface EditFeedbackScreenProps {
   entryId: string;
   onClose: () => void;
-  renderToolbar?: (props: EntryFormToolbarProps) => ReactNode;
 }
 
 export function EditFeedbackScreen({
   entryId,
   onClose,
-  renderToolbar,
 }: EditFeedbackScreenProps) {
   const entry = feedbackHooks.useAdminEntry(entryId);
   const theme = useAdminTheme();
@@ -40,9 +36,7 @@ export function EditFeedbackScreen({
     );
   }
 
-  return (
-    <EntryForm entry={entry} onClose={onClose} renderToolbar={renderToolbar} />
-  );
+  return <EntryForm entry={entry} onClose={onClose} />;
 }
 
 function createStyles(theme: AdminTheme) {

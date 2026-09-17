@@ -1,4 +1,5 @@
 import type { RoadmapItem, RoadmapStatus } from "convex-feedback";
+import { Stack } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
@@ -7,10 +8,10 @@ import {
   useFeedbackUi,
 } from "convex-feedback-ui/expo";
 
-import type { ReactNode } from "react";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useAdminAction } from "../lib/action.js";
 import { feedbackHooks } from "../lib/feedback.js";
+import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
 const stages: { value: RoadmapStatus }[] = [
   { value: "planned" },
@@ -18,7 +19,7 @@ const stages: { value: RoadmapStatus }[] = [
   { value: "shipped" },
 ];
 
-export interface RoadmapToolbarProps {
+interface RoadmapToolbarProps {
   loadingMore: boolean;
   canLoadMore: boolean;
   onLoadMore: () => void;
@@ -29,14 +30,12 @@ export interface RoadmapScreenProps {
   topInset: number;
   onNewItem: () => void;
   onOpenItem: (item: RoadmapItem) => void;
-  renderToolbar?: (props: RoadmapToolbarProps) => ReactNode;
 }
 
 export function RoadmapScreen({
   topInset,
   onNewItem,
   onOpenItem,
-  renderToolbar,
 }: RoadmapScreenProps) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
@@ -48,13 +47,14 @@ export function RoadmapScreen({
 
   return (
     <>
-      {renderToolbar?.({
-        canLoadMore:
-          roadmap.status === "CanLoadMore" || roadmap.status === "LoadingMore",
-        loadingMore: roadmap.status === "LoadingMore",
-        onLoadMore: () => roadmap.loadMore(feedbackHooks.pageSizes.roadmap),
-        onNewItem,
-      })}
+      <RoadmapToolbar
+        canLoadMore={
+          roadmap.status === "CanLoadMore" || roadmap.status === "LoadingMore"
+        }
+        loadingMore={roadmap.status === "LoadingMore"}
+        onLoadMore={() => roadmap.loadMore(feedbackHooks.pageSizes.roadmap)}
+        onNewItem={onNewItem}
+      />
       <RoadmapBoard
         items={items ?? []}
         stages={stages.map((stage) => ({
@@ -118,6 +118,35 @@ export function RoadmapScreen({
         )}
       />
     </>
+  );
+}
+
+function RoadmapToolbar(toolbar: RoadmapToolbarProps) {
+  const theme = useAdminTheme();
+  const addIcon = useToolbarIcon("plus", "add");
+
+  return (
+    <Stack.Toolbar placement="right">
+      {toolbar.canLoadMore && (
+        <Stack.Toolbar.Button
+          accessibilityLabel="Load more roadmap items"
+          disabled={toolbar.loadingMore}
+          onPress={toolbar.onLoadMore}
+          tintColor={theme.text}
+        >
+          {toolbar.loadingMore ? "Loading…" : "More"}
+        </Stack.Toolbar.Button>
+      )}
+      <Stack.Toolbar.Button
+        accessibilityLabel="Add roadmap item"
+        icon={addIcon}
+        onPress={toolbar.onNewItem}
+        tintColor={theme.primary}
+        variant="prominent"
+      >
+        New item
+      </Stack.Toolbar.Button>
+    </Stack.Toolbar>
   );
 }
 

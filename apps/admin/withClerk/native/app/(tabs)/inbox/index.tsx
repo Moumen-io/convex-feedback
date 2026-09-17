@@ -1,7 +1,4 @@
-import {
-  InboxScreen,
-  InboxToolbar,
-} from "convex-feedback-admin-app-screens/native";
+import { InboxScreen } from "convex-feedback-admin-app-screens/native";
 import { useRouter } from "expo-router";
 
 export default function InboxRoute() {
@@ -16,7 +13,6 @@ export default function InboxRoute() {
           params: { entryId },
         })
       }
-      renderToolbar={(toolbar) => <InboxToolbar toolbar={toolbar} />}
     />
   );
 }

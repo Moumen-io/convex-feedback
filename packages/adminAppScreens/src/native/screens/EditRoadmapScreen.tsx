@@ -1,8 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import type { ReactNode } from "react";
 
 import { RoadmapForm } from "../components/roadmap-form.js";
-import type { RoadmapFormToolbarProps } from "../components/roadmap-form.js";
 import { feedbackHooks } from "../lib/feedback.js";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import type { RoadmapItem } from "convex-feedback";
@@ -11,14 +9,12 @@ export interface EditRoadmapScreenProps {
   roadmapId: string;
   routeItem?: RoadmapItem;
   onClose: () => void;
-  renderToolbar?: (props: RoadmapFormToolbarProps) => ReactNode;
 }
 
 export function EditRoadmapScreen({
   roadmapId,
   routeItem,
   onClose,
-  renderToolbar,
 }: EditRoadmapScreenProps) {
   const roadmap = feedbackHooks.useRoadmap();
   const theme = useAdminTheme();
@@ -44,9 +40,7 @@ export function EditRoadmapScreen({
     );
   }
 
-  return (
-    <RoadmapForm item={item} onClose={onClose} renderToolbar={renderToolbar} />
-  );
+  return <RoadmapForm item={item} onClose={onClose} />;
 }
 
 function createStyles(theme: AdminTheme) {

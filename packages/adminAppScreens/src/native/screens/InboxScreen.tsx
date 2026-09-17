@@ -1,6 +1,6 @@
 import type { AdminFeedbackEntry } from "convex-feedback";
-import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { Stack } from "expo-router";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,10 +10,12 @@ import {
   View,
 } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
+import type { SearchBarCommands } from "react-native-screens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useDebouncedValue } from "../hooks/use-debounced-value.js";
 import { feedbackHooks } from "../lib/feedback.js";
+import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
 const kinds = ["all", "feedback", "feature_request", "bug_report"] as const;
 const statuses = [
@@ -27,8 +29,7 @@ const statuses = [
 ] as const;
 const priorities = ["all", "high", "medium", "low"] as const;
 
-export interface InboxToolbarProps {
-  search: string;
+interface InboxToolbarProps {
   onSearchChange: (value: string) => void;
   onSearchCancel: () => void;
   kind: (typeof kinds)[number];
@@ -43,14 +44,9 @@ export interface InboxToolbarProps {
 export interface InboxScreenProps {
   onOpenEntry: (entryId: string) => void;
   onNewFeedback: () => void;
-  renderToolbar?: (props: InboxToolbarProps) => ReactNode;
 }
 
-export function InboxScreen({
-  onOpenEntry,
-  onNewFeedback,
-  renderToolbar,
-}: InboxScreenProps) {
+export function InboxScreen({ onOpenEntry, onNewFeedback }: InboxScreenProps) {
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
   const styles = createStyles(theme);
@@ -77,18 +73,17 @@ export function InboxScreen({
 
   return (
     <View style={styles.screen}>
-      {renderToolbar?.({
-        kind,
-        onKindChange: setKind,
-        onNewFeedback,
-        onPriorityChange: setPriority,
-        onSearchCancel: () => setSearch(""),
-        onSearchChange: setSearch,
-        onStatusChange: setStatus,
-        priority,
-        search,
-        status,
-      })}
+      <InboxToolbar
+        kind={kind}
+        onKindChange={setKind}
+        onNewFeedback={onNewFeedback}
+        onPriorityChange={setPriority}
+        onSearchCancel={() => setSearch("")}
+        onSearchChange={setSearch}
+        onStatusChange={setStatus}
+        priority={priority}
+        status={status}
+      />
       {page.status === "LoadingFirstPage" ? (
         <ActivityIndicator style={styles.loader} color={theme.primary} />
       ) : (
@@ -161,6 +156,126 @@ export function InboxScreen({
       )}
     </View>
   );
+}
+
+function InboxToolbar(toolbar: InboxToolbarProps) {
+  const theme = useAdminTheme();
+  const searchRef = useRef<SearchBarCommands>(null);
+  const addIcon = useToolbarIcon("plus", "add");
+  const filterIcon = useToolbarIcon(
+    "line.3.horizontal.decrease",
+    "filter_list",
+  );
+
+  return (
+    <>
+      <Stack.SearchBar
+        ref={searchRef}
+        obscureBackground={false}
+        onCancelButtonPress={() => {
+          toolbar.onSearchCancel();
+          searchRef.current?.clearText();
+        }}
+        onChangeText={(event) => toolbar.onSearchChange(searchText(event))}
+        placement="stacked"
+        placeholder="Search feedback"
+        textColor={theme.text}
+        tintColor={theme.primary}
+      />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Add feedback"
+          icon={addIcon}
+          onPress={toolbar.onNewFeedback}
+          tintColor={theme.primary}
+          variant="prominent"
+        >
+          New feedback
+        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Menu
+          accessibilityLabel="Filters"
+          icon={filterIcon}
+          tintColor={theme.text}
+          title="Filters"
+        >
+          <Stack.Toolbar.Menu
+            accessibilityLabel="Kind"
+            tintColor={theme.text}
+            title="Kind"
+          >
+            {["all", "feedback", "feature_request", "bug_report"].map(
+              (value) => (
+                <Stack.Toolbar.MenuAction
+                  isOn={toolbar.kind === value}
+                  key={`kind-${value}`}
+                  onPress={() =>
+                    toolbar.onKindChange(value as InboxToolbarProps["kind"])
+                  }
+                >
+                  {formatFilterValue(value)}
+                </Stack.Toolbar.MenuAction>
+              ),
+            )}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu
+            accessibilityLabel="Status"
+            tintColor={theme.text}
+            title="Status"
+          >
+            {[
+              "all",
+              "open",
+              "under_review",
+              "planned",
+              "in_progress",
+              "completed",
+              "closed",
+            ].map((value) => (
+              <Stack.Toolbar.MenuAction
+                isOn={toolbar.status === value}
+                key={`status-${value}`}
+                onPress={() =>
+                  toolbar.onStatusChange(value as InboxToolbarProps["status"])
+                }
+              >
+                {formatFilterValue(value)}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu
+            accessibilityLabel="Priority"
+            tintColor={theme.text}
+            title="Priority"
+          >
+            {["all", "high", "medium", "low"].map((value) => (
+              <Stack.Toolbar.MenuAction
+                isOn={toolbar.priority === value}
+                key={`priority-${value}`}
+                onPress={() =>
+                  toolbar.onPriorityChange(
+                    value as InboxToolbarProps["priority"],
+                  )
+                }
+              >
+                {formatFilterValue(value)}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
+    </>
+  );
+}
+
+function formatFilterValue(value: string): string {
+  return value === "all" ? "All" : value.replaceAll("_", " ");
+}
+
+function searchText(event: unknown): string {
+  const value = event as { nativeEvent?: { text?: unknown } };
+  return typeof value.nativeEvent?.text === "string"
+    ? value.nativeEvent.text
+    : "";
 }
 
 function EntryRow({

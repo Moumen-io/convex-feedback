@@ -1,7 +1,4 @@
-import {
-  EditRoadmapScreen,
-  RoadmapFormToolbar,
-} from "convex-feedback-admin-app-screens/native";
+import { EditRoadmapScreen } from "convex-feedback-admin-app-screens/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { parseRoadmapRouteItem } from "@/lib/roadmap-route";
@@ -16,7 +13,6 @@ export default function EditRoadmapScreenRoute() {
   return (
     <EditRoadmapScreen
       onClose={() => router.back()}
-      renderToolbar={(props) => <RoadmapFormToolbar {...props} />}
       roadmapId={params.roadmapId}
       routeItem={parseRoadmapRouteItem(params.item)}
     />

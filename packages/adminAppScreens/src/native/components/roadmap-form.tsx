@@ -1,5 +1,5 @@
 import type { RoadmapItem } from "convex-feedback";
-import type { ReactNode } from "react";
+import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -14,8 +14,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useAdminAction } from "../lib/action.js";
 import { feedbackHooks } from "../lib/feedback.js";
+import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
-export interface RoadmapFormToolbarProps {
+interface RoadmapFormToolbarProps {
   isEdit: boolean;
   pending: boolean;
   title: string;
@@ -26,14 +27,9 @@ export interface RoadmapFormToolbarProps {
 export interface RoadmapFormProps {
   item?: RoadmapItem;
   onClose: () => void;
-  renderToolbar?: (props: RoadmapFormToolbarProps) => ReactNode;
 }
 
-export function RoadmapForm({
-  item,
-  onClose,
-  renderToolbar,
-}: RoadmapFormProps) {
+export function RoadmapForm({ item, onClose }: RoadmapFormProps) {
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
   const styles = createStyles(theme);
@@ -117,13 +113,13 @@ export function RoadmapForm({
 
   return (
     <>
-      {renderToolbar?.({
-        isEdit,
-        onClose,
-        pending: action.pending,
-        save: () => void save(),
-        title,
-      })}
+      <RoadmapFormToolbar
+        isEdit={isEdit}
+        onClose={onClose}
+        pending={action.pending}
+        save={() => void save()}
+        title={title}
+      />
       {Platform.OS === "ios" ? (
         formContent
       ) : (
@@ -131,6 +127,47 @@ export function RoadmapForm({
           {formContent}
         </KeyboardAvoidingView>
       )}
+    </>
+  );
+}
+
+function RoadmapFormToolbar(props: RoadmapFormToolbarProps) {
+  const theme = useAdminTheme();
+  const closeIcon = useToolbarIcon("xmark", "close");
+  const saveIcon = useToolbarIcon("checkmark", "check");
+
+  return (
+    <>
+      <Stack.Screen
+        options={{
+          title: props.isEdit ? "Edit roadmap item" : "New roadmap item",
+        }}
+      />
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Cancel"
+          disabled={props.pending}
+          icon={closeIcon}
+          onPress={props.onClose}
+          tintColor={theme.text}
+        >
+          Cancel
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          accessibilityLabel={
+            props.isEdit ? "Save changes" : "Create roadmap item"
+          }
+          disabled={!props.title.trim() || props.pending}
+          icon={saveIcon}
+          onPress={props.save}
+          tintColor={theme.primary}
+          variant="done"
+        >
+          Save
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
     </>
   );
 }

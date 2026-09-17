@@ -1,5 +1,5 @@
 import type { RoadmapItem } from "convex-feedback";
-import type { ReactNode } from "react";
+import { Stack } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -14,12 +14,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useAdminAction } from "../lib/action.js";
 import { feedbackHooks } from "../lib/feedback.js";
+import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
 function displayValue(value: string): string {
   return value.replaceAll("_", " ");
 }
 
-export interface RoadmapDetailToolbarProps {
+interface RoadmapDetailToolbarProps {
   item: RoadmapItem;
   pending: boolean;
   onClose: () => void;
@@ -33,7 +34,6 @@ export interface RoadmapDetailScreenProps {
   onClose: () => void;
   onEdit: (item: RoadmapItem) => void;
   onOpenEntry: (entryId: string) => void;
-  renderToolbar?: (props: RoadmapDetailToolbarProps) => ReactNode;
 }
 
 export function RoadmapDetailScreen({
@@ -42,7 +42,6 @@ export function RoadmapDetailScreen({
   onClose,
   onEdit,
   onOpenEntry,
-  renderToolbar,
 }: RoadmapDetailScreenProps) {
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
@@ -96,13 +95,13 @@ export function RoadmapDetailScreen({
 
   return (
     <View collapsable={false} style={styles.screen}>
-      {renderToolbar?.({
-        item,
-        onClose,
-        onDelete: confirmDelete,
-        onEdit,
-        pending: deleteAction.pending || detachAction.pending,
-      })}
+      <RoadmapDetailToolbar
+        item={item}
+        onClose={onClose}
+        onDelete={confirmDelete}
+        onEdit={onEdit}
+        pending={deleteAction.pending || detachAction.pending}
+      />
       <ScrollView
         style={styles.list}
         contentInsetAdjustmentBehavior="automatic"
@@ -173,6 +172,61 @@ export function RoadmapDetailScreen({
         )}
       </ScrollView>
     </View>
+  );
+}
+
+function RoadmapDetailToolbar({
+  item,
+  onClose,
+  onDelete,
+  onEdit,
+  pending,
+}: RoadmapDetailToolbarProps) {
+  const theme = useAdminTheme();
+  const closeIcon = useToolbarIcon("xmark", "close");
+  const editIcon = useToolbarIcon("pencil", "edit");
+  const actionsIcon = useToolbarIcon("ellipsis.circle", "more_vert");
+
+  return (
+    <>
+      <Stack.Screen options={{ title: item.title }} />
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Close roadmap details"
+          icon={closeIcon}
+          onPress={onClose}
+          tintColor={theme.text}
+        >
+          Close
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Edit roadmap item"
+          disabled={pending}
+          icon={editIcon}
+          onPress={() => onEdit(item)}
+          tintColor={theme.primary}
+        >
+          Edit
+        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Menu
+          accessibilityLabel="Roadmap actions"
+          disabled={pending}
+          icon={actionsIcon}
+          tintColor={theme.text}
+          title="Actions"
+        >
+          <Stack.Toolbar.MenuAction
+            destructive
+            disabled={pending}
+            onPress={onDelete}
+          >
+            Delete roadmap item
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
+    </>
   );
 }
 

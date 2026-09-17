@@ -1,7 +1,4 @@
-import {
-  RoadmapScreen,
-  RoadmapToolbar,
-} from "convex-feedback-admin-app-screens/native";
+import { RoadmapScreen } from "convex-feedback-admin-app-screens/native";
 import { useRouter } from "expo-router";
 import { useStackHeaderHeight } from "convex-feedback-ui/expo";
 
@@ -20,7 +17,6 @@ export default function RoadmapRoute() {
           params: roadmapRouteParams(item),
         })
       }
-      renderToolbar={(toolbar) => <RoadmapToolbar toolbar={toolbar} />}
       topInset={topInset}
     />
   );

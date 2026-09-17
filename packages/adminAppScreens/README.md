@@ -23,10 +23,10 @@ import {
 
 Native variants can wrap their auth/router scaffold with
 `NativeAppProviders`. It provides `SafeAreaProvider` and the shared admin theme
-context. Native screen toolbars are exported from the native entry point as
-well; app routes only provide their navigation callbacks. Native color
-selection and predefined color selection use Expo UI controls; the iOS build
-uses the native SwiftUI color picker.
+context. Native screen toolbars are owned by their corresponding
+screens/forms; app routes only provide their navigation callbacks. Native
+color selection and predefined color selection use Expo UI controls; the iOS
+build uses the native SwiftUI color picker.
 
 The package exports the copied Shadcn setup at `components.json`, all UI
 components under `convex-feedback-admin-app-screens/web/ui/*`, and the shared

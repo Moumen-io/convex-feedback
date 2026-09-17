@@ -4,6 +4,7 @@
   "version": "0.2.0",
   "dependencies": {
     "@clerk/expo": "^4.6.6",
+    "convex-feedback-admin-app-screens": "*",
     "convex": "^1.45.0",
     "convex-feedback": "^0.2.0-beta.12",
     "convex-feedback-ui": "*",

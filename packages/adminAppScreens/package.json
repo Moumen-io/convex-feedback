@@ -1,0 +1,74 @@
+{
+  "name": "convex-feedback-admin-app-screens",
+  "version": "0.1.0",
+  "description": "Shared settings and account-management screens for convex-feedback admin apps.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Moumen-io/convex-feedback.git"
+  },
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/shared/index.d.ts",
+      "default": "./dist/shared/index.js"
+    },
+    "./web": {
+      "types": "./dist/web/index.d.ts",
+      "default": "./dist/web/index.js"
+    },
+    "./native": {
+      "types": "./dist/native/index.d.ts",
+      "default": "./dist/native/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "lucide-react": ">=0.468.0",
+    "lucide-react-native": ">=0.468.0",
+    "react": ">=18.2.0",
+    "react-dom": ">=18.2.0",
+    "react-native": ">=0.83.0",
+    "react-native-safe-area-context": ">=5.4.0"
+  },
+  "peerDependenciesMeta": {
+    "lucide-react": {
+      "optional": true
+    },
+    "lucide-react-native": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "react-native-safe-area-context": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "lucide-react": "^1.45.0",
+    "lucide-react-native": "^1.46.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0"
+  },
+  "types": "./dist/shared/index.d.ts",
+  "module": "./dist/shared/index.js"
+}

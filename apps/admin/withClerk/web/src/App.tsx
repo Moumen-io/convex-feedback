@@ -11,6 +11,7 @@ import type { RoadmapItem } from "convex-feedback";
 import {
   AdminAppFrame,
   AdminAccountModal,
+  AdminThemeProvider,
   AdminSettingsScreen,
   Button,
   InboxView,
@@ -49,12 +50,14 @@ export default function App() {
       enableSystem
       disableTransitionOnChange
     >
-      <ClerkProvider publishableKey={publishableKey}>
-        <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-          <AuthGate />
-        </ConvexProviderWithClerk>
-      </ClerkProvider>
-      <Toaster position="bottom-right" />
+      <AdminThemeProvider>
+        <ClerkProvider publishableKey={publishableKey}>
+          <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+            <AuthGate />
+          </ConvexProviderWithClerk>
+        </ClerkProvider>
+        <Toaster position="bottom-right" />
+      </AdminThemeProvider>
     </ThemeProvider>
   );
 }

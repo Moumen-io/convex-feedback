@@ -28,6 +28,31 @@ screens/forms; app routes only provide their navigation callbacks. Native
 color selection and predefined color selection use Expo UI controls; the iOS
 build uses the native SwiftUI color picker.
 
+Both platform entries expose `createAdminTheme(baseColor, colorScheme)`. The
+factory preserves the default cobalt palette while deriving accent-related
+surfaces, text, borders, focus rings, and sidebar colors from any hex base
+color. The built-in presets include Cobalt, Iris, Moss, Coral, Amber, Slate,
+and Black. `AdminSettingsScreen` uses the nearest theme provider when one
+exists; otherwise its callbacks remain available for a host-owned settings
+store.
+
+The platform providers persist the active accent color and light/system/dark
+mode automatically. Web uses cookies named
+`convex-feedback-admin.accent-color` and `convex-feedback-admin.theme-mode`;
+native uses AsyncStorage. Native consumers should install
+`@react-native-async-storage/async-storage` alongside this package.
+
+For web, place `AdminThemeProvider` inside the `next-themes` provider so the
+generated CSS variables follow the active light/dark mode:
+
+```tsx
+<ThemeProvider attribute="class" enableSystem>
+  <AdminThemeProvider>
+    <AdminApp />
+  </AdminThemeProvider>
+</ThemeProvider>
+```
+
 The package exports the copied Shadcn setup at `components.json`, all UI
 components under `convex-feedback-admin-app-screens/web/ui/*`, and the shared
 stylesheet at `convex-feedback-admin-app-screens/web/styles.css`.

@@ -4,14 +4,25 @@ export type { AdminAccountModalProps } from "./AccountManagementModal.js";
 export { AdminSettingsScreen } from "./SettingsScreen.js";
 export type { NativeAdminSettingsScreenProps } from "./SettingsScreen.js";
 export { NativeAppProviders } from "./NativeAppProviders.js";
+export type { NativeAppProvidersProps } from "./NativeAppProviders.js";
 export {
+  ADMIN_THEME_ACCENT_COLOR_STORAGE_KEY,
+  ADMIN_THEME_MODE_STORAGE_KEY,
   AdminThemeProvider,
+  createAdminTheme,
   darkAdminTheme,
   lightAdminTheme,
+  normalizeAdminColor,
   useAdminScreenTheme,
   useAdminTheme,
+  useAdminThemeSettings,
 } from "./theme.js";
-export type { AdminScreenTheme, AdminTheme } from "./theme.js";
+export type {
+  AdminScreenTheme,
+  AdminTheme,
+  AdminThemeProviderProps,
+  AdminThemeSettings,
+} from "./theme.js";
 export { feedbackHooks } from "./lib/feedback.js";
 export { useAdminAction } from "./lib/action.js";
 export { useDebouncedValue } from "./hooks/use-debounced-value.js";

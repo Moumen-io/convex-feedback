@@ -1,6 +1,7 @@
 import { Host, Text as NativeText, Slider, Spacer } from "@expo/ui";
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
+import { DEFAULT_ADMIN_ACCENT_COLOR } from "../../shared";
 import type { NativeAccentColorPickerProps } from "./helpers";
 
 /** Android fallback: native Expo UI sliders provide RGB color selection. */
@@ -47,7 +48,9 @@ export function NativeAccentColorPicker({
 type Rgb = { red: number; green: number; blue: number };
 
 function hexToRgb(value: string): Rgb {
-  const normalized = /^#[0-9a-f]{6}$/i.test(value) ? value.slice(1) : "2563EB";
+  const normalized = /^#[0-9a-f]{6}$/i.test(value)
+    ? value.slice(1)
+    : DEFAULT_ADMIN_ACCENT_COLOR.slice(1);
   return {
     red: Number.parseInt(normalized.slice(0, 2), 16),
     green: Number.parseInt(normalized.slice(2, 4), 16),

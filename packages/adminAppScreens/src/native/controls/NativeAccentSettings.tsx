@@ -1,4 +1,5 @@
 import { StyleSheet, View } from "react-native";
+import { DEFAULT_ADMIN_ACCENT_COLOR } from "../../shared";
 import { NativeAccentColorPicker } from "./NativeAccentColorPicker";
 import { NativeAccentPicker } from "./NativeAccentPicker";
 import { isHexColor, type NativeAccentSettingsProps } from "./helpers";
@@ -24,7 +25,9 @@ export function NativeAccentSettings({
         <View style={[styles.customSwatch, { backgroundColor: accentColor }]} />
         <NativeAccentColorPicker
           onChange={changeAccentColor}
-          value={isHexColor(accentColor) ? accentColor : "#2563EB"}
+          value={
+            isHexColor(accentColor) ? accentColor : DEFAULT_ADMIN_ACCENT_COLOR
+          }
         />
       </View>
     </View>

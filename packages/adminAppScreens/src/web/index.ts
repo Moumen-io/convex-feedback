@@ -7,6 +7,15 @@ export type {
 export { AdminAccountModal } from "./AccountManagementModal.js";
 export type { AdminAccountModalProps } from "./AccountManagementModal.js";
 export { AdminSettingsScreen } from "./SettingsScreen.js";
+export {
+  ADMIN_THEME_ACCENT_COLOR_COOKIE,
+  ADMIN_THEME_MODE_COOKIE,
+  AdminThemeProvider,
+  applyAdminTheme,
+  useAdminTheme,
+  useAdminThemeSettings,
+} from "./theme.js";
+export type { AdminThemeProviderProps, AdminThemeSettings } from "./theme.js";
 export { InboxView } from "./components/inbox.js";
 export { RoadmapView } from "./components/roadmap-view.js";
 export {

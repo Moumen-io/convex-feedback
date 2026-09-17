@@ -1,12 +1,22 @@
 import type { ReactNode } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { AdminThemeProvider } from "./theme.js";
+import { AdminThemeProvider, type AdminThemeProviderProps } from "./theme.js";
 
-export function NativeAppProviders({ children }: { children: ReactNode }) {
+export type NativeAppProvidersProps = Omit<
+  AdminThemeProviderProps,
+  "children"
+> & {
+  children: ReactNode;
+};
+
+export function NativeAppProviders({
+  children,
+  ...themeProps
+}: NativeAppProvidersProps) {
   return (
     <SafeAreaProvider>
-      <AdminThemeProvider>{children}</AdminThemeProvider>
+      <AdminThemeProvider {...themeProps}>{children}</AdminThemeProvider>
     </SafeAreaProvider>
   );
 }

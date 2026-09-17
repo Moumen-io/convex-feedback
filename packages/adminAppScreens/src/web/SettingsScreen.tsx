@@ -6,13 +6,14 @@ import {
   SunIcon,
   UserRoundIcon,
 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar.js";
 import { Button } from "./ui/button.js";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -23,10 +24,13 @@ import { Input } from "./ui/input.js";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group.js";
 import {
   ADMIN_COLOR_PRESETS,
+  createAdminTheme,
+  DEFAULT_ADMIN_ACCENT_COLOR,
   type AdminColorPreset,
   type AdminSettingsScreenProps,
   type AdminThemeMode,
 } from "../shared/index.js";
+import { applyAdminTheme, useAdminThemeSettings } from "./theme.js";
 
 const themeOptions: {
   value: AdminThemeMode;
@@ -40,29 +44,44 @@ const themeOptions: {
 
 export function AdminSettingsScreen({
   account,
-  themeMode: themeModeProp = "system",
+  themeMode: themeModeProp,
   onThemeModeChange,
-  accentColor: accentColorProp = ADMIN_COLOR_PRESETS[0].value,
+  accentColor: accentColorProp,
   onAccentColorChange,
   colorPresets = ADMIN_COLOR_PRESETS,
   onManageAccount,
   onSignOut,
 }: AdminSettingsScreenProps) {
+  const themeSettings = useAdminThemeSettings();
+  const selectedThemeMode =
+    themeModeProp ?? themeSettings?.themeMode ?? "system";
+  const selectedAccentColor =
+    accentColorProp ?? themeSettings?.accentColor ?? DEFAULT_ADMIN_ACCENT_COLOR;
   const colorInputId = useId();
-  const [themeMode, setThemeMode] = useState<AdminThemeMode>(themeModeProp);
-  const [accentColor, setAccentColor] = useState(accentColorProp);
+  const [themeMode, setThemeMode] = useState<AdminThemeMode>(selectedThemeMode);
+  const [accentColor, setAccentColor] = useState(selectedAccentColor);
 
-  useEffect(() => setThemeMode(themeModeProp), [themeModeProp]);
-  useEffect(() => setAccentColor(accentColorProp), [accentColorProp]);
+  useEffect(() => setThemeMode(selectedThemeMode), [selectedThemeMode]);
+  useEffect(() => setAccentColor(selectedAccentColor), [selectedAccentColor]);
+
+  const generatedTheme = useMemo(
+    () =>
+      themeSettings?.theme ??
+      createAdminTheme(accentColor, getColorScheme(themeMode)),
+    [accentColor, themeMode, themeSettings?.theme],
+  );
+  useEffect(() => applyAdminTheme(generatedTheme), [generatedTheme]);
 
   const changeThemeMode = (nextMode: AdminThemeMode) => {
     setThemeMode(nextMode);
-    onThemeModeChange?.(nextMode);
+    if (onThemeModeChange) onThemeModeChange(nextMode);
+    else themeSettings?.setThemeMode(nextMode);
   };
 
   const changeAccentColor = (nextColor: string) => {
     setAccentColor(nextColor);
-    onAccentColorChange?.(nextColor);
+    if (onAccentColorChange) onAccentColorChange(nextColor);
+    else themeSettings?.setAccentColor(nextColor);
   };
 
   const selectedPreset = colorPresets.find(
@@ -133,21 +152,23 @@ export function AdminSettingsScreen({
                   <ChevronDownIcon aria-hidden="true" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-64">
-                  <DropdownMenuLabel>Predefined colors</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuRadioGroup
-                    onValueChange={(value) => {
-                      const preset = colorPresets.find(
-                        (candidate) => candidate.id === value,
-                      );
-                      if (preset) changeAccentColor(preset.value);
-                    }}
-                    value={selectedPreset?.id ?? ""}
-                  >
-                    {colorPresets.map((preset) => (
-                      <ColorPresetItem key={preset.id} preset={preset} />
-                    ))}
-                  </DropdownMenuRadioGroup>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Predefined colors</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioGroup
+                      onValueChange={(value) => {
+                        const preset = colorPresets.find(
+                          (candidate) => candidate.id === value,
+                        );
+                        if (preset) changeAccentColor(preset.value);
+                      }}
+                      value={selectedPreset?.id ?? ""}
+                    >
+                      {colorPresets.map((preset) => (
+                        <ColorPresetItem key={preset.id} preset={preset} />
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -162,7 +183,11 @@ export function AdminSettingsScreen({
                     id={colorInputId}
                     onChange={(event) => changeAccentColor(event.target.value)}
                     type="color"
-                    value={isHexColor(accentColor) ? accentColor : "#2563EB"}
+                    value={
+                      isHexColor(accentColor)
+                        ? accentColor
+                        : DEFAULT_ADMIN_ACCENT_COLOR
+                    }
                   />
                   <span className="text-sm text-muted-foreground">
                     Custom color
@@ -249,6 +274,15 @@ function getInitials(name: string, email: string): string {
 
 function isHexColor(value: string): boolean {
   return /^#[0-9a-f]{6}$/i.test(value);
+}
+
+function getColorScheme(themeMode: AdminThemeMode): "light" | "dark" {
+  if (themeMode === "dark") return "dark";
+  if (themeMode === "light") return "light";
+  return typeof document !== "undefined" &&
+    document.documentElement.classList.contains("dark")
+    ? "dark"
+    : "light";
 }
 
 function isThemeMode(

@@ -6,16 +6,19 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
 } from "react-native";
 
 import {
   ADMIN_COLOR_PRESETS,
+  createAdminTheme,
+  DEFAULT_ADMIN_ACCENT_COLOR,
   type AdminSettingsScreenProps,
   type AdminThemeMode,
 } from "../shared";
 import { NativeAccentSettings } from "./controls/NativeAccentSettings";
-import { useAdminScreenTheme, type AdminScreenTheme } from "./theme";
+import { useAdminThemeSettings, type AdminScreenTheme } from "./theme";
 
 const themeOptions: {
   value: AdminThemeMode;
@@ -33,31 +36,43 @@ export interface NativeAdminSettingsScreenProps extends AdminSettingsScreenProps
 
 export function AdminSettingsScreen({
   account,
-  themeMode: themeModeProp = "system",
+  themeMode: themeModeProp,
   onThemeModeChange,
-  accentColor: accentColorProp = ADMIN_COLOR_PRESETS[0].value,
+  accentColor: accentColorProp,
   onAccentColorChange,
   colorPresets = ADMIN_COLOR_PRESETS,
   onManageAccount,
   theme: themeProp,
 }: NativeAdminSettingsScreenProps) {
-  const systemTheme = useAdminScreenTheme();
-  const theme = themeProp ?? systemTheme;
-  const styles = createStyles(theme);
-  const [themeMode, setThemeMode] = useState<AdminThemeMode>(themeModeProp);
-  const [accentColor, setAccentColor] = useState(accentColorProp);
+  const themeSettings = useAdminThemeSettings();
+  const systemColorScheme = useColorScheme();
+  const selectedThemeMode =
+    themeModeProp ?? themeSettings?.themeMode ?? "system";
+  const selectedAccentColor =
+    accentColorProp ?? themeSettings?.accentColor ?? DEFAULT_ADMIN_ACCENT_COLOR;
+  const [themeMode, setThemeMode] = useState<AdminThemeMode>(selectedThemeMode);
+  const [accentColor, setAccentColor] = useState(selectedAccentColor);
 
-  useEffect(() => setThemeMode(themeModeProp), [themeModeProp]);
-  useEffect(() => setAccentColor(accentColorProp), [accentColorProp]);
+  useEffect(() => setThemeMode(selectedThemeMode), [selectedThemeMode]);
+  useEffect(() => setAccentColor(selectedAccentColor), [selectedAccentColor]);
+
+  const fallbackTheme = createAdminTheme(
+    accentColor,
+    resolveColorScheme(themeMode, systemColorScheme),
+  );
+  const theme = themeProp ?? themeSettings?.theme ?? fallbackTheme;
+  const styles = createStyles(theme);
 
   const changeThemeMode = (nextMode: AdminThemeMode) => {
     setThemeMode(nextMode);
-    onThemeModeChange?.(nextMode);
+    if (onThemeModeChange) onThemeModeChange(nextMode);
+    else themeSettings?.setThemeMode(nextMode);
   };
 
   const changeAccentColor = (nextColor: string) => {
     setAccentColor(nextColor);
-    onAccentColorChange?.(nextColor);
+    if (onAccentColorChange) onAccentColorChange(nextColor);
+    else themeSettings?.setAccentColor(nextColor);
   };
 
   const selectedPreset = colorPresets.find(
@@ -165,6 +180,15 @@ function getInitials(name: string, email: string): string {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
   return initials || "A";
+}
+
+function resolveColorScheme(
+  themeMode: AdminThemeMode,
+  systemColorScheme: string | null | undefined,
+): "light" | "dark" {
+  if (themeMode === "dark") return "dark";
+  if (themeMode === "light") return "light";
+  return systemColorScheme === "dark" ? "dark" : "light";
 }
 
 function createStyles(theme: AdminScreenTheme) {

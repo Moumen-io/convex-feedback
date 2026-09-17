@@ -1,5 +1,8 @@
-import { RoadmapForm } from "@/components/roadmap-form";
+import { RoadmapForm } from "convex-feedback-admin-app-screens/native";
+import { useRouter } from "expo-router";
 
 export default function NewRoadmapScreen() {
-  return <RoadmapForm />;
+  const router = useRouter();
+
+  return <RoadmapForm onClose={() => router.back()} />;
 }

@@ -3,10 +3,9 @@ import {
   type AndroidSymbol,
 } from "expo-symbols";
 import { useEffect, useState } from "react";
+import { useAdminTheme } from "../theme.js";
 import type { ImageSourcePropType } from "react-native";
 import type { SFSymbol } from "sf-symbols-typescript";
-
-import { useAdminTheme } from "@/constants/AdminTheme";
 
 /**
  * Resolves the platform-native icon shape expected by Expo Router toolbars.

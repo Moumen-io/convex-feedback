@@ -20,9 +20,12 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { useAdminTheme, type AdminTheme } from "@/constants/AdminTheme";
+import {
+  NativeAppProviders,
+  useAdminTheme,
+  type AdminTheme,
+} from "convex-feedback-admin-app-screens/native";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
@@ -44,7 +47,9 @@ export default function RootLayout() {
       tokenCache={tokenCache}
     >
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-        <AdminGate />
+        <NativeAppProviders>
+          <AdminGate />
+        </NativeAppProviders>
       </ConvexProviderWithClerk>
     </ClerkProvider>
   );
@@ -64,37 +69,35 @@ function AdminGate() {
   const loading = !clerk.isLoaded || convexAuth.isLoading;
 
   return (
-    <SafeAreaProvider>
-      <View style={styles.root}>
-        {loading ? (
-          <Centered>
-            <ActivityIndicator color={theme.primary} />
-          </Centered>
-        ) : !clerk.isSignedIn || !convexAuth.isAuthenticated ? (
-          <Centered>
-            <Text style={styles.title}>Convex Feedback Admin</Text>
-            <Text style={styles.body}>
-              Sign in with an admin account to continue.
-            </Text>
-            <Button
-              title="Sign in"
-              color={theme.primary}
-              onPress={() => setAuthOpen(true)}
-            />
-          </Centered>
-        ) : (
-          <AdminAccessCheck key={retryCount} onRetry={retry} />
-        )}
-        <Modal
-          visible={authOpen}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setAuthOpen(false)}
-        >
-          <AuthView onDismiss={() => setAuthOpen(false)} />
-        </Modal>
-      </View>
-    </SafeAreaProvider>
+    <View style={styles.root}>
+      {loading ? (
+        <Centered>
+          <ActivityIndicator color={theme.primary} />
+        </Centered>
+      ) : !clerk.isSignedIn || !convexAuth.isAuthenticated ? (
+        <Centered>
+          <Text style={styles.title}>Convex Feedback Admin</Text>
+          <Text style={styles.body}>
+            Sign in with an admin account to continue.
+          </Text>
+          <Button
+            title="Sign in"
+            color={theme.primary}
+            onPress={() => setAuthOpen(true)}
+          />
+        </Centered>
+      ) : (
+        <AdminAccessCheck key={retryCount} onRetry={retry} />
+      )}
+      <Modal
+        visible={authOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setAuthOpen(false)}
+      >
+        <AuthView onDismiss={() => setAuthOpen(false)} />
+      </Modal>
+    </View>
   );
 }
 

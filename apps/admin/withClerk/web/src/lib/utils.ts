@@ -1,1 +1,1 @@
-export { cn } from "cn";
+export { cn } from "convex-feedback-admin-app-screens/web";

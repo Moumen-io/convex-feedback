@@ -1,5 +1,8 @@
-import { EntryForm } from "@/components/entry-form";
+import { EntryForm } from "convex-feedback-admin-app-screens/native";
+import { useRouter } from "expo-router";
 
 export default function NewFeedbackScreen() {
-  return <EntryForm />;
+  const router = useRouter();
+
+  return <EntryForm onClose={() => router.back()} />;
 }

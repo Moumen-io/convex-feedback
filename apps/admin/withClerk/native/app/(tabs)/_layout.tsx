@@ -31,6 +31,7 @@ export default function TabLayout() {
       <NativeTabs.Trigger
         accessibilityLabel="Settings"
         name="settings"
+        role="search"
         disableAutomaticContentInsets
       >
         <NativeTabs.Trigger.Label hidden>Settings</NativeTabs.Trigger.Label>

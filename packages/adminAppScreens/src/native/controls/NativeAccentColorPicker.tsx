@@ -1,11 +1,7 @@
-import { Host, Slider, Text as ExpoText } from "@expo/ui";
+import { Host, Text as NativeText, Slider, Spacer } from "@expo/ui";
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-
-export interface NativeAccentColorPickerProps {
-  value: string;
-  onChange: (value: string) => void;
-}
+import type { NativeAccentColorPickerProps } from "./helpers";
 
 /** Android fallback: native Expo UI sliders provide RGB color selection. */
 export function NativeAccentColorPicker({
@@ -20,7 +16,8 @@ export function NativeAccentColorPicker({
   return (
     <Host style={styles.host}>
       <View style={styles.controls}>
-        <ExpoText textStyle={styles.label}>Custom color</ExpoText>
+        <NativeText textStyle={styles.label}>Custom color</NativeText>
+        <Spacer flexible />
         <Slider
           max={255}
           min={0}

@@ -1,24 +1,16 @@
-import { ColorPicker, Host } from "@expo/ui/swift-ui";
-import { StyleSheet } from "react-native";
-
-import type { NativeAccentColorPickerProps } from "./NativeAccentColorPicker.js";
+import { ColorPicker } from "@expo/ui/swift-ui";
+import type { NativeAccentColorPickerProps } from "./helpers";
 
 export function NativeAccentColorPicker({
   value,
   onChange,
 }: NativeAccentColorPickerProps) {
   return (
-    <Host style={styles.host}>
-      <ColorPicker
-        label="Custom color"
-        onSelectionChange={onChange}
-        selection={value}
-        supportsOpacity={false}
-      />
-    </Host>
+    <ColorPicker
+      label="Custom color"
+      onSelectionChange={onChange}
+      selection={value}
+      supportsOpacity={false}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  host: { height: 44, width: 180 },
-});

@@ -1,13 +1,4 @@
-import { Host, Picker } from "@expo/ui";
-import {
-  ChevronRight,
-  KeyRound,
-  LogOut,
-  Monitor,
-  Moon,
-  Sun,
-  UserRound,
-} from "lucide-react-native";
+import { ChevronRight, Monitor, Moon, Sun } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   Image,
@@ -22,9 +13,9 @@ import {
   ADMIN_COLOR_PRESETS,
   type AdminSettingsScreenProps,
   type AdminThemeMode,
-} from "../shared/index.js";
-import { NativeAccentColorPicker } from "./controls/NativeAccentColorPicker";
-import { useAdminScreenTheme, type AdminScreenTheme } from "./theme.js";
+} from "../shared";
+import { NativeAccentSettings } from "./controls/NativeAccentSettings";
+import { useAdminScreenTheme, type AdminScreenTheme } from "./theme";
 
 const themeOptions: {
   value: AdminThemeMode;
@@ -48,7 +39,6 @@ export function AdminSettingsScreen({
   onAccentColorChange,
   colorPresets = ADMIN_COLOR_PRESETS,
   onManageAccount,
-  onSignOut,
   theme: themeProp,
 }: NativeAdminSettingsScreenProps) {
   const systemTheme = useAdminScreenTheme();
@@ -84,14 +74,41 @@ export function AdminSettingsScreen({
       showsVerticalScrollIndicator={false}
       style={styles.screen}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
+      <View style={[styles.section, styles.accountSection]}>
+        <View style={styles.sectionBody}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onManageAccount}
+            style={({ pressed }) => [
+              styles.accountSummary,
+              pressed && styles.pressed,
+            ]}
+          >
+            {account?.imageUrl ? (
+              <Image source={{ uri: account.imageUrl }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <Text style={styles.avatarText}>
+                  {getInitials(accountName, accountEmail)}
+                </Text>
+              </View>
+            )}
+            <View style={styles.accountCopy}>
+              <Text numberOfLines={1} style={styles.accountName}>
+                {accountName}
+              </Text>
+              <Text numberOfLines={1} style={styles.accountEmail}>
+                {accountEmail}
+              </Text>
+            </View>
+            <ChevronRight color={theme.mutedText} size={17} strokeWidth={1.8} />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Appearance</Text>
         <View style={styles.sectionBody}>
-          <Text style={styles.settingTitle}>Theme</Text>
           <View style={styles.themeOptions}>
             {themeOptions.map(({ value, label, Icon }) => {
               const selected = themeMode === value;
@@ -125,131 +142,17 @@ export function AdminSettingsScreen({
             })}
           </View>
 
-          <Text style={styles.settingTitle}>Accent color</Text>
-          <Host style={styles.pickerHost}>
-            <Picker
-              appearance="menu"
-              onValueChange={(value) => {
-                const preset = colorPresets.find(
-                  (candidate) => candidate.id === value,
-                );
-                if (preset) changeAccentColor(preset.value);
-              }}
-              selectedValue={selectedPresetId}
-            >
-              {colorPresets.map((preset) => (
-                <Picker.Item
-                  key={preset.id}
-                  label={preset.label}
-                  value={preset.id}
-                />
-              ))}
-              <Picker.Item label="Custom" value="custom" />
-            </Picker>
-          </Host>
-          <View style={styles.customColorRow}>
-            <View
-              style={[styles.customSwatch, { backgroundColor: accentColor }]}
-            />
-            <NativeAccentColorPicker
-              onChange={changeAccentColor}
-              value={isHexColor(accentColor) ? accentColor : "#2563EB"}
-            />
-          </View>
-        </View>
-      </View>
-
-      <View style={[styles.section, styles.accountSection]}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.sectionBody}>
-          <View style={styles.accountSummary}>
-            {account?.imageUrl ? (
-              <Image source={{ uri: account.imageUrl }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarText}>
-                  {getInitials(accountName, accountEmail)}
-                </Text>
-              </View>
-            )}
-            <View style={styles.accountCopy}>
-              <Text numberOfLines={1} style={styles.accountName}>
-                {accountName}
-              </Text>
-              <Text numberOfLines={1} style={styles.accountEmail}>
-                {accountEmail}
-              </Text>
-            </View>
-          </View>
-
-          <ActionRow
-            Icon={UserRound}
-            onPress={onManageAccount}
+          <NativeAccentSettings
+            changeAccentColor={changeAccentColor}
+            selectedPresetId={selectedPresetId}
+            colorPresets={colorPresets}
             theme={theme}
-            title="Manage account"
-          />
-          <ActionRow
-            Icon={KeyRound}
-            onPress={onManageAccount}
-            theme={theme}
-            title="Manage security"
-          />
-          <ActionRow
-            Icon={LogOut}
-            destructive
-            onPress={onSignOut}
-            theme={theme}
-            title="Sign out"
+            accentColor={accentColor}
+            style={styles.themeOptions}
           />
         </View>
       </View>
     </ScrollView>
-  );
-}
-
-function ActionRow({
-  Icon,
-  title,
-  destructive = false,
-  theme,
-  onPress,
-}: {
-  Icon: typeof UserRound;
-  title: string;
-  destructive?: boolean;
-  theme: AdminScreenTheme;
-  onPress?: () => void;
-}) {
-  const styles = createStyles(theme);
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.actionRow,
-        destructive && styles.actionRowDestructive,
-        pressed && styles.pressed,
-      ]}
-    >
-      <View
-        style={[styles.actionIcon, destructive && styles.actionIconDestructive]}
-      >
-        <Icon
-          color={destructive ? theme.danger : theme.mutedText}
-          size={17}
-          strokeWidth={1.8}
-        />
-      </View>
-      <Text style={[styles.actionTitle, destructive && styles.dangerText]}>
-        {title}
-      </Text>
-      <ChevronRight
-        color={destructive ? theme.danger : theme.mutedText}
-        size={17}
-        strokeWidth={1.8}
-      />
-    </Pressable>
   );
 }
 
@@ -262,10 +165,6 @@ function getInitials(name: string, email: string): string {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
   return initials || "A";
-}
-
-function isHexColor(value: string): boolean {
-  return /^#[0-9a-f]{6}$/i.test(value);
 }
 
 function createStyles(theme: AdminScreenTheme) {
@@ -288,6 +187,7 @@ function createStyles(theme: AdminScreenTheme) {
       borderBottomColor: theme.border,
       borderBottomWidth: StyleSheet.hairlineWidth,
       paddingVertical: 28,
+      gap: 13,
     },
     accountSection: { paddingBottom: 30 },
     sectionBody: { gap: 14 },
@@ -295,7 +195,7 @@ function createStyles(theme: AdminScreenTheme) {
     settingTitle: { color: theme.text, fontSize: 14, fontWeight: "700" },
     themeOptions: {
       backgroundColor: theme.surfaceMuted,
-      borderRadius: 16,
+      borderRadius: 24,
       flexDirection: "row",
       gap: 8,
       padding: 5,
@@ -322,29 +222,11 @@ function createStyles(theme: AdminScreenTheme) {
       fontWeight: "600",
     },
     themeOptionLabelSelected: { color: theme.text },
-    pickerHost: { minHeight: 44, width: "100%" },
-    customColorRow: {
-      alignItems: "center",
-      backgroundColor: theme.surfaceMuted,
-      borderColor: theme.border,
-      borderRadius: 15,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: 12,
-      padding: 10,
-    },
-    customSwatch: {
-      borderColor: "#0000001A",
-      borderRadius: 11,
-      borderWidth: 1,
-      height: 34,
-      width: 34,
-    },
     accountSummary: {
       alignItems: "center",
-      backgroundColor: theme.surfaceMuted,
+      backgroundColor: theme.surface,
       borderColor: theme.border,
-      borderRadius: 16,
+      borderRadius: 24,
       borderWidth: 1,
       flexDirection: "row",
       gap: 11,
@@ -364,33 +246,6 @@ function createStyles(theme: AdminScreenTheme) {
     accountCopy: { flex: 1, gap: 3 },
     accountName: { color: theme.text, fontSize: 13, fontWeight: "700" },
     accountEmail: { color: theme.mutedText, fontSize: 11 },
-    actionRow: {
-      alignItems: "center",
-      backgroundColor: theme.surface,
-      borderColor: theme.border,
-      borderRadius: 16,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: 11,
-      padding: 13,
-    },
-    actionRowDestructive: { borderColor: `${theme.danger}55` },
-    actionIcon: {
-      alignItems: "center",
-      backgroundColor: theme.surfaceMuted,
-      borderRadius: 11,
-      height: 35,
-      justifyContent: "center",
-      width: 35,
-    },
-    actionIconDestructive: { backgroundColor: `${theme.danger}18` },
-    actionTitle: {
-      color: theme.text,
-      flex: 1,
-      fontSize: 13,
-      fontWeight: "700",
-    },
-    dangerText: { color: theme.danger },
     pressed: { opacity: 0.65 },
   });
 }

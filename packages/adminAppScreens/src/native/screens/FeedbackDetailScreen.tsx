@@ -20,11 +20,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MetadataModal } from "../components/metadata-modal.js";
-import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useDebouncedValue } from "../hooks/use-debounced-value.js";
 import { useAdminAction } from "../lib/action.js";
 import { feedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
+import { useAdminTheme, type AdminTheme } from "../theme.js";
 
 function displayValue(value: string): string {
   return value.replaceAll("_", " ");
@@ -35,6 +35,7 @@ interface FeedbackDetailToolbarProps {
   pending: boolean;
   onClose: () => void;
   onEdit: (entryId: string) => void;
+  onDelete: () => void;
   onStatusChange: (status: EntryStatus) => void;
   onPriorityChange: (priority: EntryPriority | null) => void;
   onShowMetadata: () => void;
@@ -44,6 +45,7 @@ export interface FeedbackDetailScreenProps {
   entryId: string;
   onClose: () => void;
   onEdit: (entryId: string) => void;
+  onDelete: () => void;
   onOpenRoadmap: (roadmap: RoadmapItem) => void;
 }
 
@@ -51,6 +53,7 @@ export function FeedbackDetailScreen({
   entryId,
   onClose,
   onEdit,
+  onDelete,
   onOpenRoadmap,
 }: FeedbackDetailScreenProps) {
   const insets = useSafeAreaInsets();
@@ -102,6 +105,7 @@ export function FeedbackDetailScreen({
         entry={entry}
         onClose={onClose}
         onEdit={onEdit}
+        onDelete={onDelete}
         onPriorityChange={changePriority}
         onShowMetadata={showMetadata}
         onStatusChange={changeStatus}
@@ -301,6 +305,7 @@ function FeedbackToolbar({
   entry,
   onClose,
   onEdit,
+  onDelete,
   onPriorityChange,
   onShowMetadata,
   onStatusChange,
@@ -312,6 +317,8 @@ function FeedbackToolbar({
   const priorityIcon = useToolbarIcon("flag", "flag");
   const metadataIcon = useToolbarIcon("info.circle", "info");
   const editIcon = useToolbarIcon("pencil", "edit");
+  const actionsIcon = useToolbarIcon("ellipsis.circle", "more_vert");
+
   const statuses: { value: EntryStatus; label: string }[] = [
     { value: "open", label: "Open" },
     { value: "under_review", label: "Under review" },
@@ -342,6 +349,22 @@ function FeedbackToolbar({
       </Stack.Toolbar>
       {entry && (
         <Stack.Toolbar placement={Platform.OS === "ios" ? "bottom" : "right"}>
+          <Stack.Toolbar.Menu
+            destructive
+            accessibilityLabel="Roadmap actions"
+            disabled={pending}
+            icon={actionsIcon}
+            tintColor={theme.text}
+            title="Actions"
+          >
+            <Stack.Toolbar.MenuAction
+              destructive
+              disabled={pending}
+              onPress={onDelete}
+            >
+              Delete
+            </Stack.Toolbar.MenuAction>
+          </Stack.Toolbar.Menu>
           <Stack.Toolbar.Spacer hidden={Platform.OS !== "ios"} />
           <Stack.Toolbar.Button
             accessibilityLabel="Edit feedback"

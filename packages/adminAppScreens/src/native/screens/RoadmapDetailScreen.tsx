@@ -11,10 +11,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useAdminAction } from "../lib/action.js";
 import { feedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
+import { useAdminTheme, type AdminTheme } from "../theme.js";
 
 function displayValue(value: string): string {
   return value.replaceAll("_", " ");
@@ -222,7 +222,7 @@ function RoadmapDetailToolbar({
             disabled={pending}
             onPress={onDelete}
           >
-            Delete roadmap item
+            Delete
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>

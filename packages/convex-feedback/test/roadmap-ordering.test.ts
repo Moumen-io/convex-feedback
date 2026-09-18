@@ -1,4 +1,5 @@
 import { convexTest } from "convex-test";
+import { paginator } from "convex-helpers/server/pagination";
 import { describe, expect, test, vi } from "vitest";
 
 import { api, internal } from "../src/component/_generated/api.js";
@@ -94,6 +95,44 @@ describe("roadmap ordering", () => {
     expect(firstPage.page.map((item) => item.id)).toEqual(itemIds.slice(0, 2));
     expect(secondPage.page.map((item) => item.id)).toEqual(itemIds.slice(2));
     expect(firstPage.isDone).toBe(false);
+    expect(secondPage.isDone).toBe(true);
+  });
+
+  test("paginates unfiltered roadmap items across status streams", async () => {
+    const testInstance = setup();
+    for (const [index, status] of (
+      [
+        "planned",
+        "in_progress",
+        "shipped",
+        "planned",
+        "in_progress",
+        "shipped",
+      ] as const
+    ).entries()) {
+      await createRoadmapItem(testInstance, `Item ${index}`, status);
+    }
+
+    const firstPage = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: null, numItems: 2 },
+    });
+    const secondPage = await testInstance.query(api.roadmap.list, {
+      paginationOpts: {
+        cursor: firstPage.continueCursor,
+        numItems: 10,
+      },
+    });
+    const boundFirstPage = await testInstance.query(api.roadmap.list, {
+      paginationOpts: {
+        cursor: null,
+        endCursor: firstPage.continueCursor,
+        numItems: 2,
+      },
+    });
+
+    expect(boundFirstPage.page).toEqual(firstPage.page);
+    expect(secondPage.page).toHaveLength(4);
+    expect(new Set([...firstPage.page, ...secondPage.page]).size).toBe(6);
     expect(secondPage.isDone).toBe(true);
   });
 
@@ -334,6 +373,132 @@ describe("roadmap ordering", () => {
       expect(completed.page).toHaveLength(150);
       expect(
         completed.page.every(
+          (item, index) => item.position === (index + 1) * 1_000_000,
+        ),
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("keeps unfiltered reads stable during batched promotion", async () => {
+    const testInstance = setup();
+    await testInstance.run(async (ctx) => {
+      for (let index = 0; index < 150; index += 1) {
+        await ctx.db.insert("roadmap", {
+          title: `Item ${index}`,
+          status: "planned",
+          position: index === 0 ? 0 : index === 1 ? 5 : index * 10,
+          feedbackCount: 0,
+          createdAt: index,
+          updatedAt: index,
+        });
+      }
+      await ctx.db.insert("roadmapRebalances", {
+        status: "planned",
+        nextGeneration: 1,
+        activeGeneration: "1",
+      });
+    });
+
+    const generation = "1";
+    vi.useFakeTimers();
+    try {
+      const firstMarkPage = await testInstance.run((ctx) =>
+        ctx.db
+          .query("roadmap")
+          .withIndex("by_status_deleting_at_position", (q) =>
+            q.eq("status", "planned").eq("deletingAt", undefined),
+          )
+          .order("asc")
+          .paginate({ cursor: null, numItems: 100, maximumRowsRead: 100 }),
+      );
+      await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+        status: "planned",
+        rebalanceId: generation,
+        phase: "mark",
+        paginationOpts: {
+          cursor: null,
+          numItems: 100,
+          maximumRowsRead: 100,
+        },
+        offset: 0,
+      });
+      await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+        status: "planned",
+        rebalanceId: generation,
+        phase: "mark",
+        paginationOpts: {
+          cursor: firstMarkPage.continueCursor,
+          numItems: 100,
+          maximumRowsRead: 100,
+        },
+        offset: firstMarkPage.page.length,
+      });
+
+      const firstRewritePage = await testInstance.run((ctx) =>
+        paginator(ctx.db, schema)
+          .query("roadmap")
+          .withIndex("by_status_rebalance_rank", (q) =>
+            q.eq("status", "planned").eq("rebalanceId", generation),
+          )
+          .order("asc")
+          .paginate({ cursor: null, numItems: 100, maximumRowsRead: 100 }),
+      );
+      expect(firstRewritePage.page).toHaveLength(100);
+      expect(firstRewritePage.isDone).toBe(false);
+      await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+        status: "planned",
+        rebalanceId: generation,
+        phase: "rewrite",
+        paginationOpts: {
+          cursor: null,
+          numItems: 100,
+          maximumRowsRead: 100,
+        },
+        offset: 0,
+      });
+      await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+        status: "planned",
+        rebalanceId: generation,
+        phase: "rewrite",
+        paginationOpts: {
+          cursor: firstRewritePage.continueCursor,
+          numItems: 100,
+          maximumRowsRead: 100,
+        },
+        offset: firstRewritePage.page.length,
+      });
+
+      const stateBeforePromotion = await testInstance.run((ctx) =>
+        ctx.db
+          .query("roadmapRebalances")
+          .withIndex("by_status", (q) => q.eq("status", "planned"))
+          .first(),
+      );
+      expect(stateBeforePromotion?.activeGeneration).toBe(generation);
+      expect(stateBeforePromotion?.visibleGeneration).toBe(generation);
+      const beforePromotion = await testInstance.query(api.roadmap.list, {
+        paginationOpts: { cursor: null, numItems: 250 },
+      });
+      await testInstance.mutation(internal.roadmap.rebalanceBatch, {
+        status: "planned",
+        rebalanceId: generation,
+        phase: "promote",
+        paginationOpts: {
+          cursor: null,
+          numItems: 100,
+          maximumRowsRead: 100,
+        },
+        offset: 0,
+      });
+
+      const duringPromotion = await testInstance.query(api.roadmap.list, {
+        paginationOpts: { cursor: null, numItems: 250 },
+      });
+      expect(duringPromotion).toEqual(beforePromotion);
+      expect(
+        duringPromotion.page.every(
           (item, index) => item.position === (index + 1) * 1_000_000,
         ),
       ).toBe(true);

@@ -2,8 +2,9 @@ import { paginator } from "convex-helpers/server/pagination";
 import {
   paginationOptsValidator,
   paginationResultValidator,
+  type PaginationResult,
 } from "convex/server";
-import { ConvexError, v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 
 import { internal } from "./_generated/api.js";
 import type { Id } from "./_generated/dataModel.js";
@@ -28,8 +29,35 @@ const POSITION_STEP = 1_000_000;
 const REBALANCE_GAP_THRESHOLD = 10;
 const rebalanceBatchSize = 100;
 const deletionBatchSize = 100;
+const roadmapStatuses = ["planned", "in_progress", "shipped"] as const;
 
 type RebalanceCtx = MutationCtx | QueryCtx;
+type RoadmapDatabase = ReturnType<typeof paginator<typeof schema>>;
+type RoadmapPaginationOpts = Infer<typeof paginationOptsValidator>;
+type RoadmapItemPage = PaginationResult<
+  ReturnType<typeof serializeRoadmapItem>
+>;
+
+type RoadmapListStreamState = {
+  cursor: string | null;
+  offset: number;
+  done: boolean;
+  generation: string | null;
+};
+
+type RoadmapListCursor = {
+  version: 1;
+  streams: RoadmapListStreamState[];
+};
+
+type RoadmapStatusPage = RoadmapItemPage & {
+  generation: string | null;
+};
+
+type RoadmapPageStream = {
+  stream: RoadmapListStreamState;
+  result: RoadmapStatusPage;
+};
 
 type RoadmapCreateArgs = {
   title: string;
@@ -123,6 +151,300 @@ async function scheduleRebalance(
   });
 }
 
+function newRoadmapListStreamState(
+  generation: string | null = null,
+): RoadmapListStreamState {
+  return { cursor: null, offset: 0, done: false, generation };
+}
+
+function initialRoadmapListCursor(): RoadmapListCursor {
+  return {
+    version: 1,
+    streams: roadmapStatuses.map(() => newRoadmapListStreamState()),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isRoadmapListStreamState(
+  value: unknown,
+): value is RoadmapListStreamState {
+  if (!isRecord(value)) return false;
+  return (
+    (value.cursor === null || typeof value.cursor === "string") &&
+    typeof value.offset === "number" &&
+    Number.isInteger(value.offset) &&
+    value.offset >= 0 &&
+    typeof value.done === "boolean" &&
+    (value.generation === null || typeof value.generation === "string")
+  );
+}
+
+function decodeRoadmapListCursor(cursor: string | null): RoadmapListCursor {
+  if (cursor === null) return initialRoadmapListCursor();
+
+  let value: unknown;
+  try {
+    value = JSON.parse(cursor) as unknown;
+  } catch {
+    throw new ConvexError("InvalidCursor");
+  }
+
+  if (
+    !isRecord(value) ||
+    value.version !== 1 ||
+    !Array.isArray(value.streams) ||
+    value.streams.length !== roadmapStatuses.length ||
+    !value.streams.every(isRoadmapListStreamState)
+  ) {
+    throw new ConvexError("InvalidCursor");
+  }
+
+  return {
+    version: 1,
+    streams: value.streams.map((stream) => ({ ...stream })),
+  };
+}
+
+function encodeRoadmapListCursor(cursor: RoadmapListCursor): string {
+  return JSON.stringify(cursor);
+}
+
+async function paginateRoadmapStatus(
+  ctx: QueryCtx,
+  db: RoadmapDatabase,
+  status: RoadmapStatus,
+  paginationOpts: RoadmapPaginationOpts,
+): Promise<RoadmapStatusPage> {
+  const state = await getRebalanceState(ctx, status);
+  const generation = state?.visibleGeneration ?? null;
+  const roadmapQuery =
+    generation === null
+      ? db
+          .query("roadmap")
+          .withIndex("by_status_deleting_at_position", (q) =>
+            q.eq("status", status).eq("deletingAt", undefined),
+          )
+      : db
+          .query("roadmap")
+          .withIndex("by_status_deleting_at_rebalance_id_position", (q) =>
+            q
+              .eq("status", status)
+              .eq("deletingAt", undefined)
+              .eq("rebalanceId", generation),
+          );
+  const result = await roadmapQuery.paginate(paginationOpts);
+
+  return {
+    ...result,
+    generation,
+    page: result.page.map((item) =>
+      serializeRoadmapItem(
+        item,
+        generation === null ? undefined : item.rebalancePosition,
+      ),
+    ),
+  };
+}
+
+function compareRoadmapItems(
+  left: RoadmapItemPage["page"][number],
+  right: RoadmapItemPage["page"][number],
+): number {
+  if (left.position !== right.position) {
+    return left.position - right.position;
+  }
+  if (left.creationTime !== right.creationTime) {
+    return left.creationTime - right.creationTime;
+  }
+  return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+}
+
+function mergeRoadmapPages(
+  pages: Array<RoadmapPageStream | null>,
+  offsets: number[],
+  limit: number,
+) {
+  const page: RoadmapItemPage["page"] = [];
+
+  while (page.length < limit) {
+    let selectedIndex = -1;
+    for (const [index, value] of pages.entries()) {
+      if (value === null) continue;
+      const item = value.result.page[offsets[index]!];
+      if (item === undefined) continue;
+      const selected =
+        selectedIndex < 0
+          ? undefined
+          : pages[selectedIndex]!.result.page[offsets[selectedIndex]!];
+      if (selected === undefined || compareRoadmapItems(item, selected) < 0) {
+        selectedIndex = index;
+      }
+    }
+    if (selectedIndex < 0) break;
+    page.push(pages[selectedIndex]!.result.page[offsets[selectedIndex]!]!);
+    offsets[selectedIndex]! += 1;
+  }
+
+  return page;
+}
+
+async function paginateUnfilteredRoadmapRange(
+  ctx: QueryCtx,
+  db: RoadmapDatabase,
+  paginationOpts: RoadmapPaginationOpts,
+  startCursor: RoadmapListCursor,
+  endCursor: RoadmapListCursor,
+): Promise<RoadmapItemPage> {
+  const generations = await Promise.all(
+    roadmapStatuses.map(async (status) => {
+      const state = await getRebalanceState(ctx, status);
+      return state?.visibleGeneration ?? null;
+    }),
+  );
+  if (
+    startCursor.streams.some(
+      (stream, index) =>
+        stream.generation !== generations[index] ||
+        endCursor.streams[index]!.generation !== generations[index],
+    )
+  ) {
+    throw new ConvexError("InvalidCursor");
+  }
+
+  const pages = await Promise.all(
+    roadmapStatuses.map(async (status, index) => {
+      const start = startCursor.streams[index]!;
+      const end = endCursor.streams[index]!;
+      if (start.generation !== end.generation) {
+        throw new ConvexError("InvalidCursor");
+      }
+      if (start.done) return null;
+
+      if (start.cursor === end.cursor) {
+        if (end.offset <= start.offset) return null;
+        const result = await paginateRoadmapStatus(ctx, db, status, {
+          cursor: start.cursor,
+          numItems: end.offset,
+        });
+        return { stream: start, result };
+      }
+
+      if (end.cursor === null) {
+        throw new ConvexError("InvalidCursor");
+      }
+      const result = await paginateRoadmapStatus(ctx, db, status, {
+        cursor: start.cursor,
+        endCursor: end.cursor,
+        numItems: paginationOpts.numItems,
+      });
+      return { stream: start, result };
+    }),
+  );
+  const offsets = pages.map((page) => page?.stream.offset ?? 0);
+
+  return {
+    page: mergeRoadmapPages(pages, offsets, Number.POSITIVE_INFINITY),
+    isDone: endCursor.streams.every((stream) => stream.done),
+    continueCursor: encodeRoadmapListCursor(endCursor),
+  };
+}
+
+/**
+ * Unfiltered reads merge one stable stream per status. Each stream is pinned
+ * to the generation visible in the query snapshot, so promotion batches can
+ * never leak a mixture of live and replacement positions.
+ */
+async function paginateUnfilteredRoadmap(
+  ctx: QueryCtx,
+  db: RoadmapDatabase,
+  paginationOpts: RoadmapPaginationOpts,
+): Promise<RoadmapItemPage> {
+  const cursor = decodeRoadmapListCursor(paginationOpts.cursor);
+  if (
+    paginationOpts.endCursor !== undefined &&
+    paginationOpts.endCursor !== null
+  ) {
+    return await paginateUnfilteredRoadmapRange(
+      ctx,
+      db,
+      paginationOpts,
+      cursor,
+      decodeRoadmapListCursor(paginationOpts.endCursor),
+    );
+  }
+  const generations = await Promise.all(
+    roadmapStatuses.map(async (status) => {
+      const state = await getRebalanceState(ctx, status);
+      return state?.visibleGeneration ?? null;
+    }),
+  );
+  const streams = cursor.streams.map((stream, index) =>
+    stream.generation === generations[index]
+      ? stream
+      : newRoadmapListStreamState(generations[index]),
+  );
+  const pages = await Promise.all(
+    roadmapStatuses.map(async (status, index) => {
+      const stream = streams[index]!;
+      if (stream.done) return null;
+
+      const result = await paginateRoadmapStatus(ctx, db, status, {
+        ...paginationOpts,
+        cursor: stream.cursor,
+        endCursor: undefined,
+        numItems: Math.max(
+          paginationOpts.numItems,
+          stream.offset + paginationOpts.numItems,
+        ),
+      });
+
+      return { stream, result };
+    }),
+  );
+  const nextStreams = streams.map((stream) => ({ ...stream }));
+  const offsets = pages.map((page) => page?.stream.offset ?? 0);
+  const page = mergeRoadmapPages(pages, offsets, paginationOpts.numItems);
+
+  for (const [index, value] of pages.entries()) {
+    if (value === null) continue;
+    const stream = nextStreams[index]!;
+    const result = value.result;
+    const consumed = offsets[index]! - value.stream.offset;
+    const pageExhausted = offsets[index]! >= result.page.length;
+    stream.generation = result.generation;
+    if (pageExhausted) {
+      stream.done = result.isDone;
+      if (result.isDone) {
+        // Keep the source page boundary even when the paginator uses "[]" as
+        // its terminal cursor, so a bound previous-page query can reproduce
+        // exactly the same range.
+        stream.cursor = value.stream.cursor;
+        stream.offset = result.page.length;
+      } else {
+        stream.cursor = result.continueCursor;
+        stream.offset = 0;
+      }
+    } else {
+      stream.done = false;
+      stream.cursor = value.stream.cursor;
+      stream.offset = value.stream.offset + consumed;
+    }
+  }
+
+  const nextCursor: RoadmapListCursor = {
+    version: 1,
+    streams: nextStreams,
+  };
+  return {
+    page,
+    isDone: nextStreams.every((stream) => stream.done),
+    continueCursor: encodeRoadmapListCursor(nextCursor),
+  };
+}
+
 export const get = query({
   args: { roadmapId: v.id("roadmap") },
   returns: v.union(roadmapItemValidator, v.null()),
@@ -149,40 +471,19 @@ export const list = query({
   handler: async (ctx, args) => {
     const db = paginator(ctx.db, schema);
     const status = args.status;
-    const state =
-      status === undefined ? null : await getRebalanceState(ctx, status);
-    const visibleGeneration = state?.visibleGeneration;
-    const roadmapQuery =
-      status !== undefined && visibleGeneration !== undefined
-        ? db
-            .query("roadmap")
-            .withIndex("by_status_deleting_at_rebalance_id_position", (q) =>
-              q
-                .eq("status", status)
-                .eq("deletingAt", undefined)
-                .eq("rebalanceId", visibleGeneration),
-            )
-        : status === undefined
-          ? db
-              .query("roadmap")
-              .withIndex("by_deleting_at_and_position", (q) =>
-                q.eq("deletingAt", undefined),
-              )
-          : db
-              .query("roadmap")
-              .withIndex("by_status_deleting_at_position", (q) =>
-                q.eq("status", status).eq("deletingAt", undefined),
-              );
-    const result = await roadmapQuery.paginate(args.paginationOpts);
-    return {
-      ...result,
-      page: result.page.map((item) =>
-        serializeRoadmapItem(
-          item,
-          visibleGeneration === undefined ? undefined : item.rebalancePosition,
-        ),
-      ),
-    };
+    if (status === undefined) {
+      return await paginateUnfilteredRoadmap(ctx, db, args.paginationOpts);
+    }
+
+    const result = await paginateRoadmapStatus(
+      ctx,
+      db,
+      status,
+      args.paginationOpts,
+    );
+    const { generation: _generation, ...publicResult } = result;
+    void _generation;
+    return publicResult;
   },
 });
 

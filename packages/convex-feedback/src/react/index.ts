@@ -12,9 +12,21 @@ import type {
   EntrySort,
   EntryStatus,
   EntryStatusFilter,
+  RoadmapItem,
   RoadmapStatus,
   SimilarEntriesResult,
 } from "../component/model.js";
+
+function compareRoadmapItemsByPosition(
+  left: RoadmapItem,
+  right: RoadmapItem,
+): number {
+  if (left.position !== right.position) return left.position - right.position;
+  if (left.creationTime !== right.creationTime) {
+    return left.creationTime - right.creationTime;
+  }
+  return left.id.localeCompare(right.id);
+}
 
 /**
  * Client-side pagination defaults used by hooks created with
@@ -341,12 +353,68 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       );
     },
 
+    /**
+     * An unfiltered roadmap is composed from one stream per status so a
+     * rebalance cannot mix live and replacement positions in the UI.
+     */
     useRoadmap(status?: RoadmapStatus) {
-      return usePaginatedQuery(
+      const planned = usePaginatedQuery(
         api.listRoadmap,
-        status === undefined ? {} : { status },
+        status === undefined || status === "planned"
+          ? { status: "planned" }
+          : "skip",
         { initialNumItems: roadmapPageSize },
       );
+      const inProgress = usePaginatedQuery(
+        api.listRoadmap,
+        status === undefined || status === "in_progress"
+          ? { status: "in_progress" }
+          : "skip",
+        { initialNumItems: roadmapPageSize },
+      );
+      const shipped = usePaginatedQuery(
+        api.listRoadmap,
+        status === undefined || status === "shipped"
+          ? { status: "shipped" }
+          : "skip",
+        { initialNumItems: roadmapPageSize },
+      );
+
+      if (status === "planned") return planned;
+      if (status === "in_progress") return inProgress;
+      if (status === "shipped") return shipped;
+
+      const roadmaps = [planned, inProgress, shipped];
+      const loadingFirstPage = roadmaps.some(
+        (roadmap) => roadmap.status === "LoadingFirstPage",
+      );
+      const loadingMore = roadmaps.some(
+        (roadmap) => roadmap.status === "LoadingMore",
+      );
+      const canLoadMore = roadmaps.some(
+        (roadmap) => roadmap.status === "CanLoadMore",
+      );
+
+      return {
+        results: roadmaps
+          .flatMap((roadmap) => roadmap.results)
+          .sort(compareRoadmapItemsByPosition),
+        status: loadingFirstPage
+          ? ("LoadingFirstPage" as const)
+          : loadingMore
+            ? ("LoadingMore" as const)
+            : canLoadMore
+              ? ("CanLoadMore" as const)
+              : ("Exhausted" as const),
+        isLoading: loadingFirstPage || loadingMore,
+        loadMore: (numItems: number) => {
+          for (const roadmap of roadmaps) {
+            if (roadmap.status === "CanLoadMore") {
+              roadmap.loadMore(numItems);
+            }
+          }
+        },
+      };
     },
 
     /** Reactively retrieves one roadmap item independently of the list page. */

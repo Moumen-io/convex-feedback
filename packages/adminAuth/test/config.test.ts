@@ -47,6 +47,45 @@ describe("runtime admin configuration", () => {
     ).toBe(true);
   });
 
+  it("requires the host's actual Convex Auth provider IDs", () => {
+    const valid = validateAdminProjectConfig({
+      ...baseProject,
+      auth: {
+        provider: "convex-auth",
+        publicConfig: {
+          methods: {
+            password: true,
+            emailCode: true,
+            sso: [{ id: "google", label: "Google" }],
+          },
+          providerIds: {
+            password: "password-for-admins",
+            emailCode: "magic-email-code",
+            sso: { google: "oauth-google-host" },
+          },
+        },
+      },
+    });
+    expect(valid.valid).toBe(true);
+
+    const missing = validateAdminProjectConfig({
+      ...baseProject,
+      auth: {
+        provider: "convex-auth",
+        publicConfig: {
+          methods: {
+            emailCode: true,
+            sso: [{ id: "google", label: "Google" }],
+          },
+          providerIds: { password: "", emailCode: "", sso: {} },
+        },
+      },
+    });
+    expect(missing.valid).toBe(false);
+    expect(missing.issues.join(" ")).toContain("email-code");
+    expect(missing.issues.join(" ")).toContain("Google");
+  });
+
   it("rejects server-side secrets and placeholder adapters", () => {
     const secretResult = validateAdminProjectConfig({
       ...baseProject,

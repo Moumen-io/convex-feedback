@@ -1,9 +1,5 @@
-import {
-  useAuth as useClerkAuth,
-  useSignIn,
-  useSSO,
-  useUser,
-} from "@clerk/expo";
+import { useAuth as useClerkAuth, useSignIn, useUser } from "@clerk/expo";
+import { useSSO } from "@clerk/expo/experimental";
 import { ClerkProvider } from "@clerk/expo";
 import { UserProfileView } from "@clerk/expo/native";
 import {
@@ -14,9 +10,9 @@ import {
 } from "@convex-dev/auth/react";
 import {
   ConvexProvider,
-  ConvexReactClient,
   useConvexAuth as useConvexProviderAuth,
 } from "convex/react";
+import type { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
@@ -37,12 +33,22 @@ import type {
   AdminAuthController,
   AdminAuthResult,
   AdminAuthSignInRequest,
-  AdminMfaMethod,
   AdminProjectConfig,
 } from "./contracts.js";
 import {
+  clerkOAuthStrategy,
+  clerkErrorResult,
+  completeClerkSignIn,
+  completeClerkSso,
+  finalizeClerkSignIn,
+  mapClerkMfaMethods,
+  NATIVE_AUTH_CALLBACK_PATH,
+  signInWithConvexAuth,
+} from "./flows.js";
+import {
   createSecureTokenStorage,
   createNamespacedClerkTokenCache,
+  getConvexAuthStorageNamespace,
 } from "./storage.js";
 
 export interface AdminAuthRuntimeProps {
@@ -114,7 +120,7 @@ function ConvexAuthRuntime({
     <ConvexAuthProvider
       client={client}
       storage={createSecureTokenStorage(project.id)}
-      storageNamespace={`convex-feedback-admin-${project.id}`}
+      storageNamespace={getConvexAuthStorageNamespace(project.id)}
       shouldHandleCode={false}
       replaceURL={() => undefined}
     >
@@ -138,72 +144,34 @@ function ConvexAuthBridge({
     project.auth.provider === "convex-auth"
       ? project.auth.publicConfig.methods
       : {};
+  const providerIds =
+    project.auth.provider === "convex-auth"
+      ? project.auth.publicConfig.providerIds
+      : { password: "", emailCode: "", sso: {} };
   const availableSsoMethods = methods.sso ?? [];
 
   const signIn = useCallback(
     async (request: AdminAuthSignInRequest): Promise<AdminAuthResult> => {
       try {
-        if (request.kind === "password") {
-          await actions.signIn("password", {
-            flow: "signIn",
-            email: request.identifier.trim(),
-            password: request.password,
-          });
-          return { ok: true };
+        const result = await signInWithConvexAuth(
+          request,
+          providerIds,
+          actions.signIn,
+          {
+            redirectUri: Linking.createURL(NATIVE_AUTH_CALLBACK_PATH),
+            openAuthSession: (url, redirectUri) =>
+              WebBrowser.openAuthSessionAsync(url, redirectUri),
+          },
+        );
+        if (result.ok && request.kind === "email-code") {
+          setEmailCodeSent(!request.code);
         }
-
-        if (request.kind === "email-code") {
-          if (request.code) {
-            await actions.signIn("email", {
-              email: request.email.trim(),
-              code: request.code.trim(),
-            });
-            setEmailCodeSent(false);
-          } else {
-            await actions.signIn("email", { email: request.email.trim() });
-            setEmailCodeSent(true);
-          }
-          return { ok: true };
-        }
-
-        if (request.kind === "sso") {
-          const redirectUri = Linking.createURL("auth/callback");
-          const result = await actions.signIn(request.method.id, {
-            redirectTo: redirectUri,
-          });
-          if (!result.redirect) return { ok: true };
-
-          const browserResult = await WebBrowser.openAuthSessionAsync(
-            result.redirect.toString(),
-            redirectUri,
-          );
-          if (browserResult.type !== "success") {
-            return { ok: false, error: "The sign-in flow was cancelled." };
-          }
-          const code = new URL(browserResult.url).searchParams.get("code");
-          if (!code) {
-            return {
-              ok: false,
-              error: "The sign-in callback did not include a code.",
-            };
-          }
-          await actions.signIn(request.method.id, {
-            code,
-            redirectTo: redirectUri,
-          });
-          return { ok: true };
-        }
-
-        return {
-          ok: false,
-          error:
-            "This Convex Auth deployment does not expose an MFA adapter yet.",
-        };
+        return result;
       } catch (error) {
         return { ok: false, error: errorMessage(error) };
       }
     },
-    [actions],
+    [actions, providerIds],
   );
 
   const controller = useMemo<AdminAuthController>(
@@ -283,63 +251,86 @@ function ClerkAuthBridge({
           return { ok: false, error: "Clerk is still loading." };
 
         if (request.kind === "password") {
-          const result = await signInFuture.password({
-            identifier: request.identifier.trim(),
-            password: request.password,
-          });
-          return result.error
-            ? { ok: false, error: result.error.message }
-            : { ok: true };
+          return completeClerkSignIn(signInFuture, () =>
+            signInFuture.password({
+              identifier: request.identifier.trim(),
+              password: request.password,
+            }),
+          );
         }
 
         if (request.kind === "email-code") {
-          const result = request.code
-            ? await signInFuture.emailCode.verifyCode({
-                code: request.code.trim(),
-              })
-            : await signInFuture.emailCode.sendCode({
-                emailAddress: request.email.trim(),
-              });
-          if (result.error) return { ok: false, error: result.error.message };
-          setEmailCodeSent(!request.code);
+          if (request.code) {
+            const code = request.code.trim();
+            const result = await completeClerkSignIn(signInFuture, () =>
+              signInFuture.emailCode.verifyCode({
+                code,
+              }),
+            );
+            if (result.ok) setEmailCodeSent(false);
+            return result;
+          }
+          const result = await signInFuture.emailCode.sendCode({
+            emailAddress: request.email.trim(),
+          });
+          if (result.error) return clerkErrorResult(result.error.message);
+          setEmailCodeSent(true);
           return { ok: true };
         }
 
         if (request.kind === "sso") {
-          const strategy = request.method.id.startsWith("oauth_")
-            ? request.method.id
-            : `oauth_${request.method.id}`;
+          const strategy = clerkOAuthStrategy(request.method.id);
           const result = await startSSOFlow({
             strategy: strategy as never,
-            redirectUrl: Linking.createURL("auth/callback"),
+            redirectUrl: Linking.createURL(NATIVE_AUTH_CALLBACK_PATH),
           });
-          if (result.createdSessionId && result.setActive) {
-            await result.setActive({ session: result.createdSessionId });
-          }
-          return { ok: true };
+          return completeClerkSso(result);
         }
 
         const code = request.code?.trim();
-        let result: { error: { message: string } | null };
-        if (request.method === "email-code") {
-          result = code
-            ? await signInFuture.mfa.verifyEmailCode({ code })
-            : await signInFuture.mfa.sendEmailCode();
+        if (request.method === "email-link") {
+          const sent = await signInFuture.emailLink.sendLink({
+            verificationUrl: Linking.createURL(NATIVE_AUTH_CALLBACK_PATH),
+          });
+          if (sent.error) return clerkErrorResult(sent.error.message);
+          const verification =
+            await signInFuture.emailLink.waitForVerification();
+          if (verification.error) {
+            return clerkErrorResult(verification.error.message);
+          }
+          return finalizeClerkSignIn(signInFuture);
+        } else if (request.method === "email-code") {
+          if (!code) {
+            const result = await signInFuture.mfa.sendEmailCode();
+            return result.error
+              ? clerkErrorResult(result.error.message)
+              : { ok: true };
+          }
+          return completeClerkSignIn(signInFuture, () =>
+            signInFuture.mfa.verifyEmailCode({ code }),
+          );
         } else if (request.method === "phone-code") {
-          result = code
-            ? await signInFuture.mfa.verifyPhoneCode({ code })
-            : await signInFuture.mfa.sendPhoneCode();
+          if (!code) {
+            const result = await signInFuture.mfa.sendPhoneCode();
+            return result.error
+              ? clerkErrorResult(result.error.message)
+              : { ok: true };
+          }
+          return completeClerkSignIn(signInFuture, () =>
+            signInFuture.mfa.verifyPhoneCode({ code }),
+          );
         } else if (request.method === "totp") {
           if (!code)
             return { ok: false, error: "Enter your authenticator code." };
-          result = await signInFuture.mfa.verifyTOTP({ code });
+          return completeClerkSignIn(signInFuture, () =>
+            signInFuture.mfa.verifyTOTP({ code }),
+          );
         } else {
           if (!code) return { ok: false, error: "Enter your backup code." };
-          result = await signInFuture.mfa.verifyBackupCode({ code });
+          return completeClerkSignIn(signInFuture, () =>
+            signInFuture.mfa.verifyBackupCode({ code }),
+          );
         }
-        return result.error
-          ? { ok: false, error: result.error.message }
-          : { ok: true };
       } catch (error) {
         return { ok: false, error: errorMessage(error) };
       }
@@ -348,11 +339,17 @@ function ClerkAuthBridge({
   );
 
   const challenge = useMemo<AdminAuthChallenge | null>(() => {
-    if (signInFuture?.status === "needs_second_factor") {
+    if (
+      signInFuture?.status === "needs_second_factor" ||
+      signInFuture?.status === "needs_client_trust"
+    ) {
       return {
         kind: "mfa",
-        title: "Complete the second-factor challenge.",
-        methods: mapMfaMethods(signInFuture.supportedSecondFactors),
+        title:
+          signInFuture.status === "needs_client_trust"
+            ? "Verify this device to continue."
+            : "Complete the second-factor challenge.",
+        methods: mapClerkMfaMethods(signInFuture.supportedSecondFactors),
       };
     }
     if (emailCodeSent) {
@@ -444,19 +441,6 @@ function UnsupportedAuthRuntime({
       {children}
     </AdminAuthContext.Provider>
   );
-}
-
-function mapMfaMethods(
-  factors: readonly { strategy?: string }[] | null | undefined,
-): AdminMfaMethod[] {
-  const methods = new Set<AdminMfaMethod>();
-  for (const factor of factors ?? []) {
-    if (factor.strategy === "email_code") methods.add("email-code");
-    if (factor.strategy === "phone_code") methods.add("phone-code");
-    if (factor.strategy === "totp") methods.add("totp");
-    if (factor.strategy === "backup_code") methods.add("backup-code");
-  }
-  return [...methods];
 }
 
 function errorMessage(error: unknown): string {

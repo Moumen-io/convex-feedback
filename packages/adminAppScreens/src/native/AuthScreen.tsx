@@ -58,6 +58,7 @@ export function AdminAuthScreen({
     : (mfaMethods[0] ?? "email-code");
   const mfaCanSendCode =
     selectedMfaMethod === "email-code" || selectedMfaMethod === "phone-code";
+  const mfaIsEmailLink = selectedMfaMethod === "email-link";
   const mfaRequiresCode =
     selectedMfaMethod === "totp" || selectedMfaMethod === "backup-code";
 
@@ -187,28 +188,40 @@ export function AdminAuthScreen({
                 ))}
               </View>
             )}
-            <TextInput
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType={mfaRequiresCode ? "number-pad" : "default"}
-              onChangeText={setCode}
-              placeholder={mfaPlaceholder(selectedMfaMethod)}
-              placeholderTextColor={theme.mutedText}
-              style={styles.input}
-              value={code}
-            />
+            {mfaIsEmailLink ? (
+              <Text style={styles.helper}>
+                We’ll send a verification link to your email address.
+              </Text>
+            ) : (
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType={
+                  selectedMfaMethod === "totp" ? "number-pad" : "default"
+                }
+                onChangeText={setCode}
+                placeholder={mfaPlaceholder(selectedMfaMethod)}
+                placeholderTextColor={theme.mutedText}
+                style={styles.input}
+                value={code}
+              />
+            )}
             <ActionButton
-              disabled={pending || (mfaRequiresCode && !code.trim())}
+              disabled={
+                pending || (!mfaIsEmailLink && mfaRequiresCode && !code.trim())
+              }
               label={
-                mfaCanSendCode && !code.trim()
-                  ? `Send ${mfaLabel(selectedMfaMethod).toLowerCase()}`
-                  : "Verify code"
+                mfaIsEmailLink
+                  ? "Send email link"
+                  : mfaCanSendCode && !code.trim()
+                    ? `Send ${mfaLabel(selectedMfaMethod).toLowerCase()}`
+                    : "Verify code"
               }
               onPress={() =>
                 void submit({
                   kind: "mfa",
                   method: selectedMfaMethod,
-                  code: code.trim() || undefined,
+                  code: mfaIsEmailLink ? undefined : code.trim() || undefined,
                 })
               }
               styles={styles}
@@ -351,6 +364,7 @@ function mfaPlaceholder(method: AdminMfaMethod | undefined): string {
 
 function mfaLabel(method: AdminMfaMethod): string {
   if (method === "email-code") return "Email code";
+  if (method === "email-link") return "Email link";
   if (method === "phone-code") return "SMS code";
   if (method === "totp") return "Authenticator";
   return "Backup code";

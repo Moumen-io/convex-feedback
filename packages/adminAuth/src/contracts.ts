@@ -16,8 +16,22 @@ export interface AdminAuthMethods {
   sso?: AdminSsoMethod[];
 }
 
+/**
+ * Provider IDs used by the host's Convex Auth deployment.
+ *
+ * These are deliberately separate from the labels/IDs used by the shared
+ * login screen. Convex Auth resolves providers by their configured runtime ID,
+ * which may differ from the method shown to an administrator.
+ */
+export interface ConvexAuthProviderIds {
+  password: string;
+  emailCode: string;
+  sso: Record<string, string>;
+}
+
 export interface ConvexAuthPublicConfig {
   methods: AdminAuthMethods;
+  providerIds: ConvexAuthProviderIds;
 }
 
 export interface ClerkPublicConfig {
@@ -68,7 +82,7 @@ export type AdminAuthChallenge =
     };
 
 export type AdminMfaMethod =
-  "email-code" | "phone-code" | "totp" | "backup-code";
+  "email-code" | "email-link" | "phone-code" | "totp" | "backup-code";
 
 export type AdminAuthSignInRequest =
   | { kind: "password"; identifier: string; password: string }

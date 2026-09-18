@@ -17,6 +17,11 @@ deployment URL and the host API namespace (the form displays the `api.` prefix),
 then enter the provider's public configuration and the admin sign-in methods
 enabled by that host. The configuration is saved in `expo-secure-store`.
 
+When Convex Auth is selected, the setup form also asks for the exact host
+provider IDs for password, email-code, and each selected SSO method. These are
+runtime values: the app does not assume `password`, `email`, or that a button
+label such as `google` is the Convex provider ID.
+
 The app never asks for or persists Convex server keys, Clerk secret keys, OAuth
 client secrets, signing keys, or other server-side credentials. Session tokens
 are also namespaced per project and stored through SecureStore-backed adapters.
@@ -37,3 +42,8 @@ The runtime and adapter contract lives in
 [`convex-feedback-admin-auth`](../../../packages/adminAuth/README.md). It
 documents the public configuration shape, SecureStore behavior, supported
 providers, and the steps for adding Auth0, WorkOS, OIDC, or another adapter.
+
+For native Convex Auth OAuth, the app uses the `convex-feedback-admin` Expo
+scheme and the `convex-feedback-admin://auth/callback` deep link. The host must
+allow that exact URL in its Convex Auth `callbacks.redirect` policy; see the
+adapter README for the safe host configuration pattern.

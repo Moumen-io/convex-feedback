@@ -1,5 +1,8 @@
 import { ScrollViewStyleReset } from "expo-router/html";
+import * as WebBrowser from "expo-web-browser";
 import type { ReactNode } from "react";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function Root({ children }: { children: ReactNode }) {
   return (

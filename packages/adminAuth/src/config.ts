@@ -4,6 +4,7 @@ import type {
   AdminAuthProviderId,
   AdminProjectConfig,
   AdminSsoMethod,
+  ConvexAuthProviderIds,
 } from "./contracts.js";
 
 export interface AdminAuthProviderMetadata {
@@ -127,6 +128,9 @@ export function normalizeAuthConfig(auth: AdminAuthConfig): AdminAuthConfig {
       provider: auth.provider,
       publicConfig: {
         methods: normalizeAuthMethods(auth.publicConfig.methods),
+        providerIds: normalizeConvexAuthProviderIds(
+          auth.publicConfig.providerIds,
+        ),
       },
     };
   }
@@ -187,6 +191,11 @@ export function validateAdminProjectConfig(
     validateMethods(config.auth.publicConfig.methods, issues);
   } else if (config.auth.provider === "convex-auth") {
     validateMethods(config.auth.publicConfig.methods, issues);
+    validateConvexAuthProviderIds(
+      config.auth.publicConfig.methods,
+      config.auth.publicConfig.providerIds,
+      issues,
+    );
   } else {
     issues.push(
       `${getProviderLabel(config.auth.provider)} is reserved for a future adapter. Choose Convex Auth or Clerk for now.`,
@@ -194,6 +203,31 @@ export function validateAdminProjectConfig(
   }
 
   return { valid: issues.length === 0, issues };
+}
+
+export function normalizeConvexAuthProviderIds(
+  providerIds: Partial<ConvexAuthProviderIds> | undefined,
+): ConvexAuthProviderIds {
+  const sso = Object.fromEntries(
+    Object.entries(providerIds?.sso ?? {})
+      .map(([methodId, providerId]) => [
+        methodId.trim().toLowerCase(),
+        typeof providerId === "string" ? providerId.trim() : "",
+      ])
+      .filter(([methodId, providerId]) => Boolean(methodId && providerId)),
+  );
+
+  return {
+    password:
+      typeof providerIds?.password === "string"
+        ? providerIds.password.trim()
+        : "",
+    emailCode:
+      typeof providerIds?.emailCode === "string"
+        ? providerIds.emailCode.trim()
+        : "",
+    sso,
+  };
 }
 
 export function isValidConvexUrl(value: string): boolean {
@@ -234,6 +268,30 @@ function validateMethods(methods: AdminAuthMethods, issues: string[]): void {
   for (const method of methods.sso ?? []) {
     if (!/^[a-z0-9][a-z0-9_-]*$/.test(method.id)) {
       issues.push(`SSO method \"${method.label}\" has an invalid id.`);
+    }
+  }
+}
+
+function validateConvexAuthProviderIds(
+  methods: AdminAuthMethods,
+  providerIds: ConvexAuthProviderIds,
+  issues: string[],
+): void {
+  if (methods.password === true && !providerIds.password) {
+    issues.push(
+      "Enter the configured Convex Auth provider ID for password sign-in.",
+    );
+  }
+  if (methods.emailCode === true && !providerIds.emailCode) {
+    issues.push(
+      "Enter the configured Convex Auth provider ID for email-code sign-in.",
+    );
+  }
+  for (const method of methods.sso ?? []) {
+    if (!providerIds.sso[method.id]) {
+      issues.push(
+        `Enter the configured Convex Auth provider ID for ${method.label}.`,
+      );
     }
   }
 }

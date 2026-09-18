@@ -9,6 +9,14 @@ import {
 import type { AdminProjectConfig } from "./contracts.js";
 
 export const ADMIN_PROJECT_STORE_KEY = "convex-feedback-admin.projects.v1";
+export const CONVEX_AUTH_STORAGE_NAMESPACE_PREFIX = "convex-feedback-admin-";
+
+export const CONVEX_AUTH_STORAGE_KEYS = [
+  "__convexAuthJWT",
+  "__convexAuthRefreshToken",
+  "__convexAuthOAuthVerifier",
+  "__convexAuthServerStateFetchTime",
+] as const;
 
 export interface AdminProjectStoreState {
   projects: AdminProjectConfig[];
@@ -86,6 +94,23 @@ export function createSecureTokenStorage(namespace: string): TokenStorage {
   };
 }
 
+/** Must stay in sync with Convex Auth's storageNamespace passed by the runtime. */
+export function getConvexAuthStorageNamespace(projectId: string): string {
+  return `${CONVEX_AUTH_STORAGE_NAMESPACE_PREFIX}${projectId}`;
+}
+
+/** Convex Auth removes non-alphanumeric characters from its namespace keys. */
+export function getConvexAuthStoredKey(
+  projectId: string,
+  key: (typeof CONVEX_AUTH_STORAGE_KEYS)[number],
+): string {
+  const escapedNamespace = getConvexAuthStorageNamespace(projectId).replace(
+    /[^a-zA-Z0-9]/g,
+    "",
+  );
+  return `${key}_${escapedNamespace}`;
+}
+
 export function createNamespacedClerkTokenCache(namespace: string): TokenCache {
   return {
     getToken: (key) => SecureStore.getItemAsync(secretKey(namespace, key)),
@@ -100,10 +125,9 @@ export async function clearProjectAuthStorage(
   namespace: string,
 ): Promise<void> {
   const keys = [
-    "__convexAuthJWT",
-    "__convexAuthRefreshToken",
-    "__convexAuthOAuthVerifier",
-    "__convexAuthServerStateFetchTime",
+    ...CONVEX_AUTH_STORAGE_KEYS.map((key) =>
+      getConvexAuthStoredKey(namespace, key),
+    ),
     "clerk-active-session",
     "clerk-token",
   ];

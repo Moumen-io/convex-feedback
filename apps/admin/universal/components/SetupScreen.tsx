@@ -8,6 +8,7 @@ import type {
   AdminAuthMethods,
   AdminProjectConfig,
   AdminSsoMethod,
+  ConvexAuthProviderIds,
 } from "convex-feedback-admin-auth";
 import {
   Check,
@@ -67,6 +68,9 @@ export function SetupScreen({
   const [methods, setMethods] = useState<AdminAuthMethods>(() =>
     initialProject ? getInitialMethods(initialProject) : { password: true },
   );
+  const [providerIds, setProviderIds] = useState<ConvexAuthProviderIds>(() =>
+    getInitialProviderIds(initialProject),
+  );
   const [issues, setIssues] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -82,6 +86,7 @@ export function SetupScreen({
         : "",
     );
     setMethods(getInitialMethods(initialProject));
+    setProviderIds(getInitialProviderIds(initialProject));
   }, [initialProject]);
 
   const ssoMethods = useMemo(() => methods.sso ?? [], [methods.sso]);
@@ -103,6 +108,17 @@ export function SetupScreen({
     });
   };
 
+  const updateProviderId = (key: "password" | "emailCode", value: string) => {
+    setProviderIds((current) => ({ ...current, [key]: value }));
+  };
+
+  const updateSsoProviderId = (methodId: string, value: string) => {
+    setProviderIds((current) => ({
+      ...current,
+      sso: { ...current.sso, [methodId]: value },
+    }));
+  };
+
   const save = async () => {
     const project: AdminProjectConfig = {
       id: initialProject?.id ?? `project-${Date.now().toString(36)}`,
@@ -112,7 +128,10 @@ export function SetupScreen({
       auth:
         provider === "clerk"
           ? { provider: "clerk", publicConfig: { publishableKey, methods } }
-          : { provider: "convex-auth", publicConfig: { methods } },
+          : {
+              provider: "convex-auth",
+              publicConfig: { methods, providerIds },
+            },
       updatedAt: Date.now(),
     };
     const validation = validateAdminProjectConfig(project);
@@ -318,6 +337,54 @@ export function SetupScreen({
           </Text>
         </View>
 
+        {provider === "convex-auth" && (
+          <View style={styles.section}>
+            <SectionHeading
+              color={theme.text}
+              icon={<KeyIcon color={theme.primary} />}
+              title="Convex Auth provider IDs"
+            />
+            <Text style={styles.hint}>
+              Enter the exact IDs configured by the host deployment. They can
+              differ from the labels shown above and from Convex Auth defaults.
+            </Text>
+            {methods.password === true && (
+              <Field
+                autoCapitalize="none"
+                autoCorrect={false}
+                label="Password provider ID"
+                onChangeText={(value) => updateProviderId("password", value)}
+                placeholder="Configured password ID"
+                styles={styles}
+                value={providerIds.password}
+              />
+            )}
+            {methods.emailCode === true && (
+              <Field
+                autoCapitalize="none"
+                autoCorrect={false}
+                label="Email-code provider ID"
+                onChangeText={(value) => updateProviderId("emailCode", value)}
+                placeholder="Configured email provider ID"
+                styles={styles}
+                value={providerIds.emailCode}
+              />
+            )}
+            {ssoMethods.map((method) => (
+              <Field
+                autoCapitalize="none"
+                autoCorrect={false}
+                key={method.id}
+                label={`${method.label} provider ID`}
+                onChangeText={(value) => updateSsoProviderId(method.id, value)}
+                placeholder={`Configured ${method.label} provider ID`}
+                styles={styles}
+                value={providerIds.sso[method.id] ?? ""}
+              />
+            ))}
+          </View>
+        )}
+
         {issues.length > 0 && (
           <View style={styles.errorBox}>
             {issues.map((issue) => (
@@ -441,6 +508,19 @@ function getInitialProvider(
 
 function getInitialMethods(project: AdminProjectConfig): AdminAuthMethods {
   return project.auth.publicConfig.methods ?? {};
+}
+
+function getInitialProviderIds(
+  project: AdminProjectConfig | undefined,
+): ConvexAuthProviderIds {
+  if (project?.auth.provider === "convex-auth") {
+    return {
+      password: project.auth.publicConfig.providerIds.password,
+      emailCode: project.auth.publicConfig.providerIds.emailCode,
+      sso: { ...project.auth.publicConfig.providerIds.sso },
+    };
+  }
+  return { password: "", emailCode: "", sso: {} };
 }
 
 function KeyIcon({ color }: { color: string }) {

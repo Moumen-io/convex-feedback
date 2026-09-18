@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { resolveRoadmapRouteItem } from "convex-feedback-ui/expo";
 
 import { RoadmapForm } from "../components/roadmap-form.js";
-import { feedbackHooks } from "../lib/feedback.js";
+import { useAdminFeedbackHooks } from "../lib/feedback.js";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import type { RoadmapItem } from "convex-feedback";
 
@@ -18,6 +18,7 @@ export function EditRoadmapScreen({
   routeItem,
   onClose,
 }: EditRoadmapScreenProps) {
+  const feedbackHooks = useAdminFeedbackHooks();
   const roadmapItem = feedbackHooks.useRoadmapItem(roadmapId);
   const theme = useAdminTheme();
   const styles = createStyles(theme);

@@ -13,12 +13,13 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "apps/admin/withClerk/*"
+    "apps/admin/withClerk/*",
+    "apps/admin/universal"
   ],
   "scripts": {
     "build:packages": "npm run build -w convex-feedback && npm run build -w convex-feedback-ui",
     "build:ui": "npm run build -w convex-feedback-ui",
-    "build:admin": "npm run build -w convex-feedback-admin-app-screens",
+    "build:admin": "npm run build -w convex-feedback-admin-auth && npm run build -w convex-feedback-admin-app-screens",
     "build:examples": "npm run build -w convex-feedback-example-web && npm run build -w convex-feedback-example-native && npm run build -w convex-feedback-example-expo && npm run build -w convex-feedback-example-expo-routed",
     "build": "npm run build:packages && npm run build:examples",
     "codegen:component": "npm run codegen -w convex-feedback",
@@ -26,7 +27,7 @@
     "codegen": "npm run codegen:component && npm run build -w convex-feedback && npm run codegen:example",
     "lint": "npm run lint -w convex-feedback && npm run lint -w convex-feedback-ui",
     "test": "npm run test -w convex-feedback && npm run test -w convex-feedback-ui",
-    "test:apps": "npm run build:admin && npm run build -w convex-feedback-admin-web && npm run typecheck -w convex-feedback-admin-native",
+    "test:apps": "npm run build:admin && npm run test -w convex-feedback-admin-auth && npm run build -w convex-feedback-admin-web && npm run typecheck -w convex-feedback-admin-native && npm run typecheck -w convex-feedback-admin-universal",
     "typecheck": "npm run typecheck -w convex-feedback && npm run typecheck -w convex-feedback-ui",
     "format:check": "prettier --check .",
     "format": "prettier --write .",

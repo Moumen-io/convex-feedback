@@ -45,6 +45,7 @@
     "@expo/ui": ">=57.0.0",
     "@react-native-async-storage/async-storage": ">=1.24.0",
     "convex-feedback": ">=0.2.0-beta.12",
+    "convex-feedback-admin-auth": ">=0.1.0",
     "convex-feedback-ui": ">=0.2.0-beta.12",
     "expo": ">=57.0.0",
     "expo-router": ">=6.0.0",
@@ -71,6 +72,9 @@
       "optional": true
     },
     "convex-feedback": {
+      "optional": true
+    },
+    "convex-feedback-admin-auth": {
       "optional": true
     },
     "convex-feedback-ui": {
@@ -129,6 +133,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "convex-feedback": "^0.2.0-beta.12",
+    "convex-feedback-admin-auth": "*",
     "convex-feedback-ui": "*",
     "expo": "~57.0.22",
     "expo-router": "~57.0.21",

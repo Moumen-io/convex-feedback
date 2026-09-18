@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Convex Feedback Universal Admin",
+    "slug": "convex-feedback-universal-admin",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "convex-feedback-admin",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": ["expo-router", "@clerk/expo", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

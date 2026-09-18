@@ -2,7 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { EntryForm } from "../components/entry-form.js";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
-import { feedbackHooks } from "../lib/feedback.js";
+import { useAdminFeedbackHooks } from "../lib/feedback.js";
 
 export interface EditFeedbackScreenProps {
   entryId: string;
@@ -13,6 +13,7 @@ export function EditFeedbackScreen({
   entryId,
   onClose,
 }: EditFeedbackScreenProps) {
+  const feedbackHooks = useAdminFeedbackHooks();
   const entry = feedbackHooks.useAdminEntry(entryId);
   const theme = useAdminTheme();
   const styles = createStyles(theme);

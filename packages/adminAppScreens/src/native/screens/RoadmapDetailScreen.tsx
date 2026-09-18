@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { resolveRoadmapRouteItem } from "convex-feedback-ui/expo";
 
 import { useAdminAction } from "../lib/action.js";
-import { feedbackHooks } from "../lib/feedback.js";
+import { useAdminFeedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 
@@ -48,6 +48,7 @@ export function RoadmapDetailScreen({
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
   const styles = createStyles(theme);
+  const feedbackHooks = useAdminFeedbackHooks();
   const roadmapItem = feedbackHooks.useRoadmapItem(roadmapId);
   const item = resolveRoadmapRouteItem(roadmapId, roadmapItem, routeItem);
   const feedback = feedbackHooks.useRoadmapFeedback(item?.id);

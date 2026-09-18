@@ -2,23 +2,27 @@ import {
   ADMIN_AUTH_PROVIDERS,
   DEFAULT_SSO_METHODS,
   normalizeApiNamespace,
+  normalizeConvexUrl,
+  testConvexAdminConnection,
   validateAdminProjectConfig,
 } from "convex-feedback-admin-auth";
 import type {
   AdminAuthMethods,
   AdminProjectConfig,
   AdminSsoMethod,
+  ConvexAdminConnectionResult,
   ConvexAuthProviderIds,
 } from "convex-feedback-admin-auth";
 import {
   Check,
   ChevronRight,
   LockKeyhole,
+  PlugZap,
   Plus,
   Server,
   ShieldCheck,
 } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type * as React from "react";
 import {
   ActivityIndicator,
@@ -38,6 +42,11 @@ import {
 } from "convex-feedback-admin-app-screens/native";
 
 type SupportedProvider = "convex-auth" | "clerk";
+
+type ConnectionCheckState =
+  | { key: string; status: "testing" }
+  | { key: string; status: "success"; isAdmin: boolean }
+  | { key: string; status: "error"; message: string };
 
 export interface SetupScreenProps {
   initialProject?: AdminProjectConfig;
@@ -73,6 +82,21 @@ export function SetupScreen({
   );
   const [issues, setIssues] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const connectionKey = useMemo(
+    () =>
+      `${normalizeConvexUrl(convexUrl)}\u0000${normalizeApiNamespace(apiNamespace)}`,
+    [apiNamespace, convexUrl],
+  );
+  const connectionKeyRef = useRef(connectionKey);
+  const [connectionTest, setConnectionTest] =
+    useState<ConnectionCheckState | null>(null);
+
+  useEffect(() => {
+    connectionKeyRef.current = connectionKey;
+    setConnectionTest((current) =>
+      current?.key === connectionKey ? current : null,
+    );
+  }, [connectionKey]);
 
   useEffect(() => {
     if (!initialProject) return;
@@ -119,6 +143,21 @@ export function SetupScreen({
     }));
   };
 
+  const runConnectionTest = async (): Promise<ConvexAdminConnectionResult> => {
+    const key = connectionKey;
+    setIssues([]);
+    setConnectionTest({ key, status: "testing" });
+    const result = await testConvexAdminConnection({ convexUrl, apiNamespace });
+    if (connectionKeyRef.current !== key) return result;
+    if (result.ok) {
+      setConnectionTest({ key, status: "success", isAdmin: result.isAdmin });
+    } else {
+      setConnectionTest({ key, status: "error", message: result.error });
+      setIssues([result.error]);
+    }
+    return result;
+  };
+
   const save = async () => {
     const project: AdminProjectConfig = {
       id: initialProject?.id ?? `project-${Date.now().toString(36)}`,
@@ -142,6 +181,18 @@ export function SetupScreen({
     setIssues([]);
     setSaving(true);
     try {
+      const connection =
+        connectionTest?.key === connectionKey &&
+        connectionTest.status === "success"
+          ? { ok: true as const, isAdmin: connectionTest.isAdmin }
+          : await runConnectionTest();
+      if (!connection.ok) return;
+      if (connectionKeyRef.current !== connectionKey) {
+        setIssues([
+          "The connection fields changed while they were being tested. Test the connection again before saving.",
+        ]);
+        return;
+      }
       await onSave(project);
     } catch (error) {
       setIssues([
@@ -221,6 +272,45 @@ export function SetupScreen({
               Use the namespace exported by your host app, without generated
               server secrets.
             </Text>
+            <Pressable
+              accessibilityRole="button"
+              disabled={saving || connectionTest?.status === "testing"}
+              onPress={() => void runConnectionTest()}
+              style={({ pressed }) => [
+                styles.connectionAction,
+                (saving || connectionTest?.status === "testing") &&
+                  styles.disabled,
+                pressed && styles.pressed,
+              ]}
+            >
+              {connectionTest?.status === "testing" ? (
+                <ActivityIndicator color={theme.primary} size="small" />
+              ) : (
+                <PlugZap color={theme.primary} size={17} />
+              )}
+              <Text style={styles.connectionActionText}>
+                {connectionTest?.status === "success"
+                  ? "Test connection again"
+                  : "Test connection"}
+              </Text>
+            </Pressable>
+            {connectionTest?.key === connectionKey &&
+              connectionTest.status === "success" && (
+                <Text style={styles.connectionSuccess}>
+                  Connected: api.{normalizeApiNamespace(apiNamespace)}.isAdmin
+                  responded successfully. It returned{" "}
+                  {connectionTest.isAdmin ? "true" : "false"};{" "}
+                  {connectionTest.isAdmin
+                    ? "continue with an admin account after saving."
+                    : "an unauthenticated connection is ready; sign in with an admin account after saving."}
+                </Text>
+              )}
+            {connectionTest?.key === connectionKey &&
+              connectionTest.status === "error" && (
+                <Text style={styles.connectionError}>
+                  {connectionTest.message}
+                </Text>
+              )}
           </View>
         </View>
 
@@ -587,6 +677,24 @@ function createStyles(theme: AdminTheme) {
     },
     inputColor: { color: theme.mutedText },
     hint: { color: theme.mutedText, fontSize: 11, lineHeight: 17 },
+    connectionAction: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      borderColor: theme.primary,
+      borderRadius: 12,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 8,
+      minHeight: 42,
+      paddingHorizontal: 13,
+    },
+    connectionActionText: {
+      color: theme.primary,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    connectionSuccess: { color: theme.success, fontSize: 11, lineHeight: 17 },
+    connectionError: { color: theme.danger, fontSize: 11, lineHeight: 17 },
     namespaceField: {
       alignItems: "center",
       backgroundColor: theme.input,

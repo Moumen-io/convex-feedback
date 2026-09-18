@@ -72,7 +72,8 @@ Fork either standalone Clerk reference app under [`apps/admin/withClerk`](./apps
 For a single universal Expo/native build that can connect to multiple projects,
 use [`apps/admin/universal`](./apps/admin/universal/README.md). It collects a
 Convex deployment URL, API namespace, public auth configuration, and enabled
-admin sign-in methods at runtime, stores the configuration in SecureStore, and
+admin sign-in methods at runtime. It stores the configuration in SecureStore,
+tests the configured `api.<namespace>.isAdmin` endpoint before saving, and
 reuses the shared native admin screens. It supports Convex Auth and Clerk today;
 Auth0, WorkOS, and generic OIDC are adapter placeholders.
 

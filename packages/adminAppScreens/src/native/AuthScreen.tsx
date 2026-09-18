@@ -196,9 +196,10 @@ export function AdminAuthScreen({
               <TextInput
                 autoCapitalize="none"
                 autoCorrect={false}
-                keyboardType={
-                  selectedMfaMethod === "totp" ? "number-pad" : "default"
+                autoComplete={
+                  selectedMfaMethod === "backup-code" ? "off" : "one-time-code"
                 }
+                keyboardType={mfaKeyboardType(selectedMfaMethod)}
                 onChangeText={setCode}
                 placeholder={mfaPlaceholder(selectedMfaMethod)}
                 placeholderTextColor={theme.mutedText}
@@ -297,6 +298,7 @@ export function AdminAuthScreen({
                   <TextInput
                     autoCapitalize="none"
                     autoCorrect={false}
+                    autoComplete="one-time-code"
                     keyboardType="number-pad"
                     onChangeText={setCode}
                     placeholder="Verification code"
@@ -360,6 +362,18 @@ function mfaPlaceholder(method: AdminMfaMethod | undefined): string {
   if (method === "totp") return "Authenticator code";
   if (method === "backup-code") return "Backup code";
   return "Verification code";
+}
+
+function mfaKeyboardType(
+  method: AdminMfaMethod | undefined,
+): React.ComponentProps<typeof TextInput>["keyboardType"] {
+  if (method === "email-code" || method === "phone-code" || method === "totp") {
+    return "number-pad";
+  }
+  // Backup codes may contain letters and separators. Android's password
+  // keyboard keeps that input alphanumeric without predictive suggestions;
+  // the default iOS keyboard is the compatible equivalent.
+  return Platform.OS === "android" ? "visible-password" : "default";
 }
 
 function mfaLabel(method: AdminMfaMethod): string {

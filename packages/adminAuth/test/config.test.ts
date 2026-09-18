@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isValidConvexUrl,
   normalizeApiNamespace,
   normalizeSsoMethods,
   validateAdminProjectConfig,
@@ -17,6 +18,18 @@ const baseProject = {
 describe("runtime admin configuration", () => {
   it("normalizes the api. prefix", () => {
     expect(normalizeApiNamespace("api.feedback.admin")).toBe("feedback.admin");
+  });
+
+  it("accepts deployment roots and rejects URL components Convex cannot use", () => {
+    expect(isValidConvexUrl("https://example.convex.cloud/")).toBe(true);
+    expect(isValidConvexUrl("http://localhost:3210")).toBe(true);
+    expect(isValidConvexUrl("https://example.convex.cloud/convex")).toBe(false);
+    expect(isValidConvexUrl("https://example.convex.cloud?project=admin")).toBe(
+      false,
+    );
+    expect(isValidConvexUrl("https://user:password@example.convex.cloud")).toBe(
+      false,
+    );
   });
 
   it("keeps Apple first and removes duplicate SSO methods", () => {

@@ -115,6 +115,24 @@ because it receives the deep-link result itself and performs the second native
 `WebBrowser.maybeCompleteAuthSession()` in the Expo HTML entry point so the
 browser popup can complete its callback.
 
+### Published universal app registration
+
+The universal Expo app ships with these native values unless a publisher
+replaces them in `apps/admin/universal/app.json`:
+
+- iOS bundle identifier: `com.moumentos.convex-feedback-universal-admin`
+- Android package/application ID: `com.moumentos.convexfeedback.universaladmin`
+- callback: `convex-feedback-admin://auth/callback`
+
+Clerk publishers must register the replacement or checked-in iOS bundle ID and
+Apple Team ID, the Android namespace/package, and the exact callback in Clerk's
+mobile SSO redirect allowlist. Use a production `pk_live_…` key for a store
+build and enable the Native API. Convex Auth publishers must deploy the host
+provider configuration, export `isAdmin` from the public feedback API, and
+allow the exact callback in `callbacks.redirect`. The complete dashboard and
+host configuration checklist is in the
+[`universal app README`](../../apps/admin/universal/README.md#provider-registration-for-a-published-app).
+
 ## Adding an auth adapter
 
 Adapters implement the provider-independent `AdminAuthController` contract:

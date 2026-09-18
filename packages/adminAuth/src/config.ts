@@ -66,7 +66,7 @@ export function normalizeApiNamespace(value: string): string {
 }
 
 export function normalizeConvexUrl(value: string): string {
-  return value.trim().replace(/\/$/, "");
+  return value.trim().replace(/\/+$/, "");
 }
 
 export function normalizeSsoMethods(
@@ -162,7 +162,9 @@ export function validateAdminProjectConfig(
     issues.push("Project configuration has an invalid timestamp.");
   }
   if (!isValidConvexUrl(config.convexUrl)) {
-    issues.push("Enter a valid Convex deployment URL.");
+    issues.push(
+      "Enter a valid Convex deployment root URL without a path, query string, or fragment.",
+    );
   }
   if (!config.apiNamespace || !isValidNamespace(config.apiNamespace)) {
     issues.push("Enter a valid API namespace, such as feedback.");
@@ -237,7 +239,12 @@ export function isValidConvexUrl(value: string): boolean {
       (url.protocol === "https:" ||
         (url.protocol === "http:" &&
           (url.hostname === "localhost" || url.hostname === "127.0.0.1"))) &&
-      Boolean(url.hostname)
+      Boolean(url.hostname) &&
+      (url.pathname === "" || url.pathname === "/") &&
+      !url.search &&
+      !url.hash &&
+      !url.username &&
+      !url.password
     );
   } catch {
     return false;

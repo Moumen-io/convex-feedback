@@ -32,6 +32,7 @@ const component = {
     listByActor: "reactions:listByActor",
   },
   roadmap: {
+    get: "roadmap:get",
     list: "roadmap:list",
     search: "roadmap:search",
     listFeedback: "roadmap:listFeedback",
@@ -119,6 +120,11 @@ describe("metadata API authorization", () => {
       { paginationOpts: { cursor: null, numItems: 10 } },
     );
     await invokeQuery(
+      publicApi.getRoadmapItem,
+      { runQuery } as unknown as GenericQueryCtx<never>,
+      { roadmapId: "roadmap-1" },
+    );
+    await invokeQuery(
       publicApi.searchRoadmap,
       { runQuery } as unknown as GenericQueryCtx<never>,
       { searchQuery: "roadmap", limit: 10 },
@@ -135,11 +141,14 @@ describe("metadata API authorization", () => {
     expect(runQuery).toHaveBeenNthCalledWith(1, "roadmap:list", {
       paginationOpts: { cursor: null, numItems: 10 },
     });
-    expect(runQuery).toHaveBeenNthCalledWith(2, "roadmap:search", {
+    expect(runQuery).toHaveBeenNthCalledWith(2, "roadmap:get", {
+      roadmapId: "roadmap-1",
+    });
+    expect(runQuery).toHaveBeenNthCalledWith(3, "roadmap:search", {
       searchQuery: "roadmap",
       limit: 10,
     });
-    expect(runQuery).toHaveBeenNthCalledWith(3, "roadmap:listFeedback", {
+    expect(runQuery).toHaveBeenNthCalledWith(4, "roadmap:listFeedback", {
       roadmapId: "roadmap-1",
       paginationOpts: { cursor: null, numItems: 10 },
     });

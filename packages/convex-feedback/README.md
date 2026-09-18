@@ -113,6 +113,7 @@ export const {
   deleteComment,
   setCommentLike,
   listRoadmap,
+  getRoadmapItem,
   searchRoadmap,
   createRoadmap,
   createRoadmapForEntry,

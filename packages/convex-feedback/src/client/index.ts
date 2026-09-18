@@ -81,6 +81,7 @@ export type {
   DetachFeedbackFromRoadmapArgs,
   FindSimilarEntriesArgs,
   GetEntryArgs,
+  GetRoadmapItemArgs,
   ListCommentsArgs,
   ListEntriesArgs,
   ListUserCommentsArgs,
@@ -980,6 +981,14 @@ function buildFeedbackApi<
             config.entries.maxPageSize,
           ),
         });
+      },
+    }),
+
+    getRoadmapItem: queryGeneric({
+      args: { roadmapId: v.string() },
+      returns: v.union(roadmapItemValidator, v.null()),
+      handler: async (ctx, args) => {
+        return await ctx.runQuery(component.roadmap.get, args);
       },
     }),
 

@@ -349,6 +349,14 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       );
     },
 
+    /** Reactively retrieves one roadmap item independently of the list page. */
+    useRoadmapItem(roadmapId: string | null | undefined) {
+      return useQuery(
+        api.getRoadmapItem,
+        roadmapId === null || roadmapId === undefined ? "skip" : { roadmapId },
+      );
+    },
+
     useSearchRoadmap(searchQuery: string, limit = 10) {
       const normalized = searchQuery.trim();
       return useQuery(

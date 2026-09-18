@@ -15,6 +15,7 @@ import {
   parseRoadmapRouteItem,
   roadmapRouteHref,
   roadmapRouteParams,
+  resolveRoadmapRouteItem,
 } from "./routes.js";
 import { useRoutedRoadmap } from "./RoutedRoadmapContext.js";
 import {
@@ -130,10 +131,8 @@ export function RoadmapItemScreen() {
     ? params.roadmapId[0]
     : params.roadmapId;
   const routeItem = parseRoadmapRouteItem(params.item);
-  const roadmap = hooks.useRoadmap();
-  const item =
-    roadmap.results.find((candidate) => candidate.id === roadmapId) ??
-    routeItem;
+  const roadmapItem = hooks.useRoadmapItem(roadmapId);
+  const item = resolveRoadmapRouteItem(roadmapId, roadmapItem, routeItem);
 
   if (!roadmapId) {
     throw new Error(
@@ -167,7 +166,7 @@ export function RoadmapItemScreen() {
       ) : (
         <FeedbackBoard.Root {...colors}>
           <FeedbackBoard.State>
-            {roadmap.status === "LoadingFirstPage" ? (
+            {roadmapItem === undefined ? (
               <ActivityIndicator color={theme.colors.primary} />
             ) : (
               messages.roadmap.noItems

@@ -11,9 +11,12 @@ import {
   feedbackEntryRouteHref,
   feedbackRouteHref,
   feedbackStackSettings,
+  parseRoadmapRouteItem,
   resolveFeedbackRoutes,
+  resolveRoadmapRouteItem,
   resolveRoadmapRoutes,
   roadmapRouteHref,
+  roadmapRouteParams,
   roadmapStackSettings,
 } from "../src/native/expo/routes.js";
 
@@ -120,5 +123,48 @@ describe("Expo routed feedback contracts", () => {
     expect(() => resolveRoadmapRoutes({ item: "items/[id]" })).toThrow(
       "[roadmapId]",
     );
+  });
+
+  test("builds a direct roadmap detail route without serialized state", () => {
+    expect(roadmapRouteHref("[roadmapId]", { roadmapId: "roadmap-1" })).toEqual(
+      {
+        pathname: "./[roadmapId]",
+        params: { roadmapId: "roadmap-1" },
+      },
+    );
+    expect(parseRoadmapRouteItem(undefined)).toBeUndefined();
+    expect(
+      resolveRoadmapRouteItem("roadmap-1", undefined, undefined),
+    ).toBeUndefined();
+  });
+
+  test("builds a deep-linked roadmap detail route with optional optimistic state", () => {
+    const item = {
+      id: "roadmap-1",
+      creationTime: 1,
+      title: "Roadmap item",
+      description: "Description",
+      status: "planned" as const,
+      position: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      feedbackCount: 0,
+    };
+
+    expect(
+      roadmapRouteHref("items/[roadmapId]", roadmapRouteParams(item)),
+    ).toEqual({
+      pathname: "./items/[roadmapId]",
+      params: {
+        roadmapId: "roadmap-1",
+        item: JSON.stringify(item),
+      },
+    });
+    expect(parseRoadmapRouteItem(JSON.stringify(item))).toEqual(item);
+    expect(resolveRoadmapRouteItem(item.id, undefined, item)).toEqual(item);
+    expect(resolveRoadmapRouteItem(item.id, null, item)).toBeNull();
+    expect(
+      resolveRoadmapRouteItem(item.id, { ...item, title: "Updated" }, item),
+    ).toMatchObject({ title: "Updated" });
   });
 });

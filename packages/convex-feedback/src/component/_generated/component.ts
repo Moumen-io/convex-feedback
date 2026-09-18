@@ -752,6 +752,23 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         null,
         Name
       >;
+      get: FunctionReference<
+        "query",
+        "internal",
+        { roadmapId: string },
+        {
+          createdAt: number;
+          creationTime: number;
+          description?: string;
+          feedbackCount: number;
+          id: string;
+          position: number;
+          status: "planned" | "in_progress" | "shipped";
+          title: string;
+          updatedAt: number;
+        } | null,
+        Name
+      >;
       list: FunctionReference<
         "query",
         "internal",

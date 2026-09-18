@@ -18,6 +18,7 @@ export const {
   setEntryPriority,
   listUserEntries,
   listRoadmap,
+  getRoadmapItem,
   searchRoadmap,
   createRoadmap,
   createRoadmapForEntry,

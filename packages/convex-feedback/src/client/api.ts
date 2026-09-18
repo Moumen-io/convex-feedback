@@ -210,6 +210,10 @@ export type ListRoadmapArgs = {
   paginationOpts: PaginationOptions;
   status?: RoadmapStatus;
 };
+export type GetRoadmapItemArgs = {
+  /** Identifier returned by the component for the requested roadmap item. */
+  roadmapId: string;
+};
 export type SearchRoadmapArgs = { searchQuery: string; limit?: number };
 export type CreateRoadmapArgs = {
   title: string;
@@ -514,6 +518,14 @@ export interface FeedbackPublicApi<
     "public",
     ListRoadmapArgs,
     PaginationResult<RoadmapItem>,
+    Name
+  >;
+  /** Returns one roadmap item or `null` when it does not exist. */
+  getRoadmapItem: FunctionReference<
+    "query",
+    "public",
+    GetRoadmapItemArgs,
+    RoadmapItem | null,
     Name
   >;
   searchRoadmap: FunctionReference<

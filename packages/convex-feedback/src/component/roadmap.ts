@@ -123,6 +123,23 @@ async function scheduleRebalance(
   });
 }
 
+export const get = query({
+  args: { roadmapId: v.id("roadmap") },
+  returns: v.union(roadmapItemValidator, v.null()),
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get("roadmap", args.roadmapId);
+    if (item === null || item.deletingAt !== undefined) return null;
+
+    const state = await getRebalanceState(ctx, item.status);
+    return serializeRoadmapItem(
+      item,
+      state?.visibleGeneration === undefined
+        ? undefined
+        : item.rebalancePosition,
+    );
+  },
+});
+
 export const list = query({
   args: {
     paginationOpts: paginationOptsValidator,

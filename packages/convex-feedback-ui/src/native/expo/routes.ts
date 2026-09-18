@@ -145,7 +145,7 @@ export function roadmapRouteHref(
   return params === undefined ? pathname : { pathname, params };
 }
 
-/** Pass the already loaded item through a push so a detail route renders immediately. */
+/** Pass an already loaded item as optional optimistic detail-route state. */
 export function roadmapRouteParams(item: RoadmapItem) {
   return { roadmapId: item.id, item: JSON.stringify(item) };
 }
@@ -175,4 +175,18 @@ export function parseRoadmapRouteItem(
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Resolves a routed item while allowing serialized route data to bridge the
+ * query's loading state. Once the query resolves, including with `null`, its
+ * result is authoritative.
+ */
+export function resolveRoadmapRouteItem(
+  roadmapId: string | undefined,
+  queriedItem: RoadmapItem | null | undefined,
+  optimisticItem: RoadmapItem | undefined,
+): RoadmapItem | null | undefined {
+  if (queriedItem !== undefined) return queriedItem;
+  return optimisticItem?.id === roadmapId ? optimisticItem : undefined;
 }

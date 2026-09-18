@@ -276,6 +276,31 @@ describe("convex-feedback component", () => {
     expect(searched.map((item) => item.id)).not.toContain(roadmapId);
   });
 
+  test("gets one live roadmap item by id independently of list pagination", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Directly linked roadmap",
+      description: "Loaded from its detail route.",
+      status: "in_progress",
+    });
+
+    await expect(
+      testInstance.query(api.roadmap.get, { roadmapId }),
+    ).resolves.toMatchObject({
+      id: roadmapId,
+      title: "Directly linked roadmap",
+      description: "Loaded from its detail route.",
+      status: "in_progress",
+    });
+
+    await testInstance.mutation(api.roadmap.remove, { actor, roadmapId });
+    await expect(
+      testInstance.query(api.roadmap.get, { roadmapId }),
+    ).resolves.toBeNull();
+  });
+
   test("creates and attaches a roadmap item atomically", async () => {
     const testInstance = setup();
     const actor = { id: "admin-1", isAdmin: true } as const;

@@ -61,9 +61,13 @@ function RoadmapScreenInner({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const roadmap = hooks.useRoadmap();
   const search = hooks.useSearchRoadmap(query);
+  const selectedQuery = hooks.useRoadmapItem(selectedId);
   const searching = query.trim().length > 0;
   const items = searching ? (search ?? []) : roadmap.results;
-  const selected = items.find((item) => item.id === selectedId) ?? null;
+  const optimisticSelected =
+    items.find((item) => item.id === selectedId) ?? null;
+  const selected =
+    selectedQuery === undefined ? optimisticSelected : selectedQuery;
 
   return (
     <FeedbackBoard.Root {...colors}>

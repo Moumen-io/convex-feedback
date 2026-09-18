@@ -167,10 +167,14 @@ export function RoadmapScreenContent({
   ...colors
 }: RoadmapScreenContentProps) {
   const [selected, setSelected] = useState<RoadmapItem | null>(null);
+  const { hooks } = useFeedbackBody();
+  const selectedQuery = hooks.useRoadmapItem(selected?.id);
+  const authoritativeSelected =
+    selectedQuery === undefined ? selected : selectedQuery;
 
   return (
     <FeedbackBoard.Root {...colors}>
-      {selected === null ? (
+      {authoritativeSelected === null ? (
         <RoadmapBoardContent
           pageSize={pageSize}
           onItemOpen={setSelected}
@@ -182,7 +186,7 @@ export function RoadmapScreenContent({
         />
       ) : (
         <RoadmapDetailPage
-          item={selected}
+          item={authoritativeSelected}
           entryPageSize={entryPageSize}
           onEntryOpen={onEntryOpen}
           onBack={() => setSelected(null)}

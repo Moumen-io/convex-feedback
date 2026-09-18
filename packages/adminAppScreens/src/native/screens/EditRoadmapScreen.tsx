@@ -1,5 +1,7 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
+import { resolveRoadmapRouteItem } from "convex-feedback-ui/expo";
+
 import { RoadmapForm } from "../components/roadmap-form.js";
 import { feedbackHooks } from "../lib/feedback.js";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
@@ -16,17 +18,15 @@ export function EditRoadmapScreen({
   routeItem,
   onClose,
 }: EditRoadmapScreenProps) {
-  const roadmap = feedbackHooks.useRoadmap();
+  const roadmapItem = feedbackHooks.useRoadmapItem(roadmapId);
   const theme = useAdminTheme();
   const styles = createStyles(theme);
-  const item =
-    roadmap.results.find((candidate) => candidate.id === roadmapId) ??
-    routeItem;
+  const item = resolveRoadmapRouteItem(roadmapId, roadmapItem, routeItem);
 
   if (!item) {
     return (
       <View style={styles.center}>
-        {roadmap.status === "LoadingFirstPage" ? (
+        {roadmapItem === undefined ? (
           <ActivityIndicator color={theme.primary} />
         ) : (
           <>

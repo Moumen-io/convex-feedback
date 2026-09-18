@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { resolveRoadmapRouteItem } from "convex-feedback-ui/expo";
+
 import { useAdminAction } from "../lib/action.js";
 import { feedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
@@ -46,10 +48,8 @@ export function RoadmapDetailScreen({
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
   const styles = createStyles(theme);
-  const roadmap = feedbackHooks.useRoadmap();
-  const item =
-    roadmap.results.find((candidate) => candidate.id === roadmapId) ??
-    routeItem;
+  const roadmapItem = feedbackHooks.useRoadmapItem(roadmapId);
+  const item = resolveRoadmapRouteItem(roadmapId, roadmapItem, routeItem);
   const feedback = feedbackHooks.useRoadmapFeedback(item?.id);
   const detach = feedbackHooks.useDetachFeedbackFromRoadmap();
   const remove = feedbackHooks.useDeleteRoadmap();
@@ -84,7 +84,7 @@ export function RoadmapDetailScreen({
   if (!item) {
     return (
       <View style={styles.center}>
-        {roadmap.status === "LoadingFirstPage" ? (
+        {roadmapItem === undefined ? (
           <ActivityIndicator color={theme.primary} />
         ) : (
           <Text style={styles.body}>Roadmap item not found.</Text>

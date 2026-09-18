@@ -55,14 +55,17 @@ export function RoadmapView({
   onOpenEntry: (entryId: string) => void;
 }) {
   const roadmap = feedbackHooks.useRoadmap();
+  const selectedQuery = feedbackHooks.useRoadmapItem(selectedId);
   const items = roadmap.results;
   const move = feedbackHooks.useMoveRoadmapItem();
   const moveAction = useAdminAction();
   const [createOpen, setCreateOpen] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const selected =
+  const optimisticSelected =
     items?.find((candidate) => candidate.id === selectedId) ??
     (selectedItem?.id === selectedId ? selectedItem : null);
+  const selected =
+    selectedQuery === undefined ? optimisticSelected : selectedQuery;
 
   const moveTo = async (
     item: RoadmapItem,

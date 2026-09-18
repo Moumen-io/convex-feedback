@@ -16,6 +16,10 @@
   ],
   "exports": {
     "./package.json": "./package.json",
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"

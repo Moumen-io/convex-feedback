@@ -27,7 +27,7 @@
     "codegen": "npm run codegen:component && npm run build -w convex-feedback && npm run codegen:example",
     "lint": "npm run lint -w convex-feedback && npm run lint -w convex-feedback-ui",
     "test": "npm run test -w convex-feedback && npm run test -w convex-feedback-ui",
-    "test:apps": "npm run build:admin && npm run test -w convex-feedback-admin-auth && npm run build -w convex-feedback-admin-web && npm run typecheck -w convex-feedback-admin-native && npm run validate -w convex-feedback-admin-universal",
+    "test:apps": "npm run build:admin && npm run test -w convex-feedback-admin-auth && npm run test -w convex-feedback-admin-universal && npm run build -w convex-feedback-admin-web && npm run typecheck -w convex-feedback-admin-native && npm run validate -w convex-feedback-admin-universal",
     "typecheck": "npm run typecheck -w convex-feedback && npm run typecheck -w convex-feedback-ui",
     "format:check": "prettier --check .",
     "format": "prettier --write .",

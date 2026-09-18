@@ -12,11 +12,12 @@ npm run build:admin
 npm run start -w convex-feedback-admin-universal
 ```
 
-The first launch opens setup. Choose Convex Auth or Clerk, enter the Convex
-deployment URL and the host API namespace (the form displays the `api.` prefix),
-then enter the provider's public configuration and enabled admin sign-in
-methods. The configuration is saved in `expo-secure-store` only after the
-connection check succeeds.
+The first launch opens a routed setup Stack. Enter the project name, Convex
+deployment URL, and host API namespace (the setup screen displays the `api.`
+prefix), test the connection, choose Convex Auth or Clerk, then enter the
+provider's public configuration and enabled admin sign-in methods. The setup
+draft stays in memory while moving between steps and is saved in
+`expo-secure-store` only after the connection check succeeds.
 
 ### Setup validation
 

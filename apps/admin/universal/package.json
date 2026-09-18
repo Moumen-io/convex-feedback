@@ -6,8 +6,10 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "ios": "expo run:ios",
+    "ios": "expo run:ios --device",
+    "ios:dev": "expo prebuild -p ios --clean && expo run:ios --device",
     "web": "expo start --web",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "export:web": "expo export --platform web --output-dir dist/web",
     "export:ios": "expo export --platform ios --output-dir dist/ios",

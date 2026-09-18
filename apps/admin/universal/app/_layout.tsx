@@ -1,13 +1,6 @@
 import {
-  createSecureProjectStore,
-  clearProjectAuthStorage,
   getProjectRuntimeKey,
-  normalizeProjectConfig,
-  projectAuthStateRequiresReset,
-  removeProject as removeProjectState,
   resolveConvexApiNamespace,
-  saveProject as saveProjectState,
-  selectProject as selectProjectState,
 } from "convex-feedback-admin-auth";
 import type { AdminProjectConfig } from "convex-feedback-admin-auth";
 import {
@@ -25,15 +18,9 @@ import {
   type AdminProjectSummary,
 } from "convex-feedback-admin-app-screens/native";
 import { ConvexReactClient, useQuery_experimental } from "convex/react";
-import { NativeStackNavigationOptions, Stack } from "expo-router";
-import {
-  Component,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Stack, usePathname, useRouter } from "expo-router";
+import type { Href, NativeStackNavigationOptions } from "expo-router";
+import { Component, useCallback, useEffect, useMemo, useState } from "react";
 import type * as React from "react";
 import {
   ActivityIndicator,
@@ -45,7 +32,10 @@ import {
   View,
 } from "react-native";
 
-import { SetupScreen } from "@/components/SetupScreen";
+import {
+  ProjectStoreProvider,
+  useProjectStore,
+} from "@/components/ProjectStoreContext";
 import {
   RuntimeContextProvider,
   type UniversalAdminContextValue,
@@ -54,167 +44,96 @@ import {
 export default function RootLayout() {
   return (
     <NativeAppProviders>
-      <UniversalAdminApp />
+      <ProjectStoreProvider>
+        <UniversalAdminApp />
+      </ProjectStoreProvider>
     </NativeAppProviders>
   );
 }
 
 function UniversalAdminApp() {
-  const store = useMemo(() => createSecureProjectStore(), []);
-  const [state, setState] = useState<{
-    projects: AdminProjectConfig[];
-    activeProjectId: string | null;
-  }>({ projects: [], activeProjectId: null });
-  const [hydrated, setHydrated] = useState(false);
-  const [setupMode, setSetupMode] = useState<"add" | "edit" | null>(null);
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [projectManagerOpen, setProjectManagerOpen] = useState(false);
-  const stateRef = useRef(state);
+  const projectStore = useProjectStore();
+  const router = useRouter();
+  const pathname = usePathname();
+  const theme = useAdminTheme();
+  const { activeProject, hydrated, projectManagerOpen, projects, setupMode } =
+    projectStore;
+  const setupRequired = setupMode !== null || !activeProject;
+  const isSetupRoute = pathname === "/setup" || pathname.startsWith("/setup/");
 
   useEffect(() => {
-    let mounted = true;
-    void store
-      .load()
-      .then((loaded) => {
-        if (!mounted) return;
-        stateRef.current = loaded;
-        setState(loaded);
-        setHydrated(true);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        const emptyState = { projects: [], activeProjectId: null };
-        stateRef.current = emptyState;
-        setState(emptyState);
-        setHydrated(true);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [store]);
+    if (!hydrated || !setupRequired || isSetupRoute) return;
+    const setupHref = "/setup/convex" as Href;
+    if (activeProject) router.push(setupHref);
+    else router.replace(setupHref);
+  }, [activeProject, hydrated, isSetupRoute, router, setupRequired]);
 
-  const commit = useCallback(
-    async (next: typeof state) => {
-      const previous = stateRef.current;
-      // Update the mounted runtime before awaiting persistence. This makes a
-      // project switch/removal unmount the previous auth provider immediately.
-      stateRef.current = next;
-      setState(next);
-      try {
-        await store.save(next);
-      } catch (error) {
-        stateRef.current = previous;
-        setState(previous);
-        throw error;
-      }
-    },
-    [store],
-  );
-
-  const activeProject = state.projects.find(
-    (project) => project.id === state.activeProjectId,
-  );
-  const editingProject = state.projects.find(
-    (project) => project.id === editingProjectId,
-  );
-
-  const saveProject = async (project: AdminProjectConfig) => {
-    const normalized = normalizeProjectConfig(project);
-    const previous = stateRef.current.projects.find(
-      (entry) => entry.id === normalized.id,
-    );
-    if (previous && projectAuthStateRequiresReset(previous, normalized)) {
-      await clearProjectAuthStorage(normalized.id);
-    }
-    await commit(saveProjectState(stateRef.current, normalized));
-    setSetupMode(null);
-    setEditingProjectId(null);
-    setProjectManagerOpen(false);
-  };
-
-  const removeProject = async (projectId: string) => {
-    await clearProjectAuthStorage(projectId);
-    const wasActive = stateRef.current.activeProjectId === projectId;
-    const next = removeProjectState(stateRef.current, projectId);
-    await commit(next);
-    if (wasActive) setProjectManagerOpen(false);
-    if (!next.activeProjectId) setSetupMode(null);
-  };
-
-  const selectProject = async (projectId: string) => {
-    const next = selectProjectState(stateRef.current, projectId);
-    if (next === stateRef.current) return;
-    await commit(next);
-    setProjectManagerOpen(false);
-  };
+  useEffect(() => {
+    if (!hydrated || setupRequired || !isSetupRoute) return;
+    router.replace("/inbox" as Href);
+  }, [hydrated, isSetupRoute, router, setupRequired]);
 
   if (!hydrated) return <LoadingScreen label="Loading saved projects…" />;
 
-  if (setupMode !== null || !activeProject) {
-    return (
-      <SetupScreen
-        initialProject={setupMode === "edit" ? editingProject : undefined}
-        onCancel={
-          activeProject
-            ? () => {
-                setSetupMode(null);
-                setEditingProjectId(null);
-              }
-            : undefined
-        }
-        onSave={saveProject}
-      />
-    );
+  if (setupRequired) {
+    if (!isSetupRoute) {
+      return <LoadingScreen label="Opening project setup…" />;
+    }
+    return <SetupRouteNavigator theme={theme} />;
   }
 
-  if (projectManagerOpen) {
+  if (isSetupRoute) {
+    return <LoadingScreen label="Opening the admin app…" />;
+  }
+
+  if (projectManagerOpen && activeProject) {
     return (
       <ProjectManagerScreen
         activeProjectId={activeProject.id}
-        onAddProject={() => {
-          setEditingProjectId(null);
-          setSetupMode("add");
-        }}
-        onClose={() => setProjectManagerOpen(false)}
-        onEditProject={(projectId) => {
-          setEditingProjectId(projectId);
-          setSetupMode("edit");
-        }}
-        onRemoveProject={removeProject}
-        onSelectProject={selectProject}
-        projects={state.projects.map(toProjectSummary)}
+        onAddProject={projectStore.startAddProject}
+        onClose={projectStore.closeProjectManager}
+        onEditProject={projectStore.startEditProject}
+        onRemoveProject={projectStore.removeProject}
+        onSelectProject={projectStore.selectProject}
+        projects={projects}
       />
     );
   }
 
-  const projectSummaries = state.projects.map(toProjectSummary);
   const contextValue: UniversalAdminContextValue = {
     project: activeProject,
-    projects: projectSummaries,
-    onSelectProject: selectProject,
-    onAddProject: () => {
-      setEditingProjectId(null);
-      setSetupMode("add");
-    },
-    onEditProject: (projectId) => {
-      setEditingProjectId(projectId);
-      setSetupMode("edit");
-    },
-    onRemoveProject: removeProject,
+    projects,
+    onSelectProject: projectStore.selectProject,
+    onAddProject: projectStore.startAddProject,
+    onEditProject: projectStore.startEditProject,
+    onRemoveProject: projectStore.removeProject,
   };
 
   return (
     <ProjectRuntimeErrorBoundary
       key={getProjectRuntimeKey(activeProject)}
-      onManageProjects={() => setProjectManagerOpen(true)}
+      onManageProjects={projectStore.openProjectManager}
     >
       <ConfiguredAdminApp
         contextValue={contextValue}
         key={getProjectRuntimeKey(activeProject)}
-        onManageProjects={() => setProjectManagerOpen(true)}
+        onManageProjects={projectStore.openProjectManager}
         project={activeProject}
       />
     </ProjectRuntimeErrorBoundary>
+  );
+}
+
+function SetupRouteNavigator({ theme }: { theme: AdminTheme }) {
+  return (
+    <Stack
+      screenOptions={{
+        contentStyle: { backgroundColor: theme.background },
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="setup" options={{ headerShown: false }} />
+    </Stack>
   );
 }
 
@@ -517,16 +436,6 @@ function ProjectRuntimeErrorScreen({
       />
     </Centered>
   );
-}
-
-function toProjectSummary(project: AdminProjectConfig): AdminProjectSummary {
-  return {
-    id: project.id,
-    name: project.name,
-    convexUrl: project.convexUrl,
-    apiNamespace: project.apiNamespace,
-    authProvider: project.auth.provider,
-  };
 }
 
 function LoadingScreen({

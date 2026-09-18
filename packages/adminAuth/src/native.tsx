@@ -116,10 +116,15 @@ function ConvexAuthRuntime({
   client,
   children,
 }: AdminAuthRuntimeProps) {
+  const storage = useMemo(
+    () => createSecureTokenStorage(project.id),
+    [project.id],
+  );
   return (
     <ConvexAuthProvider
       client={client}
-      storage={createSecureTokenStorage(project.id)}
+      key={`admin-project:${project.id}`}
+      storage={storage}
       storageNamespace={getConvexAuthStorageNamespace(project.id)}
       shouldHandleCode={false}
       replaceURL={() => undefined}
@@ -213,11 +218,16 @@ function ConvexAuthBridge({
 }
 
 function ClerkRuntime({ project, client, children }: AdminAuthRuntimeProps) {
+  const tokenCache = useMemo(
+    () => createNamespacedClerkTokenCache(project.id),
+    [project.id],
+  );
   if (project.auth.provider !== "clerk") return null;
   return (
     <ClerkProvider
+      key={`admin-project:${project.id}:${project.auth.publicConfig.publishableKey}`}
       publishableKey={project.auth.publicConfig.publishableKey}
-      tokenCache={createNamespacedClerkTokenCache(project.id)}
+      tokenCache={tokenCache}
     >
       <ConvexProviderWithClerk client={client} useAuth={useClerkAuth}>
         <ClerkAuthBridge project={project}>{children}</ClerkAuthBridge>

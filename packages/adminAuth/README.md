@@ -67,7 +67,10 @@ coupling provider-specific code to the admin screens.
 Project configuration is persisted with `expo-secure-store`. Authentication
 tokens use provider-specific adapters with a project namespace, so switching
 projects remounts the auth and Convex providers and keeps sessions isolated.
-Removing a project clears its known local auth keys on a best-effort basis.
+The adapters record every physical SecureStore key supplied by the auth SDKs in
+a project-owned registry, so removing or reconfiguring a project can clear its
+complete locally stored SecureStore auth state without depending on
+provider-internal key names.
 
 Only public client configuration is accepted: Convex deployment URLs, API
 namespaces, Clerk publishable keys, and enabled sign-in methods. Convex server

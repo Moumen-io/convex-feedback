@@ -20,11 +20,9 @@ export default function SettingsScreen() {
   const account = auth.account;
   const changeProject = async (projectId: string) => {
     if (projectId === runtime.project.id) return;
-    await auth.signOut();
     await runtime.onSelectProject(projectId);
   };
   const removeProject = async (projectId: string) => {
-    if (projectId === runtime.project.id) await auth.signOut();
     await runtime.onRemoveProject(projectId);
   };
 

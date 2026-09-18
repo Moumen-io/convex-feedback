@@ -1,8 +1,13 @@
 import {
   createSecureProjectStore,
   clearProjectAuthStorage,
+  getProjectRuntimeKey,
   normalizeProjectConfig,
+  projectAuthStateRequiresReset,
+  removeProject as removeProjectState,
   resolveConvexApiNamespace,
+  saveProject as saveProjectState,
+  selectProject as selectProjectState,
 } from "convex-feedback-admin-auth";
 import type { AdminProjectConfig } from "convex-feedback-admin-auth";
 import {
@@ -13,6 +18,7 @@ import { createFeedbackHooks } from "convex-feedback/react";
 import {
   AdminAuthScreen,
   AdminFeedbackHooksProvider,
+  AdminSettingsScreen,
   NativeAppProviders,
   useAdminTheme,
   type AdminTheme,
@@ -20,7 +26,14 @@ import {
 } from "convex-feedback-admin-app-screens/native";
 import { ConvexReactClient, useQuery_experimental } from "convex/react";
 import { NativeStackNavigationOptions, Stack } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Component,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type * as React from "react";
 import {
   ActivityIndicator,
@@ -55,6 +68,8 @@ function UniversalAdminApp() {
   const [hydrated, setHydrated] = useState(false);
   const [setupMode, setSetupMode] = useState<"add" | "edit" | null>(null);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [projectManagerOpen, setProjectManagerOpen] = useState(false);
+  const stateRef = useRef(state);
 
   useEffect(() => {
     let mounted = true;
@@ -62,12 +77,15 @@ function UniversalAdminApp() {
       .load()
       .then((loaded) => {
         if (!mounted) return;
+        stateRef.current = loaded;
         setState(loaded);
         setHydrated(true);
       })
       .catch(() => {
         if (!mounted) return;
-        setState({ projects: [], activeProjectId: null });
+        const emptyState = { projects: [], activeProjectId: null };
+        stateRef.current = emptyState;
+        setState(emptyState);
         setHydrated(true);
       });
     return () => {
@@ -75,10 +93,20 @@ function UniversalAdminApp() {
     };
   }, [store]);
 
-  const persist = useCallback(
+  const commit = useCallback(
     async (next: typeof state) => {
-      await store.save(next);
+      const previous = stateRef.current;
+      // Update the mounted runtime before awaiting persistence. This makes a
+      // project switch/removal unmount the previous auth provider immediately.
+      stateRef.current = next;
       setState(next);
+      try {
+        await store.save(next);
+      } catch (error) {
+        stateRef.current = previous;
+        setState(previous);
+        throw error;
+      }
     },
     [store],
   );
@@ -92,38 +120,32 @@ function UniversalAdminApp() {
 
   const saveProject = async (project: AdminProjectConfig) => {
     const normalized = normalizeProjectConfig(project);
-    const previous = state.projects.find((entry) => entry.id === normalized.id);
-    if (
-      previous &&
-      (previous.convexUrl !== normalized.convexUrl ||
-        JSON.stringify(previous.auth) !== JSON.stringify(normalized.auth))
-    ) {
+    const previous = stateRef.current.projects.find(
+      (entry) => entry.id === normalized.id,
+    );
+    if (previous && projectAuthStateRequiresReset(previous, normalized)) {
       await clearProjectAuthStorage(normalized.id);
     }
-    const projects = [
-      ...state.projects.filter((entry) => entry.id !== normalized.id),
-      normalized,
-    ];
-    await persist({ projects, activeProjectId: normalized.id });
+    await commit(saveProjectState(stateRef.current, normalized));
     setSetupMode(null);
     setEditingProjectId(null);
+    setProjectManagerOpen(false);
   };
 
   const removeProject = async (projectId: string) => {
-    const projects = state.projects.filter(
-      (project) => project.id !== projectId,
-    );
-    const nextActiveId =
-      state.activeProjectId === projectId
-        ? (projects[0]?.id ?? null)
-        : state.activeProjectId;
     await clearProjectAuthStorage(projectId);
-    await persist({ projects, activeProjectId: nextActiveId });
-    if (!nextActiveId) setSetupMode(null);
+    const wasActive = stateRef.current.activeProjectId === projectId;
+    const next = removeProjectState(stateRef.current, projectId);
+    await commit(next);
+    if (wasActive) setProjectManagerOpen(false);
+    if (!next.activeProjectId) setSetupMode(null);
   };
 
   const selectProject = async (projectId: string) => {
-    await persist({ ...state, activeProjectId: projectId });
+    const next = selectProjectState(stateRef.current, projectId);
+    if (next === stateRef.current) return;
+    await commit(next);
+    setProjectManagerOpen(false);
   };
 
   if (!hydrated) return <LoadingScreen label="Loading saved projects…" />;
@@ -145,6 +167,26 @@ function UniversalAdminApp() {
     );
   }
 
+  if (projectManagerOpen) {
+    return (
+      <ProjectManagerScreen
+        activeProjectId={activeProject.id}
+        onAddProject={() => {
+          setEditingProjectId(null);
+          setSetupMode("add");
+        }}
+        onClose={() => setProjectManagerOpen(false)}
+        onEditProject={(projectId) => {
+          setEditingProjectId(projectId);
+          setSetupMode("edit");
+        }}
+        onRemoveProject={removeProject}
+        onSelectProject={selectProject}
+        projects={state.projects.map(toProjectSummary)}
+      />
+    );
+  }
+
   const projectSummaries = state.projects.map(toProjectSummary);
   const contextValue: UniversalAdminContextValue = {
     project: activeProject,
@@ -162,20 +204,28 @@ function UniversalAdminApp() {
   };
 
   return (
-    <ConfiguredAdminApp
-      contextValue={contextValue}
-      key={`${activeProject.id}:${activeProject.updatedAt}`}
-      project={activeProject}
-    />
+    <ProjectRuntimeErrorBoundary
+      key={getProjectRuntimeKey(activeProject)}
+      onManageProjects={() => setProjectManagerOpen(true)}
+    >
+      <ConfiguredAdminApp
+        contextValue={contextValue}
+        key={getProjectRuntimeKey(activeProject)}
+        onManageProjects={() => setProjectManagerOpen(true)}
+        project={activeProject}
+      />
+    </ProjectRuntimeErrorBoundary>
   );
 }
 
 function ConfiguredAdminApp({
   project,
   contextValue,
+  onManageProjects,
 }: {
   project: AdminProjectConfig;
   contextValue: UniversalAdminContextValue;
+  onManageProjects: () => void;
 }) {
   const client = useMemo(
     () => new ConvexReactClient(project.convexUrl),
@@ -200,29 +250,65 @@ function ConfiguredAdminApp({
     <AdminFeedbackHooksProvider hooks={feedbackHooks}>
       <RuntimeContextProvider value={contextValue}>
         <AdminAuthRuntime client={client} project={project}>
-          <RuntimeGate project={project} />
+          <RuntimeGate onManageProjects={onManageProjects} project={project} />
         </AdminAuthRuntime>
       </RuntimeContextProvider>
     </AdminFeedbackHooksProvider>
   );
 }
 
-function RuntimeGate({ project }: { project: AdminProjectConfig }) {
+function RuntimeGate({
+  project,
+  onManageProjects,
+}: {
+  project: AdminProjectConfig;
+  onManageProjects: () => void;
+}) {
   const auth = useAdminAuth();
+  const [accessCheckAttempt, setAccessCheckAttempt] = useState(0);
+  const retryAccessCheck = useCallback(
+    () => setAccessCheckAttempt((value) => value + 1),
+    [],
+  );
   if (!auth.isLoaded || auth.status === "loading") {
-    return <LoadingScreen label="Connecting to the project…" />;
+    return (
+      <LoadingScreen
+        label="Connecting to the project…"
+        onManageProjects={onManageProjects}
+      />
+    );
   }
   if (!auth.isAuthenticated) {
-    return <AdminAuthScreen auth={auth} projectName={project.name} />;
+    return (
+      <AdminAuthScreen
+        auth={auth}
+        onCancel={onManageProjects}
+        projectName={project.name}
+      />
+    );
   }
-  return <AdminAccessCheck project={project} />;
+  return (
+    <AdminAccessCheck
+      key={accessCheckAttempt}
+      onManageProjects={onManageProjects}
+      onRetry={retryAccessCheck}
+      project={project}
+    />
+  );
 }
 
-function AdminAccessCheck({ project }: { project: AdminProjectConfig }) {
+function AdminAccessCheck({
+  project,
+  onManageProjects,
+  onRetry,
+}: {
+  project: AdminProjectConfig;
+  onManageProjects: () => void;
+  onRetry: () => void;
+}) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
   const auth = useAdminAuth();
-  const [retryCount, setRetryCount] = useState(0);
   const adminQuery = useMemo(
     () => resolveConvexApiNamespace(project.apiNamespace).isAdmin,
     [project.apiNamespace],
@@ -235,20 +321,26 @@ function AdminAccessCheck({ project }: { project: AdminProjectConfig }) {
     if (!errorMessage) return;
     Alert.alert("Unable to verify access", errorMessage, [
       { text: "Cancel", style: "cancel" },
-      { text: "Retry", onPress: () => setRetryCount((value) => value + 1) },
+      { text: "Retry", onPress: onRetry },
     ]);
-  }, [errorMessage]);
+  }, [errorMessage, onRetry]);
 
   if (accessCheck.status === "pending")
-    return <LoadingScreen label="Checking admin access…" />;
+    return (
+      <LoadingScreen
+        label="Checking admin access…"
+        onManageProjects={onManageProjects}
+      />
+    );
   if (accessCheck.status === "error") {
     return (
       <Centered title="Unable to verify access" theme={theme}>
         <Text style={styles.body}>{errorMessage}</Text>
+        <Button color={theme.primary} onPress={onRetry} title="Retry" />
         <Button
           color={theme.primary}
-          onPress={() => setRetryCount((value) => value + 1)}
-          title="Retry"
+          onPress={onManageProjects}
+          title="Manage projects"
         />
         <Button
           color={theme.primary}
@@ -267,6 +359,11 @@ function AdminAccessCheck({ project }: { project: AdminProjectConfig }) {
         </Text>
         <Button
           color={theme.primary}
+          onPress={onManageProjects}
+          title="Manage projects"
+        />
+        <Button
+          color={theme.primary}
           onPress={() => void auth.signOut()}
           title="Sign out"
         />
@@ -276,7 +373,6 @@ function AdminAccessCheck({ project }: { project: AdminProjectConfig }) {
 
   return (
     <Stack
-      key={retryCount}
       screenOptions={{
         headerShadowVisible: false,
         headerTintColor: theme.text,
@@ -314,6 +410,115 @@ function AdminAccessCheck({ project }: { project: AdminProjectConfig }) {
   );
 }
 
+interface ProjectManagerScreenProps {
+  activeProjectId: string;
+  projects: AdminProjectSummary[];
+  onClose: () => void;
+  onSelectProject: (projectId: string) => Promise<void> | void;
+  onAddProject: () => void;
+  onEditProject: (projectId: string) => void;
+  onRemoveProject: (projectId: string) => Promise<void> | void;
+}
+
+function ProjectManagerScreen({
+  activeProjectId,
+  projects,
+  onClose,
+  onSelectProject,
+  onAddProject,
+  onEditProject,
+  onRemoveProject,
+}: ProjectManagerScreenProps) {
+  const theme = useAdminTheme();
+  return (
+    <View style={{ backgroundColor: theme.background, flex: 1 }}>
+      <View
+        style={{
+          alignItems: "center",
+          backgroundColor: theme.background,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          paddingHorizontal: 20,
+          paddingTop: 12,
+        }}
+      >
+        <Text style={{ color: theme.text, fontSize: 17, fontWeight: "700" }}>
+          Project access
+        </Text>
+        <Button color={theme.primary} onPress={onClose} title="Done" />
+      </View>
+      <AdminSettingsScreen
+        activeProjectId={activeProjectId}
+        onAddProject={onAddProject}
+        onEditProject={onEditProject}
+        onRemoveProject={(projectId) => void onRemoveProject(projectId)}
+        onSelectProject={(projectId) => void onSelectProject(projectId)}
+        projects={projects}
+      />
+    </View>
+  );
+}
+
+interface ProjectRuntimeErrorBoundaryProps {
+  children: React.ReactNode;
+  onManageProjects: () => void;
+}
+
+interface ProjectRuntimeErrorBoundaryState {
+  error: Error | null;
+}
+
+class ProjectRuntimeErrorBoundary extends Component<
+  ProjectRuntimeErrorBoundaryProps,
+  ProjectRuntimeErrorBoundaryState
+> {
+  state: ProjectRuntimeErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(
+    error: unknown,
+  ): ProjectRuntimeErrorBoundaryState {
+    return {
+      error:
+        error instanceof Error
+          ? error
+          : new Error("The project runtime could not be started."),
+    };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <ProjectRuntimeErrorScreen
+          error={this.state.error}
+          onManageProjects={this.props.onManageProjects}
+        />
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function ProjectRuntimeErrorScreen({
+  error,
+  onManageProjects,
+}: {
+  error: Error;
+  onManageProjects: () => void;
+}) {
+  const theme = useAdminTheme();
+  const styles = createStyles(theme);
+  return (
+    <Centered title="Project configuration failed" theme={theme}>
+      <Text style={styles.body}>{error.message}</Text>
+      <Button
+        color={theme.primary}
+        onPress={onManageProjects}
+        title="Manage projects"
+      />
+    </Centered>
+  );
+}
+
 function toProjectSummary(project: AdminProjectConfig): AdminProjectSummary {
   return {
     id: project.id,
@@ -324,7 +529,13 @@ function toProjectSummary(project: AdminProjectConfig): AdminProjectSummary {
   };
 }
 
-function LoadingScreen({ label }: { label: string }) {
+function LoadingScreen({
+  label,
+  onManageProjects,
+}: {
+  label: string;
+  onManageProjects?: () => void;
+}) {
   const theme = useAdminTheme();
   return (
     <View
@@ -338,6 +549,13 @@ function LoadingScreen({ label }: { label: string }) {
     >
       <ActivityIndicator color={theme.primary} />
       <Text style={{ color: theme.muted, fontSize: 14 }}>{label}</Text>
+      {onManageProjects && (
+        <Button
+          color={theme.primary}
+          onPress={onManageProjects}
+          title="Manage projects"
+        />
+      )}
     </View>
   );
 }

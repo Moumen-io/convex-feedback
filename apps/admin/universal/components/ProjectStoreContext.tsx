@@ -67,6 +67,11 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
         if (!mounted) return;
         stateRef.current = loaded;
         setState(loaded);
+        // Setup mode is process state, not a property of the current URL.
+        // Start a new setup session before the first setup route is entered
+        // whenever there is no active project to run.
+        setSetupMode(loaded.activeProjectId ? null : "add");
+        setEditingProjectId(null);
         setHydrated(true);
       })
       .catch(() => {
@@ -77,6 +82,8 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
         };
         stateRef.current = emptyState;
         setState(emptyState);
+        setSetupMode("add");
+        setEditingProjectId(null);
         setHydrated(true);
       });
     return () => {
@@ -123,6 +130,7 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
   const cancelSetup = useCallback(() => {
     setSetupMode(null);
     setEditingProjectId(null);
+    setProjectManagerOpen(false);
   }, []);
 
   const completeSetup = useCallback(
@@ -149,7 +157,10 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
       const next = removeProjectState(stateRef.current, projectId);
       await commit(next);
       if (wasActive) setProjectManagerOpen(false);
-      if (!next.activeProjectId) setSetupMode(null);
+      if (!next.activeProjectId) {
+        setEditingProjectId(null);
+        setSetupMode("add");
+      }
     },
     [commit],
   );

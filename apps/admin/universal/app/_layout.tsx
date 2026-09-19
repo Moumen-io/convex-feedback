@@ -93,12 +93,14 @@ function UniversalAdminApp() {
   );
 
   useEffect(() => {
-    if (!hydrated || !setupRequired || isSetupRoute) return;
+    // The project store owns setup lifecycle state. The URL is only the
+    // destination (and may carry a recovery hint); it must not decide whether
+    // this is an add or edit session.
+    if (!hydrated || !setupRequired || isSetupRoute || setupMode === null) {
+      return;
+    }
     router.replace(
-      projectSetupHref(
-        setupMode === "edit" ? "edit" : "add",
-        projectStore.editingProject?.id,
-      ),
+      projectSetupHref(setupMode, projectStore.editingProject?.id),
     );
   }, [hydrated, isSetupRoute, projectStore.editingProject, router, setupMode]);
 

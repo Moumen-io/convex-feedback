@@ -11,7 +11,9 @@ export default function IndexRedirect() {
           {
             pathname: "/setup/convex",
             params: {
-              mode: projectStore.setupMode === "edit" ? "edit" : "add",
+              ...(projectStore.setupMode
+                ? { mode: projectStore.setupMode }
+                : {}),
               ...(projectStore.editingProject?.id
                 ? { projectId: projectStore.editingProject.id }
                 : {}),

@@ -1,6 +1,6 @@
 import type { Href } from "expo-router";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { ProjectSetupProvider } from "@/components/ProjectSetupContext";
 import { useProjectStore } from "@/components/ProjectStoreContext";
@@ -14,19 +14,46 @@ export default function ProjectSetupLayout() {
     projectId?: string;
   }>();
   const projectStore = useProjectStore();
-  const setupMode =
-    projectStore.setupMode ??
-    (params.mode === "edit" || params.mode === "add" ? params.mode : null);
-  const editingProjectId =
-    projectStore.editingProject?.id ??
-    (typeof params.projectId === "string" ? params.projectId : undefined);
+  const recoveryAttemptedRef = useRef(false);
+  const setupMode = projectStore.setupMode;
+  const requestedMode =
+    params.mode === "edit" || params.mode === "add" ? params.mode : undefined;
+  const requestedProjectId =
+    typeof params.projectId === "string" ? params.projectId : undefined;
+
+  useEffect(() => {
+    if (recoveryAttemptedRef.current) return;
+    if (setupMode !== null) {
+      recoveryAttemptedRef.current = true;
+      return;
+    }
+
+    // A URL hint can recover a setup session after a cold deep link, but the
+    // resulting mode is immediately stored in ProjectStoreContext. All setup
+    // screens then read that store value, so losing query params while moving
+    // through the Stack cannot change the lifecycle.
+    if (requestedMode === "edit") {
+      if (
+        requestedProjectId &&
+        projectStore.startEditProject(requestedProjectId)
+      ) {
+        recoveryAttemptedRef.current = true;
+        return;
+      }
+
+      // An expired or invalid project ID can still recover into a new setup
+      // session instead of leaving the store without a lifecycle mode.
+      projectStore.startAddProject();
+      recoveryAttemptedRef.current = true;
+      return;
+    }
+
+    projectStore.startAddProject();
+    recoveryAttemptedRef.current = true;
+  }, [projectStore, requestedMode, requestedProjectId, setupMode]);
+
   const initialProject =
-    setupMode === "edit"
-      ? (projectStore.editingProject ??
-        projectStore.state.projects.find(
-          (project) => project.id === editingProjectId,
-        ))
-      : undefined;
+    setupMode === "edit" ? projectStore.editingProject : undefined;
 
   const cancel = useCallback(() => {
     projectStore.cancelSetup();
@@ -44,7 +71,10 @@ export default function ProjectSetupLayout() {
   return (
     <ProjectSetupProvider
       initialProject={initialProject}
-      key={`${setupMode ?? "new"}:${initialProject?.id ?? "new"}`}
+      // This identity is stable while the store's setup session is active;
+      // the provider therefore remains mounted as child routes are pushed and
+      // popped within this Stack.
+      key={`project-setup:${setupMode ?? "recovery"}:${initialProject?.id ?? "new"}`}
       onCancel={projectStore.activeProject ? cancel : undefined}
       onSave={save}
     >

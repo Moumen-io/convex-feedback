@@ -174,7 +174,7 @@ function EntryStatusCell({ entry }: { entry: AdminFeedbackEntry }) {
           () =>
             setStatus({
               entryId: entry.id,
-              status: next as EntryStatus,
+              status: next,
             }),
           "Status updated",
         );

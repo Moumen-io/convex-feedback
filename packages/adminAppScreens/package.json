@@ -38,6 +38,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src",
     "prepack": "npm run build"
   },
   "peerDependencies": {

@@ -4,12 +4,16 @@ const secureStore = vi.hoisted(() => {
   const values = new Map<string, string>();
   return {
     values,
-    deleteItemAsync: vi.fn(async (key: string) => {
+    deleteItemAsync: vi.fn((key: string) => {
       values.delete(key);
+      return Promise.resolve();
     }),
-    getItemAsync: vi.fn(async (key: string) => values.get(key) ?? null),
-    setItemAsync: vi.fn(async (key: string, value: string) => {
+    getItemAsync: vi.fn((key: string) =>
+      Promise.resolve(values.get(key) ?? null),
+    ),
+    setItemAsync: vi.fn((key: string, value: string) => {
       values.set(key, value);
+      return Promise.resolve();
     }),
     reset: () => {
       values.clear();

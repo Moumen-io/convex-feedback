@@ -182,7 +182,7 @@ export function validateAdminProjectConfig(
 
   if (config.auth.provider === "clerk") {
     if (
-      !/^pk_(test|live)_[A-Za-z0-9_\-]+$/.test(
+      !/^pk_(test|live)_[A-Za-z0-9_-]+$/.test(
         config.auth.publicConfig.publishableKey,
       )
     ) {
@@ -210,14 +210,15 @@ export function validateAdminProjectConfig(
 export function normalizeConvexAuthProviderIds(
   providerIds: Partial<ConvexAuthProviderIds> | undefined,
 ): ConvexAuthProviderIds {
-  const sso = Object.fromEntries(
-    Object.entries(providerIds?.sso ?? {})
-      .map(([methodId, providerId]) => [
-        methodId.trim().toLowerCase(),
-        typeof providerId === "string" ? providerId.trim() : "",
-      ])
-      .filter(([methodId, providerId]) => Boolean(methodId && providerId)),
-  );
+  const sso: Record<string, string> = {};
+  for (const [methodId, providerId] of Object.entries(providerIds?.sso ?? {})) {
+    const normalizedMethodId = methodId.trim().toLowerCase();
+    const normalizedProviderId =
+      typeof providerId === "string" ? providerId.trim() : "";
+    if (normalizedMethodId && normalizedProviderId) {
+      sso[normalizedMethodId] = normalizedProviderId;
+    }
+  }
 
   return {
     password:
@@ -274,7 +275,7 @@ function validateMethods(methods: AdminAuthMethods, issues: string[]): void {
   }
   for (const method of methods.sso ?? []) {
     if (!/^[a-z0-9][a-z0-9_-]*$/.test(method.id)) {
-      issues.push(`SSO method \"${method.label}\" has an invalid id.`);
+      issues.push(`SSO method "${method.label}" has an invalid id.`);
     }
   }
 }

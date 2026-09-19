@@ -9,9 +9,9 @@ import {
 describe("runtime Convex connection checks", () => {
   it("calls the configured api namespace and accepts an unauthenticated false", async () => {
     const calls: string[] = [];
-    const query: ConvexAdminConnectionQuery = async (reference, args) => {
+    const query: ConvexAdminConnectionQuery = (reference, args) => {
       calls.push(`${getFunctionName(reference)}:${JSON.stringify(args)}`);
-      return false;
+      return Promise.resolve(false);
     };
 
     await expect(
@@ -32,9 +32,9 @@ describe("runtime Convex connection checks", () => {
 
   it("rejects malformed connection input before making a request", async () => {
     let called = false;
-    const query: ConvexAdminConnectionQuery = async () => {
+    const query: ConvexAdminConnectionQuery = () => {
       called = true;
-      return false;
+      return Promise.resolve(false);
     };
 
     await expect(
@@ -53,12 +53,12 @@ describe("runtime Convex connection checks", () => {
   });
 
   it("explains endpoint failures separately from network failures", async () => {
-    const endpointFailure: ConvexAdminConnectionQuery = async () => {
-      throw new Error("Could not find public function feedback:isAdmin");
-    };
-    const networkFailure: ConvexAdminConnectionQuery = async () => {
-      throw new Error("Network request failed");
-    };
+    const endpointFailure: ConvexAdminConnectionQuery = () =>
+      Promise.reject(
+        new Error("Could not find public function feedback:isAdmin"),
+      );
+    const networkFailure: ConvexAdminConnectionQuery = () =>
+      Promise.reject(new Error("Network request failed"));
 
     await expect(
       testConvexAdminConnection(

@@ -36,6 +36,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src test",
     "test": "vitest run",
     "prepack": "npm run build"
   },

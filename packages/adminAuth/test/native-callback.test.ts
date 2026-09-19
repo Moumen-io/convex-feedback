@@ -24,8 +24,8 @@ describe("native auth callback", () => {
 
   it("passes that generated callback to Clerk SSO", async () => {
     const redirectUrl = getNativeAuthCallbackUrl();
-    const create = vi.fn(async () => ({ error: null }));
-    const finalize = vi.fn(async () => ({ error: null }));
+    const create = vi.fn(() => Promise.resolve({ error: null }));
+    const finalize = vi.fn(() => Promise.resolve({ error: null }));
     const signIn = {
       status: "needs_first_factor",
       finalize,
@@ -42,20 +42,23 @@ describe("native auth callback", () => {
         signIn,
         {
           signIn: {
-            reload: vi.fn(async () => ({
-              __internal_future: {
-                status: "complete",
-                finalize,
-                create,
-                firstFactorVerification: { status: "verified" },
-              },
-            })),
+            reload: vi.fn(() =>
+              Promise.resolve({
+                __internal_future: {
+                  status: "complete",
+                  finalize,
+                  create,
+                  firstFactorVerification: { status: "verified" },
+                },
+              }),
+            ),
           },
         },
-        async () => ({
-          type: "success",
-          url: `${redirectUrl}?rotating_token_nonce=nonce`,
-        }),
+        () =>
+          Promise.resolve({
+            type: "success",
+            url: `${redirectUrl}?rotating_token_nonce=nonce`,
+          }),
       ),
     ).resolves.toEqual({ ok: true });
 

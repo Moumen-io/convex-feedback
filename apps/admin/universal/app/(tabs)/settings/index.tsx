@@ -23,7 +23,7 @@ export default function SettingsScreen() {
     if (projectId === runtime.project.id) return;
     await runtime.onSelectProject(projectId);
   };
-  const removeProject = async (projectId: string) => {
+  const removeProject = (projectId: string) => {
     Alert.alert(
       "Are you sure?",
       "This will remove the project from your account.",
@@ -35,9 +35,7 @@ export default function SettingsScreen() {
         {
           text: "Remove",
           style: "destructive",
-          onPress: async () => {
-            await runtime.onRemoveProject(projectId);
-          },
+          onPress: () => void runtime.onRemoveProject(projectId),
         },
       ],
     );
@@ -53,7 +51,7 @@ export default function SettingsScreen() {
         onManageAccount={
           auth.provider === "clerk" ? () => setAccountOpen(true) : undefined
         }
-        onRemoveProject={(projectId) => void removeProject(projectId)}
+        onRemoveProject={removeProject}
         onSelectProject={(projectId) => void changeProject(projectId)}
         onSignOut={() => void auth.signOut()}
         projects={runtime.projects}

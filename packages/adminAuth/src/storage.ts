@@ -255,7 +255,11 @@ async function ensureTrackerLoaded(
   tracker: ProjectAuthStorageTracker,
 ): Promise<void> {
   await tracker.loaded;
-  if (tracker.loadError) throw tracker.loadError;
+  if (!tracker.loadError) return;
+  if (tracker.loadError instanceof Error) throw tracker.loadError;
+  throw new Error(
+    "Could not load the project authentication storage registry.",
+  );
 }
 
 async function rememberPhysicalKey(

@@ -43,6 +43,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint app components constants hooks lib",
     "ios:dev": "expo prebuild -p ios --clean && expo run:ios --device",
     "testflight": "rm -rf ios android && npx testflight"
   },

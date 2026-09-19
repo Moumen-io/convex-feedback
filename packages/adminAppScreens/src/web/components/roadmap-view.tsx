@@ -89,11 +89,7 @@ export function RoadmapView({
   const getDraggingItem = () =>
     items?.find((candidate) => candidate.id === draggingId);
 
-  const dropAtEnd = (
-    event: DragEvent<HTMLElement>,
-    status: RoadmapStatus,
-    _stageItems: RoadmapItem[],
-  ) => {
+  const dropAtEnd = (event: DragEvent<HTMLElement>, status: RoadmapStatus) => {
     event.preventDefault();
     const dragged = getDraggingItem();
     if (!dragged) return;
@@ -175,7 +171,7 @@ export function RoadmapView({
               key={stage.value}
               className="flex min-h-0 min-w-80 flex-col bg-background"
               onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => dropAtEnd(event, stage.value, stageItems)}
+              onDrop={(event) => dropAtEnd(event, stage.value)}
             >
               <div className="flex shrink-0 items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur">
                 <h2 className="text-sm font-medium">{stage.label}</h2>

@@ -200,7 +200,7 @@ function ConvexAuthBridge({
         : null,
       signIn,
       signOut: actions.signOut,
-      getToken: async () => token,
+      getToken: () => Promise.resolve(token),
     }),
     [
       actions.signOut,
@@ -445,12 +445,13 @@ function UnsupportedAuthRuntime({
       supportsPassword: false,
       supportsEmailCode: false,
       challenge: null,
-      signIn: async () => ({
-        ok: false,
-        error: `${config.provider} support is not available in this build yet.`,
-      }),
-      signOut: async () => undefined,
-      getToken: async () => null,
+      signIn: () =>
+        Promise.resolve({
+          ok: false as const,
+          error: `${config.provider} support is not available in this build yet.`,
+        }),
+      signOut: () => Promise.resolve(),
+      getToken: () => Promise.resolve(null),
     }),
     [config.provider],
   );

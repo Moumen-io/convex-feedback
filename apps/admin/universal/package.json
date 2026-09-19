@@ -11,6 +11,7 @@
     "web": "expo start --web",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint app components lib test",
     "export:web": "expo export --platform web --output-dir dist/web",
     "export:ios": "expo export --platform ios --output-dir dist/ios",
     "export:android": "expo export --platform android --output-dir dist/android",

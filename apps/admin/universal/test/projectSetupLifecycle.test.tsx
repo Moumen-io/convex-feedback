@@ -4,11 +4,13 @@ import { useEffect } from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const connectionTest = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true as const,
-    apiPath: "api.feedback.isAdmin",
-    isAdmin: false,
-  })),
+  vi.fn(() =>
+    Promise.resolve({
+      ok: true as const,
+      apiPath: "api.feedback.isAdmin",
+      isAdmin: false,
+    }),
+  ),
 );
 
 const validateProject = vi.hoisted(() =>
@@ -75,10 +77,10 @@ const existingProject: AdminProjectConfig = {
   updatedAt: 10,
 };
 
-async function renderSetup({
+function renderSetup({
   initialProject,
   onCancel = vi.fn(),
-  onSave = vi.fn(async () => undefined),
+  onSave = vi.fn(() => Promise.resolve()),
   route = "convex",
 }: {
   initialProject?: AdminProjectConfig;
@@ -90,7 +92,7 @@ async function renderSetup({
   probeMounts = 0;
   probeUnmounts = 0;
   let renderer!: ReactTestRenderer;
-  await act(async () => {
+  act(() => {
     renderer = create(
       <ProjectSetupProvider
         initialProject={initialProject}
@@ -110,10 +112,10 @@ describe("universal project setup provider lifecycle", () => {
     validateProject.mockClear();
   });
 
-  test("first launch creates an add draft and keeps values through forward and back navigation", async () => {
-    const renderer = await renderSetup();
+  test("first launch creates an add draft and keeps values through forward and back navigation", () => {
+    const renderer = renderSetup();
 
-    await act(async () => {
+    act(() => {
       latestSetup?.setProjectName("Feedback admin");
       latestSetup?.setConvexUrl("https://admin.convex.cloud/");
       latestSetup?.setApiNamespace("api.feedback");
@@ -125,33 +127,33 @@ describe("universal project setup provider lifecycle", () => {
       apiNamespace: "feedback",
     });
 
-    await act(async () => {
+    act(() => {
       renderer.update(
         <ProjectSetupProvider
           onCancel={vi.fn()}
-          onSave={vi.fn(async () => undefined)}
+          onSave={vi.fn(() => Promise.resolve())}
         >
           <SetupStackProbe route="provider" />
         </ProjectSetupProvider>,
       );
       latestSetup?.selectProvider("clerk");
     });
-    await act(async () => {
+    act(() => {
       renderer.update(
         <ProjectSetupProvider
           onCancel={vi.fn()}
-          onSave={vi.fn(async () => undefined)}
+          onSave={vi.fn(() => Promise.resolve())}
         >
           <SetupStackProbe route="methods" />
         </ProjectSetupProvider>,
       );
       latestSetup?.setEmailCodeEnabled(true);
     });
-    await act(async () => {
+    act(() => {
       renderer.update(
         <ProjectSetupProvider
           onCancel={vi.fn()}
-          onSave={vi.fn(async () => undefined)}
+          onSave={vi.fn(() => Promise.resolve())}
         >
           <SetupStackProbe route="configuration" />
         </ProjectSetupProvider>,
@@ -159,11 +161,11 @@ describe("universal project setup provider lifecycle", () => {
       latestSetup?.setPublishableKey("pk_test_123");
     });
 
-    await act(async () => {
+    act(() => {
       renderer.update(
         <ProjectSetupProvider
           onCancel={vi.fn()}
-          onSave={vi.fn(async () => undefined)}
+          onSave={vi.fn(() => Promise.resolve())}
         >
           <SetupStackProbe route="methods" />
         </ProjectSetupProvider>,
@@ -185,24 +187,24 @@ describe("universal project setup provider lifecycle", () => {
     expect(probeMounts).toBe(1);
     expect(probeUnmounts).toBe(0);
 
-    await act(async () => {
+    act(() => {
       renderer.unmount();
     });
   });
 
-  test("edit flow starts with the selected project and retains its prepopulation", async () => {
-    const renderer = await renderSetup({ initialProject: existingProject });
+  test("edit flow starts with the selected project and retains its prepopulation", () => {
+    const renderer = renderSetup({ initialProject: existingProject });
 
     expect(latestSetup?.isEditing).toBe(true);
     expect(latestSetup?.draft).toEqual(existingProject);
 
-    await act(async () => {
+    act(() => {
       latestSetup?.setProjectName("Renamed feedback");
       renderer.update(
         <ProjectSetupProvider
           initialProject={existingProject}
           onCancel={vi.fn()}
-          onSave={vi.fn(async () => undefined)}
+          onSave={vi.fn(() => Promise.resolve())}
         >
           <SetupStackProbe route="provider" />
         </ProjectSetupProvider>,
@@ -214,20 +216,20 @@ describe("universal project setup provider lifecycle", () => {
     expect(latestSetup?.isEditing).toBe(true);
     expect(probeMounts).toBe(1);
 
-    await act(async () => {
+    act(() => {
       renderer.unmount();
     });
   });
 
   test("save and cancel call the lifecycle exits after using the actual provider", async () => {
     const savedProjects: AdminProjectConfig[] = [];
-    const onSave = vi.fn(async (project: AdminProjectConfig) => {
+    const onSave = vi.fn((project: AdminProjectConfig) => {
       savedProjects.push(project);
     });
     const onCancel = vi.fn();
-    const renderer = await renderSetup({ onCancel, onSave });
+    const renderer = renderSetup({ onCancel, onSave });
 
-    await act(async () => {
+    act(() => {
       latestSetup?.setProjectName("Saved project");
       latestSetup?.setConvexUrl("https://saved.convex.cloud");
       latestSetup?.setApiNamespace("feedback");
@@ -244,12 +246,12 @@ describe("universal project setup provider lifecycle", () => {
       apiNamespace: "feedback",
     });
 
-    await act(async () => {
+    act(() => {
       latestSetup?.cancel();
     });
     expect(onCancel).toHaveBeenCalledTimes(1);
 
-    await act(async () => {
+    act(() => {
       renderer.unmount();
     });
   });

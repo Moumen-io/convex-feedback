@@ -24,12 +24,12 @@ describe("Clerk custom sign-in flows", () => {
   });
 
   it("finalizes a completed password, email-code, or MFA operation", async () => {
-    const finalize = vi.fn(async () => ({ error: null }));
+    const finalize = vi.fn(() => Promise.resolve({ error: null }));
 
     for (const operation of [
-      vi.fn(async () => ({ error: null })),
-      vi.fn(async () => ({ error: null })),
-      vi.fn(async () => ({ error: null })),
+      vi.fn(() => Promise.resolve({ error: null })),
+      vi.fn(() => Promise.resolve({ error: null })),
+      vi.fn(() => Promise.resolve({ error: null })),
     ]) {
       const result = await completeClerkSignIn(
         { status: "complete", finalize },
@@ -42,8 +42,8 @@ describe("Clerk custom sign-in flows", () => {
   });
 
   it("leaves the second-factor and device-trust states for the challenge UI", async () => {
-    const finalize = vi.fn(async () => ({ error: null }));
-    const operation = vi.fn(async () => ({ error: null }));
+    const finalize = vi.fn(() => Promise.resolve({ error: null }));
+    const operation = vi.fn(() => Promise.resolve({ error: null }));
 
     await expect(
       completeClerkSignIn(
@@ -90,15 +90,15 @@ describe("Clerk custom sign-in flows", () => {
     "completes existing-account %s SSO without a sign-up transfer",
     async (methodId, strategy) => {
       const create = vi.fn(
-        async (params: { strategy: unknown; redirectUrl: string }) => {
+        (params: { strategy: unknown; redirectUrl: string }) => {
           expect(params).toEqual({
             strategy,
             redirectUrl: "convex-feedback-admin://auth/callback",
           });
-          return { error: null };
+          return Promise.resolve({ error: null });
         },
       );
-      const finalize = vi.fn(async () => ({ error: null }));
+      const finalize = vi.fn(() => Promise.resolve({ error: null }));
       const currentSignIn = {
         status: "complete",
         finalize,
@@ -106,11 +106,15 @@ describe("Clerk custom sign-in flows", () => {
         firstFactorVerification: { status: "verified" },
         isTransferable: false,
       };
-      const reload = vi.fn(async () => ({ __internal_future: currentSignIn }));
-      const openAuthSession = vi.fn(async () => ({
-        type: "success",
-        url: "convex-feedback-admin://auth/callback?rotating_token_nonce=nonce",
-      }));
+      const reload = vi.fn(() =>
+        Promise.resolve({ __internal_future: currentSignIn }),
+      );
+      const openAuthSession = vi.fn(() =>
+        Promise.resolve({
+          type: "success",
+          url: "convex-feedback-admin://auth/callback?rotating_token_nonce=nonce",
+        }),
+      );
 
       await expect(
         signInWithClerkSso(
@@ -136,18 +140,18 @@ describe("Clerk custom sign-in flows", () => {
   );
 
   it("rejects a transferable Clerk SSO result without finalizing", async () => {
-    const finalize = vi.fn(async () => ({ error: null }));
+    const finalize = vi.fn(() => Promise.resolve({ error: null }));
     const currentSignIn = {
       status: "needs_first_factor",
       finalize,
-      create: vi.fn(async () => ({ error: null })),
+      create: vi.fn(() => Promise.resolve({ error: null })),
       firstFactorVerification: { status: "transferable" },
       isTransferable: true,
     };
     const signIn = {
       status: "needs_first_factor",
       finalize,
-      create: vi.fn(async () => ({ error: null })),
+      create: vi.fn(() => Promise.resolve({ error: null })),
       signUp: { create: vi.fn() },
       firstFactorVerification: {
         externalVerificationRedirectURL: new URL("https://clerk.example/oauth"),
@@ -161,13 +165,16 @@ describe("Clerk custom sign-in flows", () => {
         signIn,
         {
           signIn: {
-            reload: vi.fn(async () => ({ __internal_future: currentSignIn })),
+            reload: vi.fn(() =>
+              Promise.resolve({ __internal_future: currentSignIn }),
+            ),
           },
         },
-        async () => ({
-          type: "success",
-          url: "convex-feedback-admin://auth/callback?rotating_token_nonce=nonce",
-        }),
+        () =>
+          Promise.resolve({
+            type: "success",
+            url: "convex-feedback-admin://auth/callback?rotating_token_nonce=nonce",
+          }),
       ),
     ).resolves.toEqual({
       ok: false,
@@ -178,11 +185,11 @@ describe("Clerk custom sign-in flows", () => {
   });
 
   it("keeps Clerk MFA and cancellation states distinguishable", async () => {
-    const finalize = vi.fn(async () => ({ error: null }));
+    const finalize = vi.fn(() => Promise.resolve({ error: null }));
     const signIn = {
       status: "needs_first_factor",
       finalize,
-      create: vi.fn(async () => ({ error: null })),
+      create: vi.fn(() => Promise.resolve({ error: null })),
       firstFactorVerification: {
         externalVerificationRedirectURL: new URL("https://clerk.example/oauth"),
       },
@@ -195,7 +202,9 @@ describe("Clerk custom sign-in flows", () => {
     };
     const client = {
       signIn: {
-        reload: vi.fn(async () => ({ __internal_future: currentSignIn })),
+        reload: vi.fn(() =>
+          Promise.resolve({ __internal_future: currentSignIn }),
+        ),
       },
     };
 
@@ -205,10 +214,11 @@ describe("Clerk custom sign-in flows", () => {
         "convex-feedback-admin://auth/callback",
         signIn,
         client,
-        async () => ({
-          type: "success",
-          url: "convex-feedback-admin://auth/callback?rotating_token_nonce=nonce",
-        }),
+        () =>
+          Promise.resolve({
+            type: "success",
+            url: "convex-feedback-admin://auth/callback?rotating_token_nonce=nonce",
+          }),
       ),
     ).resolves.toEqual({ ok: true });
     expect(finalize).not.toHaveBeenCalled();
@@ -219,7 +229,7 @@ describe("Clerk custom sign-in flows", () => {
         "convex-feedback-admin://auth/callback",
         signIn,
         client,
-        async () => ({ type: "cancel" }),
+        () => Promise.resolve({ type: "cancel" }),
       ),
     ).resolves.toEqual({ ok: false, error: "The sign-in flow was cancelled." });
   });
@@ -261,9 +271,9 @@ describe("Convex Auth native sign-in flows", () => {
 
   it("uses the configured password and email-code IDs", async () => {
     const calls: Array<[string, unknown]> = [];
-    const signIn = vi.fn(async (provider: string, params?: unknown) => {
+    const signIn = vi.fn((provider: string, params?: unknown) => {
       calls.push([provider, params]);
-      return { signingIn: true };
+      return Promise.resolve({ signingIn: true });
     });
 
     await expect(
@@ -295,7 +305,7 @@ describe("Convex Auth native sign-in flows", () => {
   });
 
   it("rejects enabled methods without a configured provider ID", async () => {
-    const signIn = vi.fn(async () => ({ signingIn: true }));
+    const signIn = vi.fn(() => Promise.resolve({ signingIn: true }));
     await expect(
       signInWithConvexAuth(
         {
@@ -315,16 +325,23 @@ describe("Convex Auth native sign-in flows", () => {
 
   it("maps the displayed SSO method to the host provider ID and exchanges the callback code", async () => {
     const calls: Array<[string, unknown]> = [];
-    const signIn = vi.fn(async (provider: string, params?: unknown) => {
+    const signIn = vi.fn((provider: string, params?: unknown) => {
       calls.push([provider, params]);
-      return calls.length === 1
-        ? { signingIn: false, redirect: new URL("https://host.example/oauth") }
-        : { signingIn: true };
+      return Promise.resolve(
+        calls.length === 1
+          ? {
+              signingIn: false,
+              redirect: new URL("https://host.example/oauth"),
+            }
+          : { signingIn: true },
+      );
     });
-    const openAuthSession = vi.fn(async () => ({
-      type: "success",
-      url: "convex-feedback-admin://auth/callback?code=oauth-code",
-    }));
+    const openAuthSession = vi.fn(() =>
+      Promise.resolve({
+        type: "success",
+        url: "convex-feedback-admin://auth/callback?code=oauth-code",
+      }),
+    );
 
     await expect(
       signInWithConvexAuth(
@@ -357,7 +374,7 @@ describe("Convex Auth native sign-in flows", () => {
   });
 
   it("does not silently fall back to a displayed SSO ID", async () => {
-    const signIn = vi.fn(async () => ({ signingIn: true }));
+    const signIn = vi.fn(() => Promise.resolve({ signingIn: true }));
     await expect(
       signInWithConvexAuth(
         { kind: "sso", method: { id: "github", label: "GitHub" } },
@@ -372,10 +389,12 @@ describe("Convex Auth native sign-in flows", () => {
   });
 
   it("rejects a cancelled or code-less callback", async () => {
-    const signIn = vi.fn(async () => ({
-      signingIn: false,
-      redirect: new URL("https://host.example/oauth"),
-    }));
+    const signIn = vi.fn(() =>
+      Promise.resolve({
+        signingIn: false,
+        redirect: new URL("https://host.example/oauth"),
+      }),
+    );
     await expect(
       signInWithConvexAuth(
         { kind: "sso", method: { id: "google", label: "Google" } },
@@ -383,7 +402,7 @@ describe("Convex Auth native sign-in flows", () => {
         signIn,
         {
           redirectUri: "convex-feedback-admin://auth/callback",
-          openAuthSession: async () => ({ type: "cancel" }),
+          openAuthSession: () => Promise.resolve({ type: "cancel" }),
         },
       ),
     ).resolves.toEqual({ ok: false, error: "The sign-in flow was cancelled." });
@@ -391,10 +410,12 @@ describe("Convex Auth native sign-in flows", () => {
   });
 
   it("rejects a Convex callback outside the configured app link", async () => {
-    const signIn = vi.fn(async () => ({
-      signingIn: false,
-      redirect: new URL("https://host.example/oauth"),
-    }));
+    const signIn = vi.fn(() =>
+      Promise.resolve({
+        signingIn: false,
+        redirect: new URL("https://host.example/oauth"),
+      }),
+    );
 
     await expect(
       signInWithConvexAuth(
@@ -403,10 +424,11 @@ describe("Convex Auth native sign-in flows", () => {
         signIn,
         {
           redirectUri: "convex-feedback-admin://auth/callback",
-          openAuthSession: async () => ({
-            type: "success",
-            url: "other-app://auth/callback?code=oauth-code",
-          }),
+          openAuthSession: () =>
+            Promise.resolve({
+              type: "success",
+              url: "other-app://auth/callback?code=oauth-code",
+            }),
         },
       ),
     ).resolves.toEqual({

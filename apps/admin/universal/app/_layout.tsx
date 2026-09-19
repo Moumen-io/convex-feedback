@@ -57,7 +57,7 @@ function projectSetupHref(mode: "add" | "edit", projectId?: string): Href {
       mode,
       ...(projectId ? { projectId } : {}),
     },
-  } as Href;
+  };
 }
 
 export default function RootLayout() {

@@ -8,7 +8,8 @@ import {
 } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { anyApi } from "convex/server";
-import { NativeStackNavigationOptions, Stack } from "expo-router";
+import { Stack } from "expo-router";
+import type { NativeStackNavigationOptions } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,

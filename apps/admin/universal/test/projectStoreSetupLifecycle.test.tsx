@@ -3,9 +3,9 @@ import type { ReactTestRenderer } from "react-test-renderer";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const storeMocks = vi.hoisted(() => ({
-  clearAuthStorage: vi.fn(async () => undefined),
+  clearAuthStorage: vi.fn(() => Promise.resolve()),
   load: vi.fn(),
-  save: vi.fn(async () => undefined),
+  save: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("convex-feedback-admin-auth", () => ({
@@ -13,19 +13,24 @@ vi.mock("convex-feedback-admin-auth", () => ({
   createSecureProjectStore: () => ({
     load: storeMocks.load,
     save: storeMocks.save,
-    clear: vi.fn(async () => undefined),
+    clear: vi.fn(() => Promise.resolve()),
   }),
   normalizeProjectConfig: (project: unknown) => project,
   projectAuthStateRequiresReset: () => false,
-  testConvexAdminConnection: vi.fn(async () => ({
-    ok: true,
-    apiPath: "api.feedback.isAdmin",
-    isAdmin: false,
-  })),
+  testConvexAdminConnection: vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      apiPath: "api.feedback.isAdmin",
+      isAdmin: false,
+    }),
+  ),
   validateAdminProjectConfig: vi.fn(() => ({ valid: true, issues: [] })),
-  removeProject: (state: any, projectId: string) => {
+  removeProject: (
+    state: AdminProjectStoreState,
+    projectId: string,
+  ): AdminProjectStoreState => {
     const projects = state.projects.filter(
-      (project: { id: string }) => project.id !== projectId,
+      (project) => project.id !== projectId,
     );
     return {
       projects,
@@ -35,17 +40,21 @@ vi.mock("convex-feedback-admin-auth", () => ({
           : state.activeProjectId,
     };
   },
-  saveProject: (state: any, project: { id: string }) => ({
-    projects: state.projects.some(
-      (entry: { id: string }) => entry.id === project.id,
-    )
-      ? state.projects.map((entry: { id: string }) =>
+  saveProject: (
+    state: AdminProjectStoreState,
+    project: AdminProjectConfig,
+  ): AdminProjectStoreState => ({
+    projects: state.projects.some((entry) => entry.id === project.id)
+      ? state.projects.map((entry) =>
           entry.id === project.id ? project : entry,
         )
       : [...state.projects, project],
     activeProjectId: project.id,
   }),
-  selectProject: (state: any, projectId: string) => ({
+  selectProject: (
+    state: AdminProjectStoreState,
+    projectId: string,
+  ): AdminProjectStoreState => ({
     ...state,
     activeProjectId: projectId,
   }),
@@ -61,7 +70,10 @@ import {
   useProjectSetup,
 } from "../components/ProjectSetupContext";
 import type { ProjectSetupContextValue } from "../components/ProjectSetupContext";
-import type { AdminProjectConfig } from "convex-feedback-admin-auth";
+import type {
+  AdminProjectConfig,
+  AdminProjectStoreState,
+} from "convex-feedback-admin-auth";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -153,7 +165,7 @@ describe("universal project store setup lifecycle", () => {
     expect(latestStore?.activeProject).toBeUndefined();
     expect(latestStore?.setupMode).toBe("add");
 
-    await act(async () => {
+    act(() => {
       renderer.unmount();
     });
   });
@@ -165,7 +177,7 @@ describe("universal project store setup lifecycle", () => {
     });
     const renderer = await renderStore();
 
-    await act(async () => {
+    act(() => {
       expect(latestStore?.startEditProject(projectB.id)).toBe(true);
     });
     expect(latestStore?.setupMode).toBe("edit");
@@ -181,14 +193,14 @@ describe("universal project store setup lifecycle", () => {
     expect(latestStore?.editingProject).toBeUndefined();
     expect(latestStore?.activeProject?.id).toBe(projectB.id);
 
-    await act(async () => {
+    act(() => {
       latestStore?.startAddProject();
       latestStore?.cancelSetup();
     });
     expect(latestStore?.setupMode).toBeNull();
     expect(latestStore?.editingProject).toBeUndefined();
 
-    await act(async () => {
+    act(() => {
       renderer.unmount();
     });
   });
@@ -206,7 +218,7 @@ describe("universal project store setup lifecycle", () => {
     expect(latestStore?.activeProject).toBeUndefined();
     expect(latestStore?.setupMode).toBe("add");
 
-    await act(async () => {
+    act(() => {
       renderer.unmount();
     });
   });
@@ -216,7 +228,7 @@ describe("universal project store setup lifecycle", () => {
     const renderer = await renderCombinedSetup();
 
     expect(latestStore?.setupMode).toBe("add");
-    await act(async () => {
+    act(() => {
       latestSetup?.setProjectName("First project");
       latestSetup?.setConvexUrl("https://first.convex.cloud");
       latestSetup?.setApiNamespace("feedback");
@@ -227,13 +239,13 @@ describe("universal project store setup lifecycle", () => {
     expect(latestStore?.setupMode).toBeNull();
     expect(latestStore?.activeProject?.name).toBe("First project");
 
-    await act(async () => {
+    act(() => {
       latestStore?.startAddProject();
       latestSetup?.cancel();
     });
     expect(latestStore?.setupMode).toBeNull();
 
-    await act(async () => {
+    act(() => {
       renderer.unmount();
     });
   });

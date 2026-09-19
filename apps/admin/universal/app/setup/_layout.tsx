@@ -1,4 +1,3 @@
-import type { Href } from "expo-router";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
 
@@ -57,7 +56,7 @@ export default function ProjectSetupLayout() {
 
   const cancel = useCallback(() => {
     projectStore.cancelSetup();
-    router.replace("/settings" as Href);
+    router.replace("/settings");
   }, [projectStore, router]);
 
   const save = useCallback(

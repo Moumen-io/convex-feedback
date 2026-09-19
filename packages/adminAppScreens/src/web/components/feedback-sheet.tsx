@@ -375,7 +375,7 @@ export function EntryEditorDialog({
               value={kind}
               disabled={action.pending}
               onValueChange={(next) => {
-                if (next) setKind(next as EntryKind);
+                if (next) setKind(next);
               }}
             >
               <SelectTrigger className="w-full" aria-label="Change entry kind">

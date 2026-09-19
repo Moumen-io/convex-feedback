@@ -1,4 +1,4 @@
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { useCallback } from "react";
 
@@ -9,17 +9,28 @@ import { useAdminTheme } from "convex-feedback-admin-app-screens/native";
 export default function ProjectSetupLayout() {
   const theme = useAdminTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    mode?: string;
+    projectId?: string;
+  }>();
   const projectStore = useProjectStore();
+  const setupMode =
+    projectStore.setupMode ??
+    (params.mode === "edit" || params.mode === "add" ? params.mode : null);
+  const editingProjectId =
+    projectStore.editingProject?.id ??
+    (typeof params.projectId === "string" ? params.projectId : undefined);
   const initialProject =
-    projectStore.setupMode === "edit" ? projectStore.editingProject : undefined;
+    setupMode === "edit"
+      ? (projectStore.editingProject ??
+        projectStore.state.projects.find(
+          (project) => project.id === editingProjectId,
+        ))
+      : undefined;
 
   const cancel = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/settings" as Href);
-    }
     projectStore.cancelSetup();
+    router.replace("/settings" as Href);
   }, [projectStore, router]);
 
   const save = useCallback(
@@ -33,7 +44,7 @@ export default function ProjectSetupLayout() {
   return (
     <ProjectSetupProvider
       initialProject={initialProject}
-      key={`${projectStore.setupMode ?? "new"}:${initialProject?.id ?? "new"}`}
+      key={`${setupMode ?? "new"}:${initialProject?.id ?? "new"}`}
       onCancel={projectStore.activeProject ? cancel : undefined}
       onSave={save}
     >

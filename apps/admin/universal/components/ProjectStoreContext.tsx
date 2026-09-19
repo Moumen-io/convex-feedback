@@ -34,7 +34,7 @@ export interface ProjectStoreContextValue {
   setupMode: ProjectSetupMode | null;
   projectManagerOpen: boolean;
   startAddProject: () => void;
-  startEditProject: (projectId: string) => void;
+  startEditProject: (projectId: string) => boolean;
   cancelSetup: () => void;
   completeSetup: (project: AdminProjectConfig) => Promise<void>;
   openProjectManager: () => void;
@@ -105,16 +105,19 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
   const startAddProject = useCallback(() => {
     setEditingProjectId(null);
     setSetupMode("add");
+    setProjectManagerOpen(false);
   }, []);
 
   const startEditProject = useCallback((projectId: string) => {
     if (
       !stateRef.current.projects.some((project) => project.id === projectId)
     ) {
-      return;
+      return false;
     }
     setEditingProjectId(projectId);
     setSetupMode("edit");
+    setProjectManagerOpen(false);
+    return true;
   }, []);
 
   const cancelSetup = useCallback(() => {

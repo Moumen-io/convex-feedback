@@ -20,7 +20,14 @@ import {
 import { ConvexReactClient, useQuery_experimental } from "convex/react";
 import { Stack, usePathname, useRouter } from "expo-router";
 import type { Href, NativeStackNavigationOptions } from "expo-router";
-import { Component, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Component,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type * as React from "react";
 import {
   ActivityIndicator,
@@ -41,6 +48,16 @@ import {
   type UniversalAdminContextValue,
 } from "@/components/RuntimeContext";
 
+function projectSetupHref(mode: "add" | "edit", projectId?: string): Href {
+  return {
+    pathname: "/setup/convex",
+    params: {
+      mode,
+      ...(projectId ? { projectId } : {}),
+    },
+  } as Href;
+}
+
 export default function RootLayout() {
   return (
     <NativeAppProviders>
@@ -58,41 +75,46 @@ function UniversalAdminApp() {
   const theme = useAdminTheme();
   const { activeProject, hydrated, projectManagerOpen, projects, setupMode } =
     projectStore;
-  const setupRequired = setupMode !== null || !activeProject;
   const isSetupRoute = pathname === "/setup" || pathname.startsWith("/setup/");
+  // Keep the setup route authoritative while the setup flow is mounted. This
+  // prevents a transient project-store update or navigator remount from
+  // falling back into the configured runtime/auth screen mid-flow.
+  const setupRequired = setupMode !== null || !activeProject || isSetupRoute;
+
+  const beginAddProject = useCallback(() => {
+    projectStore.startAddProject();
+  }, [projectStore]);
+
+  const beginEditProject = useCallback(
+    (projectId: string) => {
+      if (!projectStore.startEditProject(projectId)) return;
+    },
+    [projectStore],
+  );
 
   useEffect(() => {
     if (!hydrated || !setupRequired || isSetupRoute) return;
-    const setupHref = "/setup/convex" as Href;
-    if (activeProject) router.push(setupHref);
-    else router.replace(setupHref);
-  }, [activeProject, hydrated, isSetupRoute, router, setupRequired]);
-
-  useEffect(() => {
-    if (!hydrated || setupRequired || !isSetupRoute) return;
-    router.replace("/inbox" as Href);
-  }, [hydrated, isSetupRoute, router, setupRequired]);
+    router.replace(
+      projectSetupHref(
+        setupMode === "edit" ? "edit" : "add",
+        projectStore.editingProject?.id,
+      ),
+    );
+  }, [hydrated, isSetupRoute, projectStore.editingProject, router, setupMode]);
 
   if (!hydrated) return <LoadingScreen label="Loading saved projects…" />;
 
-  if (setupRequired) {
-    if (!isSetupRoute) {
-      return <LoadingScreen label="Opening project setup…" />;
-    }
+  if (!activeProject) {
     return <SetupRouteNavigator theme={theme} />;
   }
 
-  if (isSetupRoute) {
-    return <LoadingScreen label="Opening the admin app…" />;
-  }
-
-  if (projectManagerOpen && activeProject) {
+  if (projectManagerOpen && setupMode === null && !isSetupRoute) {
     return (
       <ProjectManagerScreen
         activeProjectId={activeProject.id}
-        onAddProject={projectStore.startAddProject}
+        onAddProject={beginAddProject}
         onClose={projectStore.closeProjectManager}
-        onEditProject={projectStore.startEditProject}
+        onEditProject={beginEditProject}
         onRemoveProject={projectStore.removeProject}
         onSelectProject={projectStore.selectProject}
         projects={projects}
@@ -104,8 +126,8 @@ function UniversalAdminApp() {
     project: activeProject,
     projects,
     onSelectProject: projectStore.selectProject,
-    onAddProject: projectStore.startAddProject,
-    onEditProject: projectStore.startEditProject,
+    onAddProject: beginAddProject,
+    onEditProject: beginEditProject,
     onRemoveProject: projectStore.removeProject,
   };
 
@@ -119,20 +141,73 @@ function UniversalAdminApp() {
         key={getProjectRuntimeKey(activeProject)}
         onManageProjects={projectStore.openProjectManager}
         project={activeProject}
+        showSetup={setupRequired}
+        theme={theme}
       />
     </ProjectRuntimeErrorBoundary>
   );
 }
 
-function SetupRouteNavigator({ theme }: { theme: AdminTheme }) {
+function SetupRouteNavigator({
+  includeAdminRoutes = false,
+  theme,
+}: {
+  includeAdminRoutes?: boolean;
+  theme: AdminTheme;
+}) {
   return (
     <Stack
+      initialRouteName={includeAdminRoutes ? "index" : "setup"}
       screenOptions={{
         contentStyle: { backgroundColor: theme.background },
         headerShown: false,
       }}
     >
       <Stack.Screen name="setup" options={{ headerShown: false }} />
+      {includeAdminRoutes
+        ? [
+            <Stack.Screen
+              key="index"
+              name="index"
+              options={{ headerShown: false }}
+            />,
+            <Stack.Screen
+              key="(tabs)"
+              name="(tabs)"
+              options={{ headerShown: false }}
+            />,
+            <Stack.Screen
+              key="feedback/[entryId]/index"
+              name="feedback/[entryId]/index"
+              options={modalScreenOptions("Feedback", theme)}
+            />,
+            <Stack.Screen
+              key="feedback/new"
+              name="feedback/new"
+              options={modalScreenOptions("New feedback", theme)}
+            />,
+            <Stack.Screen
+              key="feedback/[entryId]/edit"
+              name="feedback/[entryId]/edit"
+              options={modalScreenOptions("Edit feedback", theme)}
+            />,
+            <Stack.Screen
+              key="roadmap/new"
+              name="roadmap/new"
+              options={modalScreenOptions("New roadmap item", theme)}
+            />,
+            <Stack.Screen
+              key="roadmap/[roadmapId]/index"
+              name="roadmap/[roadmapId]/index"
+              options={modalScreenOptions("Roadmap item", theme)}
+            />,
+            <Stack.Screen
+              key="roadmap/[roadmapId]/edit"
+              name="roadmap/[roadmapId]/edit"
+              options={modalScreenOptions("Edit roadmap item", theme)}
+            />,
+          ]
+        : null}
     </Stack>
   );
 }
@@ -141,10 +216,14 @@ function ConfiguredAdminApp({
   project,
   contextValue,
   onManageProjects,
+  showSetup,
+  theme,
 }: {
   project: AdminProjectConfig;
   contextValue: UniversalAdminContextValue;
   onManageProjects: () => void;
+  showSetup: boolean;
+  theme: AdminTheme;
 }) {
   const client = useMemo(
     () => new ConvexReactClient(project.convexUrl),
@@ -159,9 +238,38 @@ function ConfiguredAdminApp({
     [feedbackApi],
   );
 
+  const clientLifecycles = useRef(
+    new Map<
+      ConvexReactClient,
+      {
+        active: boolean;
+        closeTimer?: ReturnType<typeof setTimeout>;
+      }
+    >(),
+  );
+
   useEffect(() => {
+    // Convex's auth providers also perform cleanup when this runtime is
+    // removed. Defer closing the client until those passive cleanup effects
+    // have run; closing it synchronously here makes their clearAuth/query
+    // cleanup race a client that has already been marked closed.
+    const lifecycle = clientLifecycles.current.get(client) ?? {
+      active: false,
+    };
+    lifecycle.active = true;
+    if (lifecycle.closeTimer !== undefined) {
+      clearTimeout(lifecycle.closeTimer);
+      lifecycle.closeTimer = undefined;
+    }
+    clientLifecycles.current.set(client, lifecycle);
+
     return () => {
-      void client.close();
+      lifecycle.active = false;
+      lifecycle.closeTimer = setTimeout(() => {
+        if (lifecycle.active) return;
+        clientLifecycles.current.delete(client);
+        void client.close();
+      }, 0);
     };
   }, [client]);
 
@@ -169,7 +277,14 @@ function ConfiguredAdminApp({
     <AdminFeedbackHooksProvider hooks={feedbackHooks}>
       <RuntimeContextProvider value={contextValue}>
         <AdminAuthRuntime client={client} project={project}>
-          <RuntimeGate onManageProjects={onManageProjects} project={project} />
+          {showSetup ? (
+            <SetupRouteNavigator includeAdminRoutes theme={theme} />
+          ) : (
+            <RuntimeGate
+              onManageProjects={onManageProjects}
+              project={project}
+            />
+          )}
         </AdminAuthRuntime>
       </RuntimeContextProvider>
     </AdminFeedbackHooksProvider>
@@ -290,43 +405,7 @@ function AdminAccessCheck({
     );
   }
 
-  return (
-    <Stack
-      screenOptions={{
-        headerShadowVisible: false,
-        headerTintColor: theme.text,
-        headerTitleStyle: { color: theme.text },
-        contentStyle: { backgroundColor: theme.background },
-      }}
-    >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="feedback/[entryId]/index"
-        options={modalScreenOptions("Feedback", theme)}
-      />
-      <Stack.Screen
-        name="feedback/new"
-        options={modalScreenOptions("New feedback", theme)}
-      />
-      <Stack.Screen
-        name="feedback/[entryId]/edit"
-        options={modalScreenOptions("Edit feedback", theme)}
-      />
-      <Stack.Screen
-        name="roadmap/new"
-        options={modalScreenOptions("New roadmap item", theme)}
-      />
-      <Stack.Screen
-        name="roadmap/[roadmapId]/index"
-        options={modalScreenOptions("Roadmap item", theme)}
-      />
-      <Stack.Screen
-        name="roadmap/[roadmapId]/edit"
-        options={modalScreenOptions("Edit roadmap item", theme)}
-      />
-    </Stack>
-  );
+  return <SetupRouteNavigator includeAdminRoutes theme={theme} />;
 }
 
 interface ProjectManagerScreenProps {

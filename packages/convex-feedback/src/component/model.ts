@@ -26,6 +26,18 @@ export const entrySortValidator = v.union(
   v.literal("newest"),
 );
 
+export const entryPriorityValidator = v.union(
+  v.literal("low"),
+  v.literal("medium"),
+  v.literal("high"),
+);
+
+export const roadmapStatusValidator = v.union(
+  v.literal("planned"),
+  v.literal("in_progress"),
+  v.literal("shipped"),
+);
+
 export const commentSortValidator = v.union(
   v.literal("top"),
   v.literal("newest"),
@@ -34,7 +46,34 @@ export const commentSortValidator = v.union(
 
 export const actorValidator = v.object({
   id: v.string(),
-  isModerator: v.boolean(),
+  isAdmin: v.optional(v.boolean()),
+  /** @deprecated Use `isAdmin`. */
+  isModerator: v.optional(v.boolean()),
+});
+
+/**
+ * Resolves the current admin flag while keeping the pre-`isAdmin` actor shape
+ * working for existing hosts. The new field wins when both are present.
+ */
+export function actorIsAdmin(actor: {
+  isAdmin?: boolean;
+  isModerator?: boolean;
+}): boolean {
+  return actor.isAdmin === undefined
+    ? actor.isModerator === true
+    : actor.isAdmin === true;
+}
+
+export const roadmapItemValidator = v.object({
+  id: v.string(),
+  creationTime: v.number(),
+  title: v.string(),
+  description: v.optional(v.string()),
+  status: roadmapStatusValidator,
+  position: v.number(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  feedbackCount: v.number(),
 });
 
 export const feedbackMetadataValueValidator = v.union(
@@ -65,6 +104,8 @@ export const publicEntryValidator = v.object({
   commentCount: v.number(),
   updatedAt: v.optional(v.number()),
   viewerHasUpvoted: v.boolean(),
+  /** Whether the current viewer is the actor who created this entry. */
+  viewerIsAuthor: v.optional(v.boolean()),
   metadata: v.optional(feedbackMetadataValidator),
 });
 
@@ -83,10 +124,113 @@ export const publicCommentValidator = v.object({
   viewerHasLiked: v.boolean(),
 });
 
+/**
+ * Entry activity returned by actor-scoped queries.
+ *
+ * Unlike the ordinary public entry shape, activity entries do not contain
+ * viewer-relative reaction state. The actor is already the subject of the
+ * query.
+ */
+export const activityEntryValidator = v.object({
+  id: v.string(),
+  creationTime: v.number(),
+  actorId: v.string(),
+  kind: entryKindValidator,
+  status: entryStatusValidator,
+  title: v.string(),
+  body: v.string(),
+  upvoteCount: v.number(),
+  commentCount: v.number(),
+  updatedAt: v.optional(v.number()),
+});
+
+/**
+ * Component-level activity entry shape with retained diagnostic and triage
+ * context. The host wrapper deliberately strips these optional fields from
+ * its normal actor-facing API.
+ */
+export const activityEntryWithContextValidator = activityEntryValidator.extend({
+  metadata: v.optional(feedbackMetadataValidator),
+  priority: v.optional(entryPriorityValidator),
+  roadmap: v.optional(roadmapItemValidator),
+});
+
+/** Comment activity with the basic entry context needed by an activity UI. */
+export const activityCommentValidator = v.object({
+  id: v.string(),
+  creationTime: v.number(),
+  entryId: v.string(),
+  entryTitle: v.union(v.string(), v.null()),
+  parentCommentId: v.optional(v.string()),
+  actorId: v.string(),
+  depth: v.number(),
+  /** Retained body text is returned even after a soft delete when available. */
+  body: v.union(v.string(), v.null()),
+  likeCount: v.number(),
+  replyCount: v.number(),
+  updatedAt: v.optional(v.number()),
+  deletedAt: v.optional(v.number()),
+});
+
+/** Resolved target context for an entry-upvote activity record. */
+export const entryReactionTargetValidator = v.object({
+  id: v.string(),
+  title: v.string(),
+  kind: entryKindValidator,
+  status: entryStatusValidator,
+});
+
+/** Resolved target context for a comment-like activity record. */
+export const commentReactionTargetValidator = v.object({
+  id: v.string(),
+  body: v.union(v.string(), v.null()),
+  entryId: v.string(),
+  entryTitle: v.union(v.string(), v.null()),
+});
+
+/**
+ * A reaction activity record. Missing targets are represented by `null`
+ * context so one deleted/orphaned target cannot invalidate a whole page.
+ */
+export const feedbackReactionValidator = v.union(
+  v.object({
+    type: v.literal("entry_upvote"),
+    id: v.string(),
+    creationTime: v.number(),
+    entry: v.union(entryReactionTargetValidator, v.null()),
+  }),
+  v.object({
+    type: v.literal("comment_like"),
+    id: v.string(),
+    creationTime: v.number(),
+    comment: v.union(commentReactionTargetValidator, v.null()),
+  }),
+);
+
 export const similarEntriesValidator = v.object({
   exact: v.array(publicEntryValidator),
   similar: v.array(publicEntryValidator),
 });
+
+export const adminEntryValidator = publicEntryValidator.extend({
+  priority: v.optional(entryPriorityValidator),
+  roadmap: v.optional(roadmapItemValidator),
+  metadata: v.optional(feedbackMetadataValidator),
+});
+
+type InferredFeedbackActor = Infer<typeof actorValidator>;
+type InferredRoadmapItem = Infer<typeof roadmapItemValidator>;
+type InferredFeedbackMetadata = Infer<typeof feedbackMetadataValidator>;
+type InferredFeedbackEntry = Infer<typeof publicEntryValidator>;
+type InferredAdminFeedbackEntry = Infer<typeof adminEntryValidator>;
+type InferredFeedbackComment = Infer<typeof publicCommentValidator>;
+type InferredActivityEntry = Infer<typeof activityEntryValidator>;
+type InferredActivityEntryWithContext = Infer<
+  typeof activityEntryWithContextValidator
+>;
+type InferredActivityComment = Infer<typeof activityCommentValidator>;
+type InferredFeedbackReaction = Infer<typeof feedbackReactionValidator>;
+type InferredSimilarEntriesResult = Infer<typeof similarEntriesValidator>;
 
 /**
  * Category of feedback represented by an entry.
@@ -123,6 +267,42 @@ export function entryStatusFilterForStatus(
  */
 export type EntrySort = Infer<typeof entrySortValidator>;
 
+/** Internal triage priority visible only through the admin API. */
+export type EntryPriority = Infer<typeof entryPriorityValidator>;
+
+/** Workflow stage for an admin roadmap item. */
+export type RoadmapStatus = Infer<typeof roadmapStatusValidator>;
+
+/** Admin-managed roadmap item and its current attached-feedback count. */
+export interface RoadmapItem {
+  /** Public component document identifier. */
+  id: InferredRoadmapItem["id"];
+
+  /** Convex document creation timestamp in milliseconds since the Unix epoch. */
+  creationTime: InferredRoadmapItem["creationTime"];
+
+  /** Roadmap item title. */
+  title: InferredRoadmapItem["title"];
+
+  /** Optional roadmap item description. */
+  description?: InferredRoadmapItem["description"];
+
+  /** Current roadmap workflow stage. */
+  status: InferredRoadmapItem["status"];
+
+  /** Relative ordering position among roadmap items. */
+  position: InferredRoadmapItem["position"];
+
+  /** Millisecond timestamp at which the roadmap item was created. */
+  createdAt: InferredRoadmapItem["createdAt"];
+
+  /** Millisecond timestamp of the latest roadmap item update. */
+  updatedAt: InferredRoadmapItem["updatedAt"];
+
+  /** Number of feedback entries currently attached to the roadmap item. */
+  feedbackCount: InferredRoadmapItem["feedbackCount"];
+}
+
 /**
  * Server-side ordering strategy for comments and replies.
  *
@@ -138,17 +318,25 @@ export type CommentSort = Infer<typeof commentSortValidator>;
  *
  * The component does not access the host application's authentication system
  * directly. The host resolves its current user/session into this shape.
- *
- * @property id
- * Stable identifier for the actor. This can be a Clerk ID, Convex Auth ID,
- * application user ID, anonymous installation ID, or another stable
- * host-controlled identifier.
- *
- * @property isModerator
- * Whether the actor can perform moderator-only actions such as changing entry
- * status or modifying content they do not own.
  */
-export type FeedbackActor = Infer<typeof actorValidator>;
+export interface FeedbackActor {
+  /**
+   * Stable identifier for the actor. This can be a Clerk ID, Convex Auth ID,
+   * application user ID, anonymous installation ID, or another stable
+   * host-controlled identifier.
+   */
+  id: InferredFeedbackActor["id"];
+
+  /**
+   * Whether the actor can perform admin-only actions such as changing entry
+   * status or modifying content they do not own. When omitted, the deprecated
+   * `isModerator` field is used.
+   */
+  isAdmin?: InferredFeedbackActor["isAdmin"];
+
+  /** @deprecated Use `isAdmin`. */
+  isModerator?: InferredFeedbackActor["isModerator"];
+}
 
 /** Scalar value accepted in entry diagnostic metadata. */
 export type FeedbackMetadataValue = Infer<
@@ -156,53 +344,111 @@ export type FeedbackMetadataValue = Infer<
 >;
 
 /** Flat metadata values grouped by their source. */
-export type FeedbackMetadata = Infer<typeof feedbackMetadataValidator>;
+export interface FeedbackMetadata {
+  /** Standard diagnostic metadata collected by the component. */
+  standard?: InferredFeedbackMetadata["standard"];
 
-/**
- * Public representation of a feedback, feature-request, or bug-report entry.
- *
- * @property id
- * Public component document identifier.
- *
- * @property creationTime
- * Convex document creation timestamp in milliseconds since the Unix epoch.
- *
- * @property actorId
- * Stable identifier of the actor who created the entry.
- *
- * @property kind
- * Entry category.
- *
- * @property status
- * Current workflow status.
- *
- * @property title
- * User-provided entry title.
- *
- * @property body
- * User-provided entry description.
- *
- * @property upvoteCount
- * Denormalized number of actors currently upvoting this entry.
- *
- * @property commentCount
- * Denormalized total number of comments belonging to the entry, including
- * nested replies.
- *
- * @property updatedAt
- * Millisecond timestamp of the most recent content update. Absent when the
- * entry has never been edited.
- *
- * @property viewerHasUpvoted
- * Whether the actor associated with the current query has upvoted the entry.
- * `false` when no viewer actor is available.
- *
- * @property metadata
- * Creation-time diagnostic metadata. Present only when `getEntry` is queried
- * by a moderator. Ordinary entry lists, searches, and non-moderator reads omit
- * this property.
- */
-export type FeedbackEntry = Infer<typeof publicEntryValidator>;
+  /** Additional host-provided diagnostic metadata. */
+  additional?: InferredFeedbackMetadata["additional"];
+}
+
+/** Public representation of a feedback, feature-request, or bug-report entry. */
+export interface FeedbackEntry {
+  /** Public component document identifier. */
+  id: InferredFeedbackEntry["id"];
+
+  /** Convex document creation timestamp in milliseconds since the Unix epoch. */
+  creationTime: InferredFeedbackEntry["creationTime"];
+
+  /** Stable identifier of the actor who created the entry. */
+  actorId: InferredFeedbackEntry["actorId"];
+
+  /** Entry category. */
+  kind: InferredFeedbackEntry["kind"];
+
+  /** Current workflow status. */
+  status: InferredFeedbackEntry["status"];
+
+  /** User-provided entry title. */
+  title: InferredFeedbackEntry["title"];
+
+  /** User-provided entry description. */
+  body: InferredFeedbackEntry["body"];
+
+  /** Denormalized number of actors currently upvoting this entry. */
+  upvoteCount: InferredFeedbackEntry["upvoteCount"];
+
+  /** Denormalized total number of comments belonging to the entry, including nested replies. */
+  commentCount: InferredFeedbackEntry["commentCount"];
+
+  /** Millisecond timestamp of the most recent content update. Absent when the entry has never been edited. */
+  updatedAt?: InferredFeedbackEntry["updatedAt"];
+
+  /** Whether the actor associated with the current query has upvoted the entry. `false` when no viewer actor is available. */
+  viewerHasUpvoted: InferredFeedbackEntry["viewerHasUpvoted"];
+
+  /**
+   * Whether the actor associated with the current query created the entry.
+   * `false` when no viewer actor is available. This is optional for compatibility
+   * with hosts that have not yet redeployed the updated wrapper.
+   */
+  viewerIsAuthor?: InferredFeedbackEntry["viewerIsAuthor"];
+
+  /**
+   * Creation-time diagnostic metadata. Present only when `getEntry` is queried
+   * by an admin. Ordinary entry lists, searches, and non-admin reads omit this
+   * property.
+   */
+  metadata?: InferredFeedbackEntry["metadata"];
+}
+
+/** Feedback entry enriched with private triage metadata for admin clients. */
+export interface AdminFeedbackEntry {
+  /** Public component document identifier. */
+  id: InferredAdminFeedbackEntry["id"];
+
+  /** Convex document creation timestamp in milliseconds since the Unix epoch. */
+  creationTime: InferredAdminFeedbackEntry["creationTime"];
+
+  /** Stable identifier of the actor who created the entry. */
+  actorId: InferredAdminFeedbackEntry["actorId"];
+
+  /** Entry category. */
+  kind: InferredAdminFeedbackEntry["kind"];
+
+  /** Current workflow status. */
+  status: InferredAdminFeedbackEntry["status"];
+
+  /** User-provided entry title. */
+  title: InferredAdminFeedbackEntry["title"];
+
+  /** User-provided entry description. */
+  body: InferredAdminFeedbackEntry["body"];
+
+  /** Denormalized number of actors currently upvoting this entry. */
+  upvoteCount: InferredAdminFeedbackEntry["upvoteCount"];
+
+  /** Denormalized total number of comments belonging to the entry, including nested replies. */
+  commentCount: InferredAdminFeedbackEntry["commentCount"];
+
+  /** Millisecond timestamp of the most recent content update. Absent when the entry has never been edited. */
+  updatedAt?: InferredAdminFeedbackEntry["updatedAt"];
+
+  /** Whether the actor associated with the current query has upvoted the entry. `false` when no viewer actor is available. */
+  viewerHasUpvoted: InferredAdminFeedbackEntry["viewerHasUpvoted"];
+
+  /** Whether the actor associated with the current query created the entry. */
+  viewerIsAuthor?: InferredAdminFeedbackEntry["viewerIsAuthor"];
+
+  /** Creation-time diagnostic metadata returned to admin clients. */
+  metadata?: InferredAdminFeedbackEntry["metadata"];
+
+  /** Internal triage priority. */
+  priority?: InferredAdminFeedbackEntry["priority"];
+
+  /** Roadmap item attached to the entry, when one exists. */
+  roadmap?: InferredAdminFeedbackEntry["roadmap"];
+}
 
 /**
  * Public representation of a comment or reply.
@@ -210,47 +456,146 @@ export type FeedbackEntry = Infer<typeof publicEntryValidator>;
  * Comments are returned one level at a time. Child comments are not included
  * automatically; query them separately using the comment's `id` as
  * `parentCommentId`.
- *
- * @property id
- * Public component document identifier.
- *
- * @property creationTime
- * Convex document creation timestamp in milliseconds since the Unix epoch.
- *
- * @property entryId
- * Entry this comment belongs to.
- *
- * @property parentCommentId
- * Direct parent comment. Absent for top-level comments.
- *
- * @property actorId
- * Stable identifier of the actor who created the comment.
- *
- * @property depth
- * Zero-based nesting depth. Top-level comments have depth `0`.
- *
- * @property body
- * User-provided comment text. `null` when the comment was soft-deleted so
- * nested replies can retain their place in the conversation.
- *
- * @property likeCount
- * Denormalized number of actors currently liking this comment.
- *
- * @property replyCount
- * Number of direct child replies. Descendants below those direct children are
- * not included in this count.
- *
- * @property updatedAt
- * Millisecond timestamp of the latest edit, when the comment has been edited.
- *
- * @property deletedAt
- * Millisecond timestamp at which the comment was soft-deleted.
- *
- * @property viewerHasLiked
- * Whether the actor associated with the current query likes this comment.
- * `false` when no viewer actor is available.
  */
-export type FeedbackComment = Infer<typeof publicCommentValidator>;
+export interface FeedbackComment {
+  /** Public component document identifier. */
+  id: InferredFeedbackComment["id"];
+
+  /** Convex document creation timestamp in milliseconds since the Unix epoch. */
+  creationTime: InferredFeedbackComment["creationTime"];
+
+  /** Entry this comment belongs to. */
+  entryId: InferredFeedbackComment["entryId"];
+
+  /** Direct parent comment. Absent for top-level comments. */
+  parentCommentId?: InferredFeedbackComment["parentCommentId"];
+
+  /** Stable identifier of the actor who created the comment. */
+  actorId: InferredFeedbackComment["actorId"];
+
+  /** Zero-based nesting depth. Top-level comments have depth `0`. */
+  depth: InferredFeedbackComment["depth"];
+
+  /** User-provided comment text. `null` when the comment was soft-deleted so nested replies can retain their place in the conversation. */
+  body: InferredFeedbackComment["body"];
+
+  /** Denormalized number of actors currently liking this comment. */
+  likeCount: InferredFeedbackComment["likeCount"];
+
+  /** Number of direct child replies. Descendants below those direct children are not included in this count. */
+  replyCount: InferredFeedbackComment["replyCount"];
+
+  /** Millisecond timestamp of the latest edit, when the comment has been edited. */
+  updatedAt?: InferredFeedbackComment["updatedAt"];
+
+  /** Millisecond timestamp at which the comment was soft-deleted. */
+  deletedAt?: InferredFeedbackComment["deletedAt"];
+
+  /** Whether the actor associated with the current query likes this comment. `false` when no viewer actor is available. */
+  viewerHasLiked: InferredFeedbackComment["viewerHasLiked"];
+}
+
+/** Entry created by the actor used for an actor-scoped activity query. */
+export interface FeedbackActivityEntry {
+  /** Public component document identifier. */
+  id: InferredActivityEntry["id"];
+
+  /** Convex document creation timestamp in milliseconds since the Unix epoch. */
+  creationTime: InferredActivityEntry["creationTime"];
+
+  /** Stable identifier of the actor who created the entry. */
+  actorId: InferredActivityEntry["actorId"];
+
+  /** Entry category. */
+  kind: InferredActivityEntry["kind"];
+
+  /** Current workflow status. */
+  status: InferredActivityEntry["status"];
+
+  /** User-provided entry title. */
+  title: InferredActivityEntry["title"];
+
+  /** User-provided entry description. */
+  body: InferredActivityEntry["body"];
+
+  /** Denormalized number of actors currently upvoting this entry. */
+  upvoteCount: InferredActivityEntry["upvoteCount"];
+
+  /** Denormalized total number of comments belonging to the entry. */
+  commentCount: InferredActivityEntry["commentCount"];
+
+  /** Millisecond timestamp of the most recent content update. */
+  updatedAt?: InferredActivityEntry["updatedAt"];
+}
+
+/**
+ * Component-only activity entry shape with retained diagnostic and triage
+ * context. It is used by trusted server consumers, not the normal `listUser`
+ * wrappers.
+ */
+export interface FeedbackActivityEntryWithContext extends FeedbackActivityEntry {
+  metadata?: InferredActivityEntryWithContext["metadata"];
+  priority?: InferredActivityEntryWithContext["priority"];
+  roadmap?: InferredActivityEntryWithContext["roadmap"];
+}
+
+/** Comment created by the actor used for an actor-scoped activity query. */
+export interface FeedbackActivityComment {
+  /** Public component document identifier. */
+  id: InferredActivityComment["id"];
+
+  /** Convex document creation timestamp in milliseconds since the Unix epoch. */
+  creationTime: InferredActivityComment["creationTime"];
+
+  /** Entry this comment belongs to. */
+  entryId: InferredActivityComment["entryId"];
+
+  /** Current entry title, or `null` if the parent entry is no longer stored. */
+  entryTitle: InferredActivityComment["entryTitle"];
+
+  /** Direct parent comment. Absent for top-level comments. */
+  parentCommentId?: InferredActivityComment["parentCommentId"];
+
+  /** Stable identifier of the actor who created the comment. */
+  actorId: InferredActivityComment["actorId"];
+
+  /** Zero-based nesting depth. */
+  depth: InferredActivityComment["depth"];
+
+  /** Retained body text, including soft-deleted text when it remains stored. */
+  body: InferredActivityComment["body"];
+
+  /** Denormalized number of actors currently liking this comment. */
+  likeCount: InferredActivityComment["likeCount"];
+
+  /** Number of direct child replies. */
+  replyCount: InferredActivityComment["replyCount"];
+
+  /** Millisecond timestamp of the latest edit, when edited. */
+  updatedAt?: InferredActivityComment["updatedAt"];
+
+  /** Millisecond timestamp at which the comment was soft-deleted. */
+  deletedAt?: InferredActivityComment["deletedAt"];
+}
+
+/** Resolved entry context for an entry-upvote activity record. */
+export interface FeedbackEntryReactionTarget {
+  id: InferredActivityEntry["id"];
+  title: string;
+  kind: EntryKind;
+  status: EntryStatus;
+}
+
+/** Resolved comment context for a comment-like activity record. */
+export interface FeedbackCommentReactionTarget {
+  id: InferredActivityComment["id"];
+  body: string | null;
+  entryId: InferredActivityComment["entryId"];
+  entryTitle: string | null;
+}
+
+/** A reaction created by the actor used for an actor-scoped activity query. */
+export type FeedbackReaction = InferredFeedbackReaction;
 
 /**
  * Duplicate-detection result for a proposed entry.
@@ -267,12 +612,11 @@ export type FeedbackComment = Infer<typeof publicCommentValidator>;
  * - 0 exact matches → `0 exact + at most 3 similar`
  *
  * An entry returned in `exact` is never repeated in `similar`.
- *
- * @property exact
- * Entries whose normalized title exactly matches the proposed title.
- *
- * @property similar
- * Full-text matches ordered by search relevance after exact matches have been
- * removed.
  */
-export type SimilarEntriesResult = Infer<typeof similarEntriesValidator>;
+export interface SimilarEntriesResult {
+  /** Entries whose normalized title exactly matches the proposed title. */
+  exact: InferredSimilarEntriesResult["exact"];
+
+  /** Full-text matches ordered by search relevance after exact matches have been removed. */
+  similar: InferredSimilarEntriesResult["similar"];
+}

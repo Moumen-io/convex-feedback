@@ -13,12 +13,16 @@ import {
   assertActorId,
   normalizeRequiredText,
   normalizeTitle,
+  serializeActivityEntry,
   serializeEntry,
   validateFeedbackMetadata,
 } from "./helpers.js";
 import {
+  activityEntryWithContextValidator,
   actorValidator,
+  actorIsAdmin,
   entryKindValidator,
+  entryPriorityValidator,
   entrySortValidator,
   entryStatusFilterForStatus,
   entryStatusFilterValidator,
@@ -272,11 +276,48 @@ export const list = query({
   },
 });
 
+/**
+ * List entries created by a known actor. This component-level query remains
+ * actor-parameterized so trusted host/server consumers can use it without a
+ * request authentication context.
+ *
+ * `includeAdminContext` is intentionally unavailable on the host-facing
+ * `listUserEntries` wrapper. Trusted server consumers such as exports may opt
+ * into retained metadata and triage context when needed.
+ */
+export const listByActor = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    actorId: v.string(),
+    includeAdminContext: v.optional(v.boolean()),
+  },
+  returns: paginationResultValidator(activityEntryWithContextValidator),
+  handler: async (ctx, args) => {
+    assertActorId(args.actorId);
+
+    const db = paginator(ctx.db, schema);
+    const result = await db
+      .query("entries")
+      .withIndex("by_actor", (q) => q.eq("actorId", args.actorId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    return {
+      ...result,
+      page: await Promise.all(
+        result.page.map((entry) =>
+          serializeActivityEntry(ctx, entry, args.includeAdminContext === true),
+        ),
+      ),
+    };
+  },
+});
+
 export const get = query({
   args: {
     entryId: v.id("entries"),
     viewerActorId: v.optional(v.string()),
-    viewerIsModerator: v.optional(v.boolean()),
+    viewerIsAdmin: v.optional(v.boolean()),
   },
   returns: v.union(publicEntryValidator, v.null()),
   handler: async (ctx, args) => {
@@ -287,7 +328,7 @@ export const get = query({
           ctx,
           entry,
           args.viewerActorId,
-          args.viewerIsModerator === true,
+          args.viewerIsAdmin === true,
         );
   },
 });
@@ -607,6 +648,7 @@ export const update = mutation({
   args: {
     actor: actorValidator,
     entryId: v.id("entries"),
+    kind: v.optional(entryKindValidator),
     title: v.string(),
     body: v.string(),
     editableByAuthor: v.boolean(),
@@ -620,9 +662,14 @@ export const update = mutation({
     if (entry === null) throw new ConvexError("Entry not found.");
 
     const canEdit =
-      args.actor.isModerator ||
+      actorIsAdmin(args.actor) ||
       (args.editableByAuthor && entry.actorId === args.actor.id);
     if (!canEdit) throw new ConvexError("Not authorized to edit this entry.");
+    if (args.kind !== undefined && args.kind !== entry.kind) {
+      if (!actorIsAdmin(args.actor)) {
+        throw new ConvexError("Admin access is required to change entry kind.");
+      }
+    }
 
     const title = normalizeRequiredText(
       args.title,
@@ -632,6 +679,7 @@ export const update = mutation({
     const body = normalizeRequiredText(args.body, "Body", args.maxBodyLength);
 
     await ctx.db.patch("entries", args.entryId, {
+      kind: args.kind ?? entry.kind,
       title,
       body,
       normalizedTitle: normalizeTitle(title),
@@ -639,6 +687,36 @@ export const update = mutation({
       statusFilter: entryStatusFilterForStatus(entry.status),
       updatedAt: Date.now(),
     });
+    return null;
+  },
+});
+
+export const remove = mutation({
+  args: {
+    actor: actorValidator,
+    entryId: v.id("entries"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    assertActorId(args.actor.id);
+    if (!actorIsAdmin(args.actor)) {
+      throw new ConvexError("Admin access is required to delete an entry.");
+    }
+
+    const entry = await ctx.db.get("entries", args.entryId);
+    if (entry === null) return null;
+
+    if (entry.roadmapId !== undefined) {
+      const roadmap = await ctx.db.get("roadmap", entry.roadmapId);
+      if (roadmap !== null) {
+        await ctx.db.patch("roadmap", roadmap._id, {
+          feedbackCount: Math.max(0, roadmap.feedbackCount - 1),
+          updatedAt: Date.now(),
+        });
+      }
+    }
+
+    await ctx.db.delete("entries", args.entryId);
     return null;
   },
 });
@@ -651,8 +729,8 @@ export const setStatus = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!args.actor.isModerator) {
-      throw new ConvexError("Moderator access is required to change status.");
+    if (!actorIsAdmin(args.actor)) {
+      throw new ConvexError("Admin access is required to change status.");
     }
     if ((await ctx.db.get("entries", args.entryId)) === null) {
       throw new ConvexError("Entry not found.");
@@ -660,6 +738,28 @@ export const setStatus = mutation({
     await ctx.db.patch("entries", args.entryId, {
       status: args.status,
       statusFilter: entryStatusFilterForStatus(args.status),
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+export const setPriority = mutation({
+  args: {
+    actor: actorValidator,
+    entryId: v.id("entries"),
+    priority: v.union(entryPriorityValidator, v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (!actorIsAdmin(args.actor)) {
+      throw new ConvexError("Admin access is required to change priority.");
+    }
+    if ((await ctx.db.get("entries", args.entryId)) === null) {
+      throw new ConvexError("Entry not found.");
+    }
+    await ctx.db.patch("entries", args.entryId, {
+      priority: args.priority === null ? undefined : args.priority,
       updatedAt: Date.now(),
     });
     return null;

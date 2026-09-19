@@ -2,7 +2,10 @@ import { ActivityIndicator, Text } from "react-native";
 
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider.js";
-import { createEntryLabel } from "../../../shared/helpers.js";
+import {
+  allowAuthenticatedAction,
+  createEntryLabel,
+} from "../../../shared/helpers.js";
 import type { FeedbackScreenListProps } from "../../../shared/types/index.js";
 import { Button } from "./Button.js";
 import { EntryCard } from "./EntryCard.js";
@@ -12,21 +15,24 @@ import { FeedbackBoard } from "./primitives.js";
 export function FeedbackScreenList({
   hideBackButton = false,
   showSelectedEntry = true,
+  hideEditButton = false,
   onEntryOpen,
   onCreateEntry,
 }: FeedbackScreenListProps) {
   const {
     hooks,
     entrySort,
-    isSearching,
     enabledKinds,
     statusFilter,
     selectedEntryId,
+    query,
     debouncedQuery,
     setSelectedEntryId,
     setShowForm,
     emptyState,
     loading: loadingIndicator,
+    isAuthenticated,
+    onUnauthenticated,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
 
@@ -41,11 +47,18 @@ export function FeedbackScreenList({
     statusFilter,
   });
 
-  const entries = isSearching ? search : list.results;
-  const createEntry = onCreateEntry ?? (() => setShowForm(true));
+  const normalizedQuery = query.trim();
+  const normalizedDebouncedQuery = debouncedQuery.trim();
+  const searching = normalizedQuery.length > 0;
+  const entries = searching ? search : list.results;
+  const createEntry = () => {
+    if (allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) {
+      (onCreateEntry ?? (() => setShowForm(true)))();
+    }
+  };
 
-  const loading = isSearching
-    ? search === undefined
+  const loading = searching
+    ? normalizedQuery !== normalizedDebouncedQuery || search === undefined
     : list.status === "LoadingFirstPage";
 
   return (
@@ -55,6 +68,7 @@ export function FeedbackScreenList({
           <EntryDetail
             entryId={selectedEntryId}
             hideBackButton={hideBackButton}
+            hideEditButton={hideEditButton}
             onBack={() => setSelectedEntryId(null)}
           />
         </FeedbackBoard.List>
@@ -68,7 +82,7 @@ export function FeedbackScreenList({
         <FeedbackBoard.State>
           {emptyState}
           <Text style={{ color: theme.colors.mutedText, textAlign: "center" }}>
-            {isSearching
+            {searching
               ? messages.board.noSearchResults
               : messages.board.noEntries}
           </Text>
@@ -76,6 +90,7 @@ export function FeedbackScreenList({
             label={createEntryLabel(enabledKinds, messages)}
             onPress={createEntry}
             variant="primary"
+            disabled={isAuthenticated === undefined}
           />
         </FeedbackBoard.State>
       ) : (
@@ -91,12 +106,14 @@ export function FeedbackScreenList({
         </FeedbackBoard.List>
       )}
 
-      {!isSearching && list.status === "CanLoadMore" && (
-        <Button
-          label={messages.board.loadMore}
-          onPress={() => list.loadMore(hooks.pageSizes.entries)}
-        />
-      )}
+      {!searching &&
+        (list.status === "CanLoadMore" || list.status === "LoadingMore") && (
+          <Button
+            label={messages.board.loadMore}
+            disabled={list.status === "LoadingMore"}
+            onPress={() => list.loadMore(hooks.pageSizes.entries)}
+          />
+        )}
     </>
   );
 }

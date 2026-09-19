@@ -2,9 +2,10 @@
 
 This directory is the isolated Convex component backend.
 
-- `schema.ts`: three tables and query-driven indexes.
-- `entries.ts`: entry CRUD, full-text search, duplicate suggestions, entry voting, indexed pagination.
-- `comments.ts`: direct-child pagination, recursive write validation, soft deletion, comment likes.
+- `schema.ts`: four tables and query-driven indexes.
+- `entries.ts`: entry CRUD, full-text search, duplicate suggestions, entry voting, indexed pagination, and actor activity pagination.
+- `comments.ts`: direct-child pagination, recursive write validation, soft deletion, comment likes, and actor activity pagination.
+- `reactions.ts`: actor activity pagination with best-effort entry/comment target resolution.
 - `migrations.ts`: bounded, idempotent legacy-entry backfills.
 - `crons.ts`: immediate upgrade migration and temporary 30-day self-healing schedule.
 - `model.ts`: reusable validators and public model types.
@@ -13,3 +14,9 @@ This directory is the isolated Convex component backend.
 - `_generated/`: generated component API/server/data-model types. Regenerate after backend changes.
 
 Important: component public functions become internal references when installed by a host app. The host must wrap them before exposing them to clients. Component IDs become strings at that boundary.
+
+Actor activity component queries accept a trusted `actorId` and use the
+`by_actor` indexes. `entries.listByActor` can additionally receive
+`includeAdminContext: true` for server-side consumers that need retained
+metadata, priority, or roadmap context. The host `listUser*` wrappers resolve
+the actor from the host callback and expose only their public activity shapes.

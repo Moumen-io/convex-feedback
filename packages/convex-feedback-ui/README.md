@@ -1,4 +1,4 @@
-[![npm version](https://badge.fury.io/js/convex-feedback-ui.svg)](https://badge.fury.io/js/convex-feedback-ui) [![Convex Component](https://www.convex.dev/components/badge/convex-feedback)](https://www.convex.dev/components/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback-ui) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback-ui) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
+![npm version](https://badge.fury.io/js/convex-feedback-ui.svg) ![Convex Component](https://www.convex.dev/components/badge/convex-feedback) ![NPM License](https://img.shields.io/npm/l/convex-feedback-ui) ![NPM Downloads](https://img.shields.io/npm/dw/convex-feedback-ui) ![GitHub forks](https://img.shields.io/github/forks/moumen-io/convex-feedback) ![GitHub Repo stars](https://img.shields.io/github/stars/moumen-io/convex-feedback)
 
 [Vite demo](https://convex-feedback-vite.vercel.app/) • [Expo demo](https://convex-feedback-expo.vercel.app/) • [React Native demo](https://convex-feedback-native.vercel.app/)
 
@@ -9,6 +9,8 @@
 | ![Expo](https://raw.githubusercontent.com/Moumen-io/convex-feedback/main/docs/screenshots/expo.png) | ![React Native](https://raw.githubusercontent.com/Moumen-io/convex-feedback/main/docs/screenshots/native.png) |
 
 Optional React DOM, React Native, and Expo Router UI for `convex-feedback`.
+
+This package provides the public feedback and roadmap experience. Internal priority and roadmap management live in the forkable [Clerk admin panel](../../apps/admin/withClerk/README.md), which uses the headless hooks directly.
 
 The package is intentionally layered:
 
@@ -34,6 +36,22 @@ import "convex-feedback-ui/styles.css";
 <FeedbackScreen hooks={feedbackHooks} />;
 ```
 
+Use `RoadmapScreen` for the public roadmap and its attached feedback entries:
+
+```tsx
+import { RoadmapScreen } from "convex-feedback-ui";
+
+<RoadmapScreen
+  hooks={feedbackHooks}
+  onEntryOpen={(entryId) => navigate(`/feedback/${entryId}`)}
+  onUnauthenticated={() => openSignIn()}
+/>;
+```
+
+Roadmap browsing and attached-entry reads work without authentication. The
+`onUnauthenticated` callback is used for create, vote, like, and comment
+actions in the prebuilt screens; the host decides how to present sign-in.
+
 The default stylesheet:
 
 - has no Tailwind dependency;
@@ -43,6 +61,11 @@ The default stylesheet:
 - allows normal host CSS, Tailwind, or CSS-module classes to override defaults;
 - can be omitted entirely if you want to provide your own styling.
 
+On entry detail, the prebuilt feedback screens show an Edit action only when the server identifies the current viewer as the entry author. The form edits the title and details; entry type remains admin-controlled. The backend rechecks authorship when the update mutation runs, so hiding the action is
+only a presentation convenience and is not the authorization boundary. Stack-enabled Expo screens place this action in the native right toolbar; non-stacked native screens keep it alongside the entry details.
+
+In stack mode, opening the action pushes a native form-sheet editor on iOS (and a modal stack screen on Android) with cancel and save controls in the top toolbar. Edit-screen copy is configurable through `messages.form`.
+
 Key colors can be overridden directly:
 
 ```tsx
@@ -51,6 +74,7 @@ Key colors can be overridden directly:
   primaryColor="#6d5efc"
   backgroundColor="#0d0d10"
   surfaceColor="#17171b"
+  inputColor="#1f1f25"
   textColor="#ffffff"
   mutedColor="#a0a0aa"
   borderColor="#2d2d34"
@@ -73,12 +97,15 @@ import { FeedbackScreen } from "convex-feedback-ui/native";
       primary: "#6d5efc",
       background: "#ffffff",
       surface: "#ffffff",
+      input: "#f7f7fa",
     },
   }}
 />;
 ```
 
 The native `FeedbackScreen` includes the feedback UI using React Native components.
+
+The native roadmap exports also include the reusable `RoadmapBoard` and `RoadmapScreenContent`. Their `topInset` defaults to `0`, while `bottomInset` defaults to the bottom safe-area inset. These props describe space occupied by host navigation chrome: an explicit `bottomInset` is the total space, including the safe area, and replaces the default even when set to `0`. NativeTabs normally bounds content above its tab bar, so it should be left unset there.
 
 ## Expo Router
 
@@ -94,6 +121,7 @@ import { FeedbackScreen } from "convex-feedback-ui/expo";
       primary: "#6d5efc",
       background: "#ffffff",
       surface: "#ffffff",
+      input: "#f7f7fa",
     },
   }}
 />;
@@ -141,10 +169,18 @@ its text label:
   hooks={feedbackHooks}
   androidToolbarIcons={{
     create: require("./assets/add.png"),
+    edit: require("./assets/edit.png"),
+    save: require("./assets/check.png"),
     back: require("./assets/back.png"),
   }}
 />
 ```
+
+### Roadmap stack insets
+
+The stack-enabled Expo `RoadmapScreen` and routed `RoadmapStackLayout` use a transparent native header by default. The board automatically reserves the measured native-stack header height; if that context is unavailable, the fallback is 44 points on iOS or 56 points on Android, plus the top safe-area inset. If `headerTransparent` is `false`, the native stack already places the board below the header and the automatic top inset is `0`. Set `topInset` to override that space, including with `0`.
+
+The routed and stack-enabled roadmap also renders its native bottom search toolbar on iOS 26 and newer and includes its standard 44-point height in the default `bottomInset`. Android and older iOS versions do not receive an empty toolbar. If your host draws a toolbar or tab bar over the screen, pass `bottomInset` as the total occupied height, including the safe area; an explicit value replaces the automatic default, including `0`. NativeTabs content is already bounded above the tab bar, so omit `bottomInset` there.
 
 ### Using the Expo screen without stack integration
 
@@ -170,11 +206,12 @@ small route files while the package supplies their layouts and screens:
 app/feedback/
 ├── _layout.tsx
 ├── index.tsx
-├── [entryId].tsx
+├── [entryId]/
+│   ├── index.tsx
+│   └── edit.tsx
 └── new/
     ├── _layout.tsx
-    ├── index.tsx
-    └── [entryId].tsx
+    └── index.tsx
 ```
 
 The layout owns the feedback providers and keeps them mounted across the board,
@@ -196,6 +233,8 @@ export default function Layout() {
       hooks={feedbackHooks}
       androidToolbarIcons={{
         create: require("../../assets/add.png"),
+        edit: require("../../assets/edit.png"),
+        save: require("../../assets/check.png"),
         back: require("../../assets/back.png"),
         close: require("../../assets/close.png"),
       }}
@@ -214,8 +253,11 @@ Each page file only needs to re-export its package screen:
 // app/feedback/index.tsx
 export { FeedbackBoardScreen as default } from "convex-feedback-ui/expo";
 
-// app/feedback/[entryId].tsx
+// app/feedback/[entryId]/index.tsx
 export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
+
+// app/feedback/[entryId]/edit.tsx
+export { FeedbackEditScreen as default } from "convex-feedback-ui/expo";
 
 // app/feedback/new/_layout.tsx
 import {
@@ -228,9 +270,6 @@ export default FeedbackCreateStackLayout;
 
 // app/feedback/new/index.tsx
 export { CreateFeedbackScreen as default } from "convex-feedback-ui/expo";
-
-// app/feedback/new/[entryId].tsx
-export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
 ```
 
 `FeedbackStackLayout` uses these route names by default:
@@ -238,19 +277,18 @@ export { FeedbackEntryScreen as default } from "convex-feedback-ui/expo";
 ```ts
 {
   board: "index",
-  entry: "[entryId]",
+  entry: "[entryId]/index",
+  edit: "[entryId]/edit",
   create: "new",
 }
 ```
 
 Names can be partially overridden when the files use a different structure.
-The create name identifies its nested route directory, and the entry route must
-exist both beside that directory and inside it while retaining the `[entryId]`
-dynamic segment:
 
 ```tsx
 const routes = {
   entry: "entry/[entryId]",
+  edit: "entry/[entryId]/edit",
   create: "create",
 };
 
@@ -261,14 +299,53 @@ export default function Layout() {
 }
 ```
 
-The board's search and loaded list remain mounted when another screen is
-pushed, so returning restores the prior query and scroll position. The create
-route is a modal navigator by default. Duplicate suggestions push the normal
-detail screen inside that modal's stack, with back and close controls. After
-creation, the complete modal is dismissed and the created entry replaces it on
-the board stack.
+The board's search and loaded list remain mounted when another screen is pushed, so returning restores the prior query and scroll position. The create route is a modal navigator by default. Duplicate suggestions push the main entry-detail route, with the create modal remaining available behind it. After creation, the complete modal is dismissed and the created entry replaces it on the board stack.
 
 See `packages/example-expo-routed` for a complete application.
+
+### Routed public roadmap
+
+The public roadmap has a matching routed Expo API. Create a board and item
+page under your app's route directory:
+
+```text
+app/roadmap/
+├── _layout.tsx
+├── index.tsx
+└── [roadmapId].tsx
+```
+
+```tsx
+// app/roadmap/_layout.tsx
+import {
+  RoadmapStackLayout,
+  roadmapStackSettings,
+} from "convex-feedback-ui/expo";
+import { feedbackHooks } from "../../feedback";
+
+export const unstable_settings = roadmapStackSettings;
+
+export default function Layout() {
+  return <RoadmapStackLayout hooks={feedbackHooks} />;
+}
+
+// app/roadmap/index.tsx
+export { RoadmapBoardScreen as default } from "convex-feedback-ui/expo";
+
+// app/roadmap/[roadmapId].tsx
+export { RoadmapItemScreen as default } from "convex-feedback-ui/expo";
+```
+
+Use `onEntryOpen` on `RoadmapStackLayout` when attached feedback should push
+the host application's routed feedback detail page. The roadmap item page
+uses the existing entry-card and entry-detail implementations when no host
+entry route is supplied. The board title and search field are rendered by the
+Expo Router Stack, and `RoadmapBoard` is exported from the native entry points
+for sharing the admin-style stage layout with custom cards.
+
+On this routed stack, `topInset` and `bottomInset` can be supplied on
+`RoadmapStackLayout` to replace the automatic header and bottom-toolbar
+spacing.
 
 ## Diagnostic metadata
 
@@ -309,13 +386,12 @@ Or combine global defaults with per-kind behavior:
 - A kind set to `false` disables all metadata collection for that kind.
 - Collection happens only when the user finally submits.
 - Unavailable or failed collection sources are omitted without blocking feedback submission.
-
 - Web defaults include `platform`, `user agent`, `language`, `timezone`, `screen` and `viewport` dimensions, and `device pixel ratio`.
 - React Native defaults include `platform`, `OS` version, available device model, screen `dimensions`, `pixel ratio`, and `font scale`.
 - The Expo entry point additionally uses `expo-constants` for app `version`, `build` number, `application ID`, `Expo runtime version`, and execution `environment` when available.
 - Generic React Native apps can provide app `version` and `build` values through `additional`.
 
-Metadata is stored in separate `standard` and `additional` sections. It is omitted from list and search results and from non-moderator reads. When the host's server-side actor resolver identifies a moderator, `getEntry` includes the metadata and the entry detail screen shows a metadata viewer.
+Metadata is stored in separate `standard` and `additional` sections. It is omitted from list and search results and from non-admin reads. When the host's server-side actor resolver identifies an admin, `getEntry` includes the metadata and the entry detail screen shows a metadata viewer.
 
 The platform collectors and `formatMetadataKey` helper are exported from their respective package entry points for custom integrations.
 

@@ -1,31 +1,38 @@
 {
   "name": "convex-feedback-monorepo",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A type-safe Convex feedback component and cross-platform React UI primitives.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/Moumen-io/convex-feedback.git"
   },
+  "packageManager": "npm@11.19.1",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*",
+    "apps/admin/withClerk/*",
+    "apps/admin/universal"
   ],
   "scripts": {
     "build:packages": "npm run build -w convex-feedback && npm run build -w convex-feedback-ui",
     "build:ui": "npm run build -w convex-feedback-ui",
+    "build:admin": "npm run build -w convex-feedback-admin-auth && npm run build -w convex-feedback-admin-app-screens",
     "build:examples": "npm run build -w convex-feedback-example-web && npm run build -w convex-feedback-example-native && npm run build -w convex-feedback-example-expo && npm run build -w convex-feedback-example-expo-routed",
     "build": "npm run build:packages && npm run build:examples",
     "codegen:component": "npm run codegen -w convex-feedback",
     "codegen:example": "npm run codegen -w convex-feedback-example-backend",
     "codegen": "npm run codegen:component && npm run build -w convex-feedback && npm run codegen:example",
-    "lint": "npm run lint -w convex-feedback && npm run lint -w convex-feedback-ui",
+    "lint:admin": "npm run build:admin && npm run lint -w convex-feedback-admin-auth && npm run lint -w convex-feedback-admin-app-screens && npm run lint -w convex-feedback-admin-universal && npm run lint -w convex-feedback-admin-native && npm run lint -w convex-feedback-admin-web",
+    "lint": "npm run lint -w convex-feedback && npm run lint -w convex-feedback-ui && npm run lint:admin",
     "test": "npm run test -w convex-feedback && npm run test -w convex-feedback-ui",
+    "test:apps": "npm run build:admin && npm run test -w convex-feedback-admin-auth && npm run test -w convex-feedback-admin-universal && npm run build -w convex-feedback-admin-web && npm run typecheck -w convex-feedback-admin-native && npm run validate -w convex-feedback-admin-universal",
     "typecheck": "npm run typecheck -w convex-feedback && npm run typecheck -w convex-feedback-ui",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "test:all": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run build",
+    "test:all": "npm run typecheck && npm run lint && npm run test && npm run test:apps && npm run format:check && npm run build",
     "dev:web": "npm run dev -w convex-feedback-example-web",
     "dev:ios": "npm run dev:ios -w convex-feedback-example-expo",
     "dev:ios:routed": "npm run dev:ios -w convex-feedback-example-expo-routed",

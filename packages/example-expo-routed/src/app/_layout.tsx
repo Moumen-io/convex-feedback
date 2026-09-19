@@ -91,6 +91,7 @@ export default function RootLayout() {
           <Stack>
             <Stack.Screen name="index" options={{ title: "Examples" }} />
             <Stack.Screen name="feedback" options={{ headerShown: false }} />
+            <Stack.Screen name="roadmap" options={{ headerShown: false }} />
           </Stack>
         </SafeAreaProvider>
       </AnonymousSession>

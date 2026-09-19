@@ -72,6 +72,9 @@ export interface FeedbackColorProps {
   /** Card and control surface color. */
   surfaceColor?: string;
 
+  /** Input field background color. */
+  inputColor?: string;
+
   /** Primary text color. */
   textColor?: string;
 

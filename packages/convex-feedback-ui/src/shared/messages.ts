@@ -12,6 +12,23 @@ export const englishFeedbackMessages: FeedbackMessages = {
     loading: "Loading…",
     loadMore: "Load more",
   },
+  roadmap: {
+    title: "Roadmap",
+    subtitle: "See what is planned, in progress, and shipped.",
+    searchPlaceholder: "Search roadmap…",
+    statuses: {
+      planned: "Planned",
+      in_progress: "In progress",
+      shipped: "Shipped",
+    },
+    linkedEntries: (count) =>
+      `${count} ${count === 1 ? "feedback item" : "feedback items"}`,
+    emptyStage: "Nothing here yet.",
+    noItems: "No roadmap items yet.",
+    noSearchResults: "No matching roadmap items found.",
+    attachedFeedback: "Feedback",
+    noAttachedFeedback: "No feedback yet.",
+  },
   kinds: {
     feedback: "Feedback",
     feature_request: "Feature request",
@@ -40,6 +57,7 @@ export const englishFeedbackMessages: FeedbackMessages = {
     removeUpvote: "Remove upvote",
     comments: (count) => `${count} ${count === 1 ? "comment" : "comments"}`,
     open: "Open",
+    edit: "Edit",
     back: "Go back",
   },
   metadata: {
@@ -57,6 +75,12 @@ export const englishFeedbackMessages: FeedbackMessages = {
     body: "Details",
     bodyPlaceholder: "Tell us more…",
     submit: "Submit feedback",
+    editTitle: "Edit feedback",
+    editDescription: "Update the details of your feedback.",
+    saveChanges: "Save changes",
+    editError: "Could not update feedback",
+    editNotFound: "This feedback could not be found.",
+    retry: "Retry",
     cancel: "Cancel",
     possibleDuplicates: "Possible existing feedback",
     exactDuplicate: "This may already exist",
@@ -86,6 +110,14 @@ export function mergeFeedbackMessages(
 ): FeedbackMessages {
   return {
     board: { ...englishFeedbackMessages.board, ...overrides.board },
+    roadmap: {
+      ...englishFeedbackMessages.roadmap,
+      ...overrides.roadmap,
+      statuses: {
+        ...englishFeedbackMessages.roadmap.statuses,
+        ...overrides.roadmap?.statuses,
+      },
+    },
     kinds: {
       ...englishFeedbackMessages.kinds,
       ...overrides.kinds,

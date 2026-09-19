@@ -42,7 +42,7 @@ export interface FeedbackEntriesConfig {
   /**
    * Whether entry authors may edit their own title and body.
    *
-   * Moderators are governed separately by the resolved actor permissions.
+   * Admins are governed separately by the resolved actor permissions.
    *
    * @default true
    */

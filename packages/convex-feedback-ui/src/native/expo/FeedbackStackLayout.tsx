@@ -1,4 +1,5 @@
 import { Stack, type NativeStackNavigationOptions } from "expo-router";
+import { Platform } from "react-native";
 
 import { FeedbackBodyProvider } from "../../shared/context/FeedbackBodyProvider.js";
 import { FeedbackProvider } from "../../shared/context/FeedbackProvider.js";
@@ -25,10 +26,12 @@ export function FeedbackStackLayout({
   loading,
   transformComments,
   renderActor,
+  onUnauthenticated,
   routes: routeOverrides,
   screenOptions,
   boardOptions,
   entryOptions,
+  editOptions,
   createOptions,
   androidToolbarIcons = {},
   BottomToolbarWrapper,
@@ -36,6 +39,7 @@ export function FeedbackStackLayout({
   primaryForeground,
   backgroundColor,
   surfaceColor,
+  inputColor,
   textColor,
   mutedColor,
   borderColor,
@@ -49,6 +53,7 @@ export function FeedbackStackLayout({
     primaryForeground,
     backgroundColor,
     surfaceColor,
+    inputColor,
     textColor,
     mutedColor,
     borderColor,
@@ -81,6 +86,7 @@ export function FeedbackStackLayout({
         collectStandardMetadata={collectExpoMetadata}
         transformComments={transformComments}
         renderActor={renderActor}
+        onUnauthenticated={onUnauthenticated}
       >
         <RoutedFeedbackProvider
           value={{
@@ -109,6 +115,17 @@ export function FeedbackStackLayout({
                 headerTitle: boardTitle,
                 ...screenOptions,
                 ...entryOptions,
+              }}
+            />
+            <Stack.Screen
+              name={routes.edit}
+              options={{
+                ...defaults,
+                headerTitle: resolvedMessages.form.editTitle,
+                presentation: Platform.OS === "ios" ? "formSheet" : "modal",
+                sheetAllowedDetents: [0.6, 1.0],
+                ...screenOptions,
+                ...editOptions,
               }}
             />
             <Stack.Screen

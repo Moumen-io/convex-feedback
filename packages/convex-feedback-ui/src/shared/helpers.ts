@@ -26,6 +26,22 @@ export function entryStatusChoices(
   ];
 }
 
+/**
+ * Returns whether an authenticated-only action may run and invokes the host
+ * callback for an anonymous request. Unknown auth state remains blocked until
+ * the auth query resolves.
+ */
+export function allowAuthenticatedAction(
+  isAuthenticated: boolean | undefined,
+  onUnauthenticated: (() => void) | undefined,
+): boolean {
+  if (isAuthenticated === false) {
+    onUnauthenticated?.();
+    return false;
+  }
+  return isAuthenticated === true;
+}
+
 export function debounce<TArgs extends unknown[]>(
   callback: (...args: TArgs) => void,
   delay: number,

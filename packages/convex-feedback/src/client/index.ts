@@ -23,15 +23,23 @@ import {
 
 import type { ComponentApi } from "../component/_generated/component.js";
 import {
+  adminEntryValidator,
+  activityCommentValidator,
+  activityEntryValidator,
   commentSortValidator,
   entryKindValidator,
+  entryPriorityValidator,
   entrySortValidator,
   entryStatusFilterValidator,
   entryStatusValidator,
   feedbackMetadataValidator,
   publicCommentValidator,
   publicEntryValidator,
+  feedbackReactionValidator,
+  roadmapItemValidator,
+  roadmapStatusValidator,
   similarEntriesValidator,
+  actorIsAdmin,
   type FeedbackActor,
 } from "../component/model.js";
 import type { FeedbackPublicApi } from "./api.js";
@@ -39,10 +47,17 @@ import {
   createFeedbackConfig,
   type FeedbackConfigOverrides,
 } from "./config.js";
+import { stripActivityEntryContext } from "../component/helpers.js";
 
 export type {
+  AdminFeedbackEntry,
+  FeedbackActivityComment,
+  FeedbackActivityEntry,
+  FeedbackActivityEntryWithContext,
+  FeedbackCommentReactionTarget,
   CommentSort,
   EntryKind,
+  EntryPriority,
   EntrySort,
   EntryStatus,
   EntryStatusFilter,
@@ -51,9 +66,39 @@ export type {
   FeedbackEntry,
   FeedbackMetadata,
   FeedbackMetadataValue,
+  FeedbackEntryReactionTarget,
+  FeedbackReaction,
+  RoadmapItem,
+  RoadmapStatus,
   SimilarEntriesResult,
 } from "../component/model.js";
-export type { FeedbackPublicApi } from "./api.js";
+export type {
+  AdminListEntriesArgs,
+  AdminSearchEntriesArgs,
+  CreateCommentArgs,
+  CreateEntryArgs,
+  DeleteEntryArgs,
+  DeleteCommentArgs,
+  DetachFeedbackFromRoadmapArgs,
+  FindSimilarEntriesArgs,
+  GetEntryArgs,
+  GetRoadmapItemArgs,
+  ListCommentsArgs,
+  ListEntriesArgs,
+  ListUserCommentsArgs,
+  ListUserEntriesArgs,
+  ListUserReactionsArgs,
+  ListRoadmapArgs,
+  ListRoadmapFeedbackArgs,
+  SearchEntriesArgs,
+  SetCommentLikeArgs,
+  SetEntryPriorityArgs,
+  SetEntryStatusArgs,
+  SetEntryUpvoteArgs,
+  UpdateCommentArgs,
+  UpdateEntryArgs,
+  FeedbackPublicApi,
+} from "./api.js";
 export {
   createFeedbackConfig,
   defaultFeedbackConfig,
@@ -127,10 +172,13 @@ export interface ThrowingFeedbackRateLimitConfig {
   behavior?: "throw";
 
   /**
-   * Whether all configured limiter groups apply to moderators.
+   * Whether all configured limiter groups apply to admins.
    *
    * @default false
    */
+  limitAdmins?: boolean;
+
+  /** @deprecated Use `limitAdmins`. */
   limitModerators?: boolean;
 
   /** Not accepted in throwing mode; select `"return"` to provide a validator. */
@@ -170,10 +218,13 @@ export interface ReturningFeedbackRateLimitConfig<
   returns: ReturnsValidator;
 
   /**
-   * Whether all configured limiter groups apply to moderators.
+   * Whether all configured limiter groups apply to admins.
    *
    * @default false
    */
+  limitAdmins?: boolean;
+
+  /** @deprecated Use `limitAdmins`. */
   limitModerators?: boolean;
 }
 
@@ -262,10 +313,10 @@ export type ThrowingExposeFeedbackOptions = Omit<
   /** Optional component behavior and throwing rate-limit overrides. */
   config?: FeedbackConfigOverrides & {
     /**
-     * Controls throwing behavior and the moderator exemption.
+     * Controls throwing behavior and the admin exemption.
      *
      * Omit this object to use `behavior: "throw"` and
-     * `limitModerators: false`.
+     * `limitAdmins: false`.
      */
     rateLimiting?: FeedbackRateLimitConfig;
   };
@@ -316,9 +367,9 @@ function requireActor(actor: FeedbackActor | null): FeedbackActor {
   return actor;
 }
 
-function requireModerator(actor: FeedbackActor): void {
-  if (!actor.isModerator) {
-    throw new ConvexError("Moderator permissions are required.");
+function requireAdmin(actor: FeedbackActor): void {
+  if (!actorIsAdmin(actor)) {
+    throw new ConvexError("Admin permissions are required.");
   }
 }
 
@@ -349,10 +400,9 @@ async function applyRateLimiter<
     | ReturningFeedbackRateLimitConfig<FeedbackRateLimitReturnValidator>
     | undefined,
 ): Promise<RateLimitResult<ReturnsValidator> | undefined> {
-  if (
-    limiter === undefined ||
-    (actor.isModerator && rateLimitConfig?.limitModerators !== true)
-  ) {
+  const limitAdmins =
+    rateLimitConfig?.limitAdmins ?? rateLimitConfig?.limitModerators ?? false;
+  if (limiter === undefined || (actorIsAdmin(actor) && !limitAdmins)) {
     return undefined;
   }
 
@@ -423,8 +473,44 @@ function buildFeedbackApi<
     v.object({ active: v.boolean(), likeCount: v.number() }),
     rateLimitReturnValidator,
   );
+  const numberReturns = rateLimitedReturns(
+    v.number(),
+    rateLimitReturnValidator,
+  );
+
+  const requireAdminActor = async (ctx: FeedbackAuthContext) => {
+    const actor = requireActor(await options.actor(ctx));
+    requireAdmin(actor);
+    return actor;
+  };
+
+  const applyAdminEditLimit = async (
+    ctx: FeedbackRateLimitContext,
+    actor: FeedbackActor,
+  ) =>
+    await applyRateLimiter(
+      ctx,
+      actor,
+      options.rateLimiters?.editContent,
+      rateLimitConfig,
+    );
 
   return {
+    isAdmin: queryGeneric({
+      args: {},
+      returns: v.boolean(),
+      handler: async (ctx) => {
+        const actor = await options.actor(ctx);
+        return actor !== null && actorIsAdmin(actor);
+      },
+    }),
+
+    isAuthenticated: queryGeneric({
+      args: {},
+      returns: v.boolean(),
+      handler: async (ctx) => (await options.actor(ctx)) !== null,
+    }),
+
     listEntries: queryGeneric({
       args: {
         paginationOpts: paginationOptsValidator,
@@ -453,6 +539,29 @@ function buildFeedbackApi<
       },
     }),
 
+    listUserEntries: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+      },
+      returns: paginationResultValidator(activityEntryValidator),
+      handler: async (ctx, args) => {
+        const actor = requireActor(await options.actor(ctx));
+        const result = await ctx.runQuery(component.entries.listByActor, {
+          actorId: actor.id,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
+          includeAdminContext: false,
+        });
+
+        return {
+          ...result,
+          page: result.page.map(stripActivityEntryContext),
+        };
+      },
+    }),
+
     getEntry: queryGeneric({
       args: { entryId: v.string() },
       returns: v.union(publicEntryValidator, v.null()),
@@ -461,7 +570,9 @@ function buildFeedbackApi<
         return await ctx.runQuery(component.entries.get, {
           entryId: args.entryId,
           ...actorIdFields(actor),
-          ...(actor?.isModerator === true ? { viewerIsModerator: true } : {}),
+          ...(actor !== null && actorIsAdmin(actor)
+            ? { viewerIsAdmin: true }
+            : {}),
         });
       },
     }),
@@ -558,6 +669,7 @@ function buildFeedbackApi<
     updateEntry: mutationGeneric({
       args: {
         entryId: v.string(),
+        kind: v.optional(entryKindValidator),
         title: v.string(),
         body: v.string(),
       },
@@ -574,6 +686,7 @@ function buildFeedbackApi<
         return await ctx.runMutation(component.entries.update, {
           actor,
           entryId: args.entryId,
+          ...(args.kind === undefined ? {} : { kind: args.kind }),
           title: args.title,
           body: args.body,
           editableByAuthor: config.entries.editableByAuthor,
@@ -583,12 +696,29 @@ function buildFeedbackApi<
       },
     }),
 
+    deleteEntry: mutationGeneric({
+      args: { entryId: v.string() },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.entries.remove, {
+          actor,
+          entryId: args.entryId,
+        });
+      },
+    }),
+
     setEntryStatus: mutationGeneric({
       args: { entryId: v.string(), status: entryStatusValidator },
       returns: nullReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
-        requireModerator(actor);
+        requireAdmin(actor);
         const limited = await applyRateLimiter(
           asRateLimitContext(ctx),
           actor,
@@ -600,6 +730,87 @@ function buildFeedbackApi<
           actor,
           entryId: args.entryId,
           status: args.status,
+        });
+      },
+    }),
+
+    adminListEntries: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+        kinds: v.optional(v.array(entryKindValidator)),
+        status: v.optional(entryStatusValidator),
+        priority: v.optional(entryPriorityValidator),
+      },
+      returns: paginationResultValidator(adminEntryValidator),
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        return await ctx.runQuery(component.admin.listEntries, {
+          ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
+          ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.priority === undefined ? {} : { priority: args.priority }),
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
+          viewerActorId: actor.id,
+        });
+      },
+    }),
+
+    adminGetEntry: queryGeneric({
+      args: { entryId: v.string() },
+      returns: v.union(adminEntryValidator, v.null()),
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        return await ctx.runQuery(component.admin.getEntry, {
+          entryId: args.entryId,
+          viewerActorId: actor.id,
+        });
+      },
+    }),
+
+    adminSearchEntries: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+        searchQuery: v.string(),
+        kinds: v.optional(v.array(entryKindValidator)),
+        status: v.optional(entryStatusValidator),
+        priority: v.optional(entryPriorityValidator),
+      },
+      returns: paginationResultValidator(adminEntryValidator),
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        return await ctx.runQuery(component.admin.searchEntries, {
+          searchQuery: args.searchQuery,
+          ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
+          ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.priority === undefined ? {} : { priority: args.priority }),
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
+          viewerActorId: actor.id,
+        });
+      },
+    }),
+
+    setEntryPriority: mutationGeneric({
+      args: {
+        entryId: v.string(),
+        priority: v.union(entryPriorityValidator, v.null()),
+      },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.entries.setPriority, {
+          actor,
+          entryId: args.entryId,
+          priority: args.priority,
         });
       },
     }),
@@ -645,6 +856,23 @@ function buildFeedbackApi<
             : { parentCommentId: args.parentCommentId }),
           sort: args.sort ?? config.comments.defaultSort,
           ...actorIdFields(actor),
+        });
+      },
+    }),
+
+    listUserComments: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+      },
+      returns: paginationResultValidator(activityCommentValidator),
+      handler: async (ctx, args) => {
+        const actor = requireActor(await options.actor(ctx));
+        return await ctx.runQuery(component.comments.listByActor, {
+          actorId: actor.id,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.comments.maxPageSize,
+          ),
         });
       },
     }),
@@ -736,6 +964,215 @@ function buildFeedbackApi<
           actorId: actor.id,
           commentId: args.commentId,
           desiredState: args.desiredState,
+        });
+      },
+    }),
+
+    listUserReactions: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+      },
+      returns: paginationResultValidator(feedbackReactionValidator),
+      handler: async (ctx, args) => {
+        const actor = requireActor(await options.actor(ctx));
+        return await ctx.runQuery(component.reactions.listByActor, {
+          actorId: actor.id,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
+        });
+      },
+    }),
+
+    listRoadmap: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+        status: v.optional(roadmapStatusValidator),
+      },
+      returns: paginationResultValidator(roadmapItemValidator),
+      handler: async (ctx, args) => {
+        return await ctx.runQuery(component.roadmap.list, {
+          ...args,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
+        });
+      },
+    }),
+
+    getRoadmapItem: queryGeneric({
+      args: { roadmapId: v.string() },
+      returns: v.union(roadmapItemValidator, v.null()),
+      handler: async (ctx, args) => {
+        return await ctx.runQuery(component.roadmap.get, args);
+      },
+    }),
+
+    searchRoadmap: queryGeneric({
+      args: { searchQuery: v.string(), limit: v.optional(v.number()) },
+      returns: v.array(roadmapItemValidator),
+      handler: async (ctx, args) => {
+        return await ctx.runQuery(component.roadmap.search, {
+          searchQuery: args.searchQuery,
+          limit: clampPositive(args.limit, 10, 50),
+        });
+      },
+    }),
+
+    createRoadmap: mutationGeneric({
+      args: {
+        title: v.string(),
+        description: v.optional(v.string()),
+        status: roadmapStatusValidator,
+      },
+      returns: idReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.create, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    createRoadmapForEntry: mutationGeneric({
+      args: {
+        title: v.string(),
+        description: v.optional(v.string()),
+        status: roadmapStatusValidator,
+        entryId: v.string(),
+      },
+      returns: idReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.createForEntry, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    updateRoadmap: mutationGeneric({
+      args: {
+        roadmapId: v.string(),
+        title: v.string(),
+        description: v.optional(v.string()),
+      },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.update, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    deleteRoadmap: mutationGeneric({
+      args: { roadmapId: v.string() },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.remove, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    moveRoadmapItem: mutationGeneric({
+      args: {
+        roadmapId: v.string(),
+        status: roadmapStatusValidator,
+        previousItemId: v.optional(v.string()),
+        nextItemId: v.optional(v.string()),
+      },
+      returns: numberReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.move, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    attachFeedbackToRoadmap: mutationGeneric({
+      args: { roadmapId: v.string(), entryId: v.string() },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.attachFeedback, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    detachFeedbackFromRoadmap: mutationGeneric({
+      args: { entryId: v.string() },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.roadmap.detachFeedback, {
+          actor,
+          ...args,
+        });
+      },
+    }),
+
+    listRoadmapFeedback: queryGeneric({
+      args: {
+        paginationOpts: paginationOptsValidator,
+        roadmapId: v.string(),
+      },
+      returns: paginationResultValidator(publicEntryValidator),
+      handler: async (ctx, args) => {
+        const actor = await options.actor(ctx);
+        return await ctx.runQuery(component.roadmap.listFeedback, {
+          ...args,
+          paginationOpts: clampPagination(
+            args.paginationOpts,
+            config.entries.maxPageSize,
+          ),
+          ...(actor === null ? {} : { viewerActorId: actor.id }),
         });
       },
     }),

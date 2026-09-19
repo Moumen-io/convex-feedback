@@ -24,6 +24,13 @@ describe("UI contracts", () => {
     expect(messages.metadata.title).toBe(
       englishFeedbackMessages.metadata.title,
     );
+    expect(messages.form.saveChanges).toBe(
+      englishFeedbackMessages.form.saveChanges,
+    );
+    expect(messages.form.editNotFound).toBe(
+      englishFeedbackMessages.form.editNotFound,
+    );
+    expect(messages.form.retry).toBe(englishFeedbackMessages.form.retry);
     expect(messages.statuses.in_progress).toBe("In progress");
   });
 
@@ -44,8 +51,11 @@ describe("UI contracts", () => {
   });
 
   test("theme overrides preserve fallback tokens", () => {
-    const theme = mergeFeedbackTheme({ colors: { primary: "#000000" } });
+    const theme = mergeFeedbackTheme({
+      colors: { primary: "#000000", input: "#f4f4f4" },
+    });
     expect(theme.colors.primary).toBe("#000000");
+    expect(theme.colors.input).toBe("#f4f4f4");
     expect(theme.colors.border).toBe(defaultFeedbackTheme.colors.border);
     expect(theme.radius).toBe(defaultFeedbackTheme.radius);
   });
@@ -70,5 +80,24 @@ describe("UI contracts", () => {
       { value: "open", label: "Ouvert" },
       { value: "closed", label: "Fermé" },
     ]);
+  });
+
+  test("roadmap copy preserves nested stage fallbacks", () => {
+    const messages = mergeFeedbackMessages({
+      roadmap: {
+        title: "What is next",
+        statuses: { shipped: "Released" },
+      },
+    });
+
+    expect(messages.roadmap.title).toBe("What is next");
+    expect(messages.roadmap.statuses.shipped).toBe("Released");
+    expect(messages.roadmap.statuses.planned).toBe(
+      englishFeedbackMessages.roadmap.statuses.planned,
+    );
+    expect(messages.roadmap.linkedEntries(2)).toBe("2 feedback items");
+    expect(messages.roadmap.emptyStage).toBe(
+      englishFeedbackMessages.roadmap.emptyStage,
+    );
   });
 });

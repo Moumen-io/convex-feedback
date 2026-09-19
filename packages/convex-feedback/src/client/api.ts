@@ -11,8 +11,15 @@ import type {
   EntryStatus,
   EntryStatusFilter,
   FeedbackComment,
+  FeedbackActivityComment,
+  FeedbackActivityEntry,
   FeedbackEntry,
+  FeedbackReaction,
   FeedbackMetadata,
+  AdminFeedbackEntry,
+  EntryPriority,
+  RoadmapItem,
+  RoadmapStatus,
   SimilarEntriesResult,
 } from "../component/model.js";
 
@@ -50,6 +57,12 @@ export type ListEntriesArgs = {
    * When omitted, `config.entries.defaultSort` is used.
    */
   sort?: EntrySort;
+};
+
+/** Arguments for cursor-paginated entries created by the current actor. */
+export type ListUserEntriesArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
 };
 
 /**
@@ -154,11 +167,20 @@ export type UpdateEntryArgs = {
   /** Entry to update. */
   entryId: string;
 
+  /** Optional replacement category. Omit to keep the current category. */
+  kind?: EntryKind;
+
   /** Complete replacement title. */
   title: string;
 
   /** Complete replacement body. */
   body: string;
+};
+
+/** Arguments for permanently deleting an entry as an administrator. */
+export type DeleteEntryArgs = {
+  /** Entry to delete. */
+  entryId: string;
 };
 
 /**
@@ -170,6 +192,64 @@ export type SetEntryStatusArgs = {
 
   /** Desired workflow status. */
   status: EntryStatus;
+};
+
+export type AdminListEntriesArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
+  kinds?: EntryKind[];
+  status?: EntryStatus;
+  priority?: EntryPriority;
+};
+
+export type AdminSearchEntriesArgs = AdminListEntriesArgs & {
+  searchQuery: string;
+};
+
+export type SetEntryPriorityArgs = {
+  entryId: string;
+  priority: EntryPriority | null;
+};
+
+export type ListRoadmapArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
+  status?: RoadmapStatus;
+};
+export type GetRoadmapItemArgs = {
+  /** Identifier returned by the component for the requested roadmap item. */
+  roadmapId: string;
+};
+export type SearchRoadmapArgs = { searchQuery: string; limit?: number };
+export type CreateRoadmapArgs = {
+  title: string;
+  description?: string;
+  status: RoadmapStatus;
+};
+export type CreateRoadmapForEntryArgs = CreateRoadmapArgs & {
+  entryId: string;
+};
+export type UpdateRoadmapArgs = {
+  roadmapId: string;
+  title: string;
+  description?: string;
+};
+export type DeleteRoadmapArgs = { roadmapId: string };
+export type MoveRoadmapArgs = {
+  roadmapId: string;
+  status: RoadmapStatus;
+  previousItemId?: string;
+  nextItemId?: string;
+};
+export type AttachFeedbackToRoadmapArgs = {
+  roadmapId: string;
+  entryId: string;
+};
+export type DetachFeedbackFromRoadmapArgs = { entryId: string };
+export type ListRoadmapFeedbackArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
+  roadmapId: string;
 };
 
 /**
@@ -226,6 +306,18 @@ export type ListCommentsArgs = {
    * When omitted, `config.comments.defaultSort` is used.
    */
   sort?: CommentSort;
+};
+
+/** Arguments for cursor-paginated comments created by the current actor. */
+export type ListUserCommentsArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
+};
+
+/** Arguments for cursor-paginated reactions created by the current actor. */
+export type ListUserReactionsArgs = {
+  /** Convex cursor-pagination options. */
+  paginationOpts: PaginationOptions;
 };
 
 /**
@@ -308,12 +400,39 @@ export interface FeedbackPublicApi<
   Name extends string | undefined = string | undefined,
   RateLimitResult = never,
 > {
+  /** Returns whether the host actor has admin permissions. */
+  isAdmin: FunctionReference<
+    "query",
+    "public",
+    Record<string, never>,
+    boolean,
+    Name
+  >;
+
+  /** Returns whether the current request has an authenticated host actor. */
+  isAuthenticated: FunctionReference<
+    "query",
+    "public",
+    Record<string, never>,
+    boolean,
+    Name
+  >;
+
   /** Returns a cursor-paginated entry list. */
   listEntries: FunctionReference<
     "query",
     "public",
     ListEntriesArgs,
     PaginationResult<FeedbackEntry>,
+    Name
+  >;
+
+  /** Returns entries created by the authenticated actor. */
+  listUserEntries: FunctionReference<
+    "query",
+    "public",
+    ListUserEntriesArgs,
+    PaginationResult<FeedbackActivityEntry>,
     Name
   >;
 
@@ -362,12 +481,129 @@ export interface FeedbackPublicApi<
     Name
   >;
 
+  /** Permanently deletes an entry, or returns a configured rate-limit rejection. */
+  deleteEntry: FunctionReference<
+    "mutation",
+    "public",
+    DeleteEntryArgs,
+    null | RateLimitResult,
+    Name
+  >;
+
   /** Changes entry status, or returns a configured rate-limit rejection. */
   setEntryStatus: FunctionReference<
     "mutation",
     "public",
     SetEntryStatusArgs,
     null | RateLimitResult,
+    Name
+  >;
+
+  adminListEntries: FunctionReference<
+    "query",
+    "public",
+    AdminListEntriesArgs,
+    PaginationResult<AdminFeedbackEntry>,
+    Name
+  >;
+  adminGetEntry: FunctionReference<
+    "query",
+    "public",
+    GetEntryArgs,
+    AdminFeedbackEntry | null,
+    Name
+  >;
+  adminSearchEntries: FunctionReference<
+    "query",
+    "public",
+    AdminSearchEntriesArgs,
+    PaginationResult<AdminFeedbackEntry>,
+    Name
+  >;
+  setEntryPriority: FunctionReference<
+    "mutation",
+    "public",
+    SetEntryPriorityArgs,
+    null | RateLimitResult,
+    Name
+  >;
+
+  listRoadmap: FunctionReference<
+    "query",
+    "public",
+    ListRoadmapArgs,
+    PaginationResult<RoadmapItem>,
+    Name
+  >;
+  /** Returns one roadmap item or `null` when it does not exist. */
+  getRoadmapItem: FunctionReference<
+    "query",
+    "public",
+    GetRoadmapItemArgs,
+    RoadmapItem | null,
+    Name
+  >;
+  searchRoadmap: FunctionReference<
+    "query",
+    "public",
+    SearchRoadmapArgs,
+    RoadmapItem[],
+    Name
+  >;
+  createRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    CreateRoadmapArgs,
+    string | RateLimitResult,
+    Name
+  >;
+  createRoadmapForEntry: FunctionReference<
+    "mutation",
+    "public",
+    CreateRoadmapForEntryArgs,
+    string | RateLimitResult,
+    Name
+  >;
+  updateRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    UpdateRoadmapArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  deleteRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    DeleteRoadmapArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  moveRoadmapItem: FunctionReference<
+    "mutation",
+    "public",
+    MoveRoadmapArgs,
+    number | RateLimitResult,
+    Name
+  >;
+  attachFeedbackToRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    AttachFeedbackToRoadmapArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  detachFeedbackFromRoadmap: FunctionReference<
+    "mutation",
+    "public",
+    DetachFeedbackFromRoadmapArgs,
+    null | RateLimitResult,
+    Name
+  >;
+  listRoadmapFeedback: FunctionReference<
+    "query",
+    "public",
+    ListRoadmapFeedbackArgs,
+    PaginationResult<FeedbackEntry>,
     Name
   >;
 
@@ -386,6 +622,24 @@ export interface FeedbackPublicApi<
     "public",
     ListCommentsArgs,
     PaginationResult<FeedbackComment>,
+    Name
+  >;
+
+  /** Returns comments created by the authenticated actor. */
+  listUserComments: FunctionReference<
+    "query",
+    "public",
+    ListUserCommentsArgs,
+    PaginationResult<FeedbackActivityComment>,
+    Name
+  >;
+
+  /** Returns reactions created by the authenticated actor. */
+  listUserReactions: FunctionReference<
+    "query",
+    "public",
+    ListUserReactionsArgs,
+    PaginationResult<FeedbackReaction>,
     Name
   >;
 

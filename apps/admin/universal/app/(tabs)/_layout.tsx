@@ -32,11 +32,6 @@ export default function TabLayout() {
         name="settings"
         role="search"
         disableAutomaticContentInsets
-        listeners={{
-          tabPress: (e) => {
-            console.log(e);
-          },
-        }}
       >
         <NativeTabs.Trigger.Label hidden>Settings</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="gearshape.fill" md="settings" />

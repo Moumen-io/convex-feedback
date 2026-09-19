@@ -418,9 +418,11 @@ export function SetupMethodToggle({
 }
 
 export function SetupIssues({ issues }: { issues: string[] }) {
-  if (issues.length === 0) return null;
   const theme = useAdminTheme();
   const styles = createSetupStyles(theme);
+
+  if (issues.length === 0) return null;
+
   return (
     <View style={styles.errorBox}>
       {issues.map((issue) => (

@@ -17,7 +17,6 @@ export default function FeedbackDetailRoute() {
           params: { entryId: id },
         })
       }
-      onDelete={() => router.back()}
       onOpenRoadmap={(item) =>
         router.push({
           pathname: "/roadmap/[roadmapId]",

@@ -494,6 +494,16 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         },
         Name
       >;
+      remove: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          actor: { id: string; isAdmin?: boolean; isModerator?: boolean };
+          entryId: string;
+        },
+        null,
+        Name
+      >;
       search: FunctionReference<
         "query",
         "internal",

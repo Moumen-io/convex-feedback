@@ -96,6 +96,7 @@ export const {
   findSimilarEntries,
   createEntry,
   updateEntry,
+  deleteEntry,
   setEntryStatus,
   isAdmin,
   isAuthenticated,
@@ -540,6 +541,7 @@ The wrapper exposes:
 | `isAuthenticated`       | query    | Whether the current request has an actor             |
 | `createEntry`           | mutation | Create feedback                                      |
 | `updateEntry`           | mutation | Edit feedback; admins may also change its kind       |
+| `deleteEntry`           | mutation | Permanently delete feedback; admins only             |
 | `setEntryStatus`        | mutation | Admin workflow status change                         |
 | `setEntryUpvote`        | mutation | Idempotently set entry upvote state                  |
 | `listUserEntries`       | query    | Entries created by the authenticated actor           |

@@ -4,6 +4,7 @@ import type {
   EntryStatus,
   RoadmapItem,
 } from "convex-feedback";
+import type { FeedbackHooks } from "convex-feedback/react";
 import { Stack } from "expo-router";
 import { useState } from "react";
 import {
@@ -22,7 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MetadataModal } from "../components/metadata-modal.js";
 import { useDebouncedValue } from "../hooks/use-debounced-value.js";
 import { useAdminAction } from "../lib/action.js";
-import { feedbackHooks, useAdminFeedbackHooks } from "../lib/feedback.js";
+import { useAdminFeedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 
@@ -45,7 +46,6 @@ export interface FeedbackDetailScreenProps {
   entryId: string;
   onClose: () => void;
   onEdit: (entryId: string) => void;
-  onDelete: () => void;
   onOpenRoadmap: (roadmap: RoadmapItem) => void;
 }
 
@@ -53,7 +53,6 @@ export function FeedbackDetailScreen({
   entryId,
   onClose,
   onEdit,
-  onDelete,
   onOpenRoadmap,
 }: FeedbackDetailScreenProps) {
   const insets = useSafeAreaInsets();
@@ -67,14 +66,18 @@ export function FeedbackDetailScreen({
   const attachRoadmap = hooks.useAttachFeedbackToRoadmap();
   const detachRoadmap = hooks.useDetachFeedbackFromRoadmap();
   const createRoadmapForEntry = hooks.useCreateRoadmapForEntry();
+  const removeEntry = hooks.useDeleteEntry();
   const action = useAdminAction();
+  const deleteAction = useAdminAction();
   const upvoteAction = useAdminAction();
   const [roadmapSearch, setRoadmapSearch] = useState("");
   const [metadataOpen, setMetadataOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(roadmapSearch, 300);
   const roadmapResults = hooks.useSearchRoadmap(debouncedSearch);
+  const screenPending = action.pending || deleteAction.pending;
+
   const changeStatus = (status: EntryStatus) => {
-    if (!entry) return;
+    if (!entry || deleteAction.pending) return;
     void action.run(
       () => setStatus({ entryId: entry.id, status }),
       "Could not update status",
@@ -82,7 +85,7 @@ export function FeedbackDetailScreen({
   };
 
   const changePriority = (priority: EntryPriority | null) => {
-    if (!entry) return;
+    if (!entry || deleteAction.pending) return;
     void action.run(
       () => setPriority({ entryId: entry.id, priority }),
       "Could not update priority",
@@ -90,7 +93,8 @@ export function FeedbackDetailScreen({
   };
 
   const showMetadata = () => {
-    if (!entry || entry.metadata === undefined) {
+    if (!entry || screenPending) return;
+    if (entry.metadata === undefined) {
       Alert.alert(
         "Metadata was not collected",
         "To collect metadata, pass the `collectMetadata` option to the Feedback Component or manually collect it and attach it to the entry if you're using the primitives/hooks directly.",
@@ -100,17 +104,42 @@ export function FeedbackDetailScreen({
     setMetadataOpen(true);
   };
 
+  const deleteFeedback = async () => {
+    if (!entry) return;
+    const succeeded = await deleteAction.run(
+      () => removeEntry({ entryId: entry.id }),
+      "Could not delete feedback",
+    );
+    if (succeeded) onClose();
+  };
+
+  const confirmDelete = () => {
+    if (!entry || screenPending) return;
+    Alert.alert(
+      "Delete feedback?",
+      "This permanently deletes the feedback. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => void deleteFeedback(),
+        },
+      ],
+    );
+  };
+
   return (
     <>
       <FeedbackToolbar
         entry={entry}
         onClose={onClose}
         onEdit={onEdit}
-        onDelete={onDelete}
+        onDelete={confirmDelete}
         onPriorityChange={changePriority}
         onShowMetadata={showMetadata}
         onStatusChange={changeStatus}
-        pending={action.pending}
+        pending={screenPending}
       />
       {entry === undefined ? (
         <ActivityIndicator style={styles.loader} color={theme.primary} />
@@ -151,15 +180,15 @@ export function FeedbackDetailScreen({
               entry.viewerHasUpvoted ? "Remove entry upvote" : "Upvote entry"
             }
             accessibilityState={{
-              disabled: upvoteAction.pending,
+              disabled: upvoteAction.pending || deleteAction.pending,
               selected: entry.viewerHasUpvoted,
             }}
-            disabled={upvoteAction.pending}
+            disabled={upvoteAction.pending || deleteAction.pending}
             style={({ pressed }) => [
               styles.upvoteButton,
               entry.viewerHasUpvoted && styles.upvoteButtonActive,
               pressed && styles.pressed,
-              upvoteAction.pending && styles.disabled,
+              (upvoteAction.pending || deleteAction.pending) && styles.disabled,
             ]}
             onPress={() =>
               void upvoteAction.run(
@@ -204,7 +233,7 @@ export function FeedbackDetailScreen({
             <Text style={styles.sectionTitle}>Roadmap</Text>
             {entry.roadmap && (
               <Pressable
-                disabled={action.pending}
+                disabled={screenPending}
                 onPress={() =>
                   void action.run(
                     () => detachRoadmap({ entryId: entry.id }),
@@ -234,7 +263,7 @@ export function FeedbackDetailScreen({
           ) : (
             <View style={styles.roadmapSearch}>
               <TextInput
-                editable={!action.pending}
+                editable={!screenPending}
                 value={roadmapSearch}
                 onChangeText={setRoadmapSearch}
                 placeholder="Search roadmap items"
@@ -245,7 +274,7 @@ export function FeedbackDetailScreen({
                 <Pressable
                   key={item.id}
                   style={styles.result}
-                  disabled={action.pending}
+                  disabled={screenPending}
                   onPress={() =>
                     void action.run(
                       () =>
@@ -266,7 +295,7 @@ export function FeedbackDetailScreen({
                 roadmapResults?.length === 0 && (
                   <Pressable
                     style={styles.create}
-                    disabled={action.pending}
+                    disabled={screenPending}
                     onPress={() =>
                       void action.run(
                         () =>
@@ -287,7 +316,7 @@ export function FeedbackDetailScreen({
             </View>
           )}
           <View style={styles.divider} />
-          <Discussion entryId={entry.id} />
+          <Discussion entryId={entry.id} disabled={deleteAction.pending} />
         </ScrollView>
       )}
       {entry && entry.metadata !== undefined && (
@@ -341,6 +370,7 @@ function FeedbackToolbar({
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           accessibilityLabel="Close feedback details"
+          disabled={pending}
           icon={closeIcon}
           onPress={onClose}
           tintColor={theme.text}
@@ -352,7 +382,7 @@ function FeedbackToolbar({
         <Stack.Toolbar placement={Platform.OS === "ios" ? "bottom" : "right"}>
           <Stack.Toolbar.Menu
             destructive
-            accessibilityLabel="Roadmap actions"
+            accessibilityLabel="Feedback actions"
             disabled={pending}
             icon={actionsIcon}
             tintColor={theme.text}
@@ -369,6 +399,7 @@ function FeedbackToolbar({
           <Stack.Toolbar.Spacer hidden={Platform.OS !== "ios"} />
           <Stack.Toolbar.Button
             accessibilityLabel="Edit feedback"
+            disabled={pending}
             icon={editIcon}
             onPress={() => onEdit(entry.id)}
             tintColor={theme.primary}
@@ -414,6 +445,7 @@ function FeedbackToolbar({
           </Stack.Toolbar.Menu>
           <Stack.Toolbar.Button
             accessibilityLabel="Show metadata"
+            disabled={pending}
             icon={metadataIcon}
             onPress={onShowMetadata}
             tintColor={
@@ -440,7 +472,13 @@ function InfoControl({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Discussion({ entryId }: { entryId: string }) {
+function Discussion({
+  entryId,
+  disabled,
+}: {
+  entryId: string;
+  disabled: boolean;
+}) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
   const hooks = useAdminFeedbackHooks();
@@ -454,7 +492,7 @@ function Discussion({ entryId }: { entryId: string }) {
       <Text style={styles.sectionTitle}>Discussion</Text>
       <View style={styles.commentComposer}>
         <TextInput
-          editable={!commentAction.pending}
+          editable={!disabled && !commentAction.pending}
           multiline
           numberOfLines={3}
           onChangeText={setBody}
@@ -466,10 +504,12 @@ function Discussion({ entryId }: { entryId: string }) {
         />
         <Pressable
           accessibilityRole="button"
-          disabled={commentAction.pending || body.trim().length === 0}
+          disabled={
+            disabled || commentAction.pending || body.trim().length === 0
+          }
           style={({ pressed }) => [
             styles.commentSubmit,
-            (commentAction.pending || body.trim().length === 0) &&
+            (disabled || commentAction.pending || body.trim().length === 0) &&
               styles.disabled,
             pressed && styles.pressed,
           ]}
@@ -499,6 +539,7 @@ function Discussion({ entryId }: { entryId: string }) {
             key={comment.id}
             entryId={entryId}
             comment={comment}
+            disabled={disabled}
           />
         ))
       )}
@@ -506,7 +547,7 @@ function Discussion({ entryId }: { entryId: string }) {
         comments.status === "LoadingMore") && (
         <LoadMoreButton
           label="Load more comments"
-          disabled={comments.status === "LoadingMore"}
+          disabled={disabled || comments.status === "LoadingMore"}
           onPress={() => comments.loadMore(hooks.pageSizes.comments)}
         />
       )}
@@ -517,9 +558,11 @@ function Discussion({ entryId }: { entryId: string }) {
 function AdminCommentBranch({
   entryId,
   comment,
+  disabled,
 }: {
   entryId: string;
-  comment: ReturnType<typeof feedbackHooks.useComments>["results"][number];
+  comment: ReturnType<FeedbackHooks["useComments"]>["results"][number];
+  disabled: boolean;
 }) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
@@ -533,7 +576,7 @@ function AdminCommentBranch({
   const replyAction = useAdminAction();
 
   const toggleLike = () => {
-    if (likeAction.pending) return;
+    if (disabled || likeAction.pending) return;
     void likeAction.run(
       () =>
         setCommentLike({
@@ -559,15 +602,15 @@ function AdminCommentBranch({
             comment.viewerHasLiked ? "Remove comment like" : "Like comment"
           }
           accessibilityState={{
-            disabled: likeAction.pending,
+            disabled: disabled || likeAction.pending,
             selected: comment.viewerHasLiked,
           }}
-          disabled={likeAction.pending}
+          disabled={disabled || likeAction.pending}
           style={({ pressed }) => [
             styles.commentAction,
             comment.viewerHasLiked && styles.commentActionActive,
             pressed && styles.pressed,
-            likeAction.pending && styles.disabled,
+            (disabled || likeAction.pending) && styles.disabled,
           ]}
           onPress={toggleLike}
         >
@@ -583,11 +626,11 @@ function AdminCommentBranch({
         {comment.body !== null && (
           <Pressable
             accessibilityRole="button"
-            disabled={replyAction.pending}
+            disabled={disabled || replyAction.pending}
             style={({ pressed }) => [
               styles.commentAction,
               pressed && styles.pressed,
-              replyAction.pending && styles.disabled,
+              (disabled || replyAction.pending) && styles.disabled,
             ]}
             onPress={() => setReplying((value) => !value)}
           >
@@ -598,7 +641,7 @@ function AdminCommentBranch({
       {replying && (
         <View style={styles.replyComposer}>
           <TextInput
-            editable={!replyAction.pending}
+            editable={!disabled && !replyAction.pending}
             multiline
             numberOfLines={2}
             onChangeText={setReplyBody}
@@ -611,10 +654,14 @@ function AdminCommentBranch({
           <View style={styles.replyComposerActions}>
             <Pressable
               accessibilityRole="button"
-              disabled={replyAction.pending || replyBody.trim().length === 0}
+              disabled={
+                disabled || replyAction.pending || replyBody.trim().length === 0
+              }
               style={({ pressed }) => [
                 styles.commentSubmit,
-                (replyAction.pending || replyBody.trim().length === 0) &&
+                (disabled ||
+                  replyAction.pending ||
+                  replyBody.trim().length === 0) &&
                   styles.disabled,
                 pressed && styles.pressed,
               ]}
@@ -641,7 +688,7 @@ function AdminCommentBranch({
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              disabled={replyAction.pending}
+              disabled={disabled || replyAction.pending}
               onPress={() => setReplying(false)}
             >
               <Text style={styles.replyCancel}>Cancel</Text>
@@ -651,7 +698,10 @@ function AdminCommentBranch({
       )}
       {comment.replyCount > 0 && (
         <>
-          <Pressable onPress={() => setExpanded((value) => !value)}>
+          <Pressable
+            disabled={disabled}
+            onPress={() => setExpanded((value) => !value)}
+          >
             <Text style={styles.replyToggle}>
               {expanded
                 ? "Hide replies"
@@ -659,7 +709,11 @@ function AdminCommentBranch({
             </Text>
           </Pressable>
           {expanded && (
-            <AdminReplyList entryId={entryId} parentCommentId={comment.id} />
+            <AdminReplyList
+              disabled={disabled}
+              entryId={entryId}
+              parentCommentId={comment.id}
+            />
           )}
         </>
       )}
@@ -670,9 +724,11 @@ function AdminCommentBranch({
 function AdminReplyList({
   entryId,
   parentCommentId,
+  disabled,
 }: {
   entryId: string;
   parentCommentId: string;
+  disabled: boolean;
 }) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
@@ -695,6 +751,7 @@ function AdminReplyList({
             key={reply.id}
             entryId={entryId}
             comment={reply}
+            disabled={disabled}
           />
         ))
       )}
@@ -702,7 +759,7 @@ function AdminReplyList({
         replies.status === "LoadingMore") && (
         <LoadMoreButton
           label="Load more replies"
-          disabled={replies.status === "LoadingMore"}
+          disabled={disabled || replies.status === "LoadingMore"}
           onPress={() => replies.loadMore(hooks.pageSizes.replies)}
         />
       )}

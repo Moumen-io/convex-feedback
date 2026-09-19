@@ -77,6 +77,7 @@ export type {
   AdminSearchEntriesArgs,
   CreateCommentArgs,
   CreateEntryArgs,
+  DeleteEntryArgs,
   DeleteCommentArgs,
   DetachFeedbackFromRoadmapArgs,
   FindSimilarEntriesArgs,
@@ -691,6 +692,23 @@ function buildFeedbackApi<
           editableByAuthor: config.entries.editableByAuthor,
           maxTitleLength: config.limits.titleLength,
           maxBodyLength: config.limits.bodyLength,
+        });
+      },
+    }),
+
+    deleteEntry: mutationGeneric({
+      args: { entryId: v.string() },
+      returns: nullReturns,
+      handler: async (ctx, args) => {
+        const actor = await requireAdminActor(ctx);
+        const limited = await applyAdminEditLimit(
+          asRateLimitContext(ctx),
+          actor,
+        );
+        if (limited !== undefined) return limited;
+        return await ctx.runMutation(component.entries.remove, {
+          actor,
+          entryId: args.entryId,
         });
       },
     }),

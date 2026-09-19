@@ -10,7 +10,6 @@ export default function FeedbackDetailRoute() {
     <FeedbackDetailScreen
       entryId={entryId}
       onClose={() => router.back()}
-      onDelete={() => router.back()}
       onEdit={(id) =>
         router.push({
           pathname: "/feedback/[entryId]/edit",

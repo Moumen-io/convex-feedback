@@ -44,6 +44,9 @@ describe("convex-feedback component", () => {
       FunctionArgs<typeof api.entries.update>["entryId"]
     >().toEqualTypeOf<Id<"entries">>();
     expectTypeOf<
+      FunctionArgs<typeof api.entries.remove>["entryId"]
+    >().toEqualTypeOf<Id<"entries">>();
+    expectTypeOf<
       FunctionArgs<typeof api.entries.setStatus>["entryId"]
     >().toEqualTypeOf<Id<"entries">>();
     expectTypeOf<
@@ -172,6 +175,40 @@ describe("convex-feedback component", () => {
       title: "Updated title",
       body: "Updated body.",
     });
+  });
+
+  test("only admins can delete entries and attached roadmap counts stay accurate", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance, "Delete me");
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor: { id: "admin-1", isAdmin: true },
+      title: "Deletion roadmap",
+      status: "planned",
+    });
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor: { id: "admin-1", isAdmin: true },
+      roadmapId,
+      entryId,
+    });
+
+    await expect(
+      testInstance.mutation(api.entries.remove, {
+        actor: { id: "author-1" },
+        entryId,
+      }),
+    ).rejects.toThrow("Admin access is required to delete an entry.");
+
+    await testInstance.mutation(api.entries.remove, {
+      actor: { id: "admin-1", isAdmin: true },
+      entryId,
+    });
+
+    await expect(
+      testInstance.query(api.entries.get, { entryId }),
+    ).resolves.toBeNull();
+    await expect(
+      testInstance.query(api.roadmap.get, { roadmapId }),
+    ).resolves.toMatchObject({ feedbackCount: 0 });
   });
 
   test("admin priority stays private from public entries", async () => {

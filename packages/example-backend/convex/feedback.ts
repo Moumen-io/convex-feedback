@@ -11,6 +11,7 @@ export const {
   findSimilarEntries,
   createEntry,
   updateEntry,
+  deleteEntry,
   setEntryStatus,
   adminListEntries,
   adminGetEntry,

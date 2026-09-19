@@ -488,6 +488,10 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return useMutation(api.updateEntry);
     },
 
+    useDeleteEntry() {
+      return useMutation(api.deleteEntry);
+    },
+
     /** Returns the bound status mutation. */
     useSetEntryStatus() {
       return useMutation(api.setEntryStatus);

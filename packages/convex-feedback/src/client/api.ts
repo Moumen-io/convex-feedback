@@ -177,6 +177,12 @@ export type UpdateEntryArgs = {
   body: string;
 };
 
+/** Arguments for permanently deleting an entry as an administrator. */
+export type DeleteEntryArgs = {
+  /** Entry to delete. */
+  entryId: string;
+};
+
 /**
  * Arguments for changing an entry workflow status.
  */
@@ -471,6 +477,15 @@ export interface FeedbackPublicApi<
     "mutation",
     "public",
     UpdateEntryArgs,
+    null | RateLimitResult,
+    Name
+  >;
+
+  /** Permanently deletes an entry, or returns a configured rate-limit rejection. */
+  deleteEntry: FunctionReference<
+    "mutation",
+    "public",
+    DeleteEntryArgs,
     null | RateLimitResult,
     Name
   >;

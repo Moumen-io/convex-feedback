@@ -691,6 +691,36 @@ export const update = mutation({
   },
 });
 
+export const remove = mutation({
+  args: {
+    actor: actorValidator,
+    entryId: v.id("entries"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    assertActorId(args.actor.id);
+    if (!actorIsAdmin(args.actor)) {
+      throw new ConvexError("Admin access is required to delete an entry.");
+    }
+
+    const entry = await ctx.db.get("entries", args.entryId);
+    if (entry === null) return null;
+
+    if (entry.roadmapId !== undefined) {
+      const roadmap = await ctx.db.get("roadmap", entry.roadmapId);
+      if (roadmap !== null) {
+        await ctx.db.patch("roadmap", roadmap._id, {
+          feedbackCount: Math.max(0, roadmap.feedbackCount - 1),
+          updatedAt: Date.now(),
+        });
+      }
+    }
+
+    await ctx.db.delete("entries", args.entryId);
+    return null;
+  },
+});
+
 export const setStatus = mutation({
   args: {
     actor: actorValidator,

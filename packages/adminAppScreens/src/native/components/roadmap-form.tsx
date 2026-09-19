@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useAdminAction } from "../lib/action.js";
-import { feedbackHooks } from "../lib/feedback.js";
+import { useAdminFeedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
 interface RoadmapFormToolbarProps {
@@ -33,6 +33,7 @@ export function RoadmapForm({ item, onClose }: RoadmapFormProps) {
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
   const styles = createStyles(theme);
+  const feedbackHooks = useAdminFeedbackHooks();
   const isEdit = item !== undefined;
   const [title, setTitle] = useState(item?.title ?? "");
   const [description, setDescription] = useState(item?.description ?? "");

@@ -14,7 +14,7 @@ import type { SearchBarCommands } from "react-native-screens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useDebouncedValue } from "../hooks/use-debounced-value.js";
-import { feedbackHooks } from "../lib/feedback.js";
+import { useAdminFeedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
 const kinds = ["all", "feedback", "feature_request", "bug_report"] as const;
@@ -50,6 +50,7 @@ export function InboxScreen({ onOpenEntry, onNewFeedback }: InboxScreenProps) {
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
   const styles = createStyles(theme);
+  const feedbackHooks = useAdminFeedbackHooks();
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<(typeof kinds)[number]>("all");
   const [status, setStatus] = useState<(typeof statuses)[number]>("all");

@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useAdminAction } from "../lib/action.js";
-import { feedbackHooks } from "../lib/feedback.js";
+import { useAdminFeedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
 const kinds: { value: EntryKind; label: string }[] = [
@@ -43,6 +43,7 @@ export function EntryForm({ entry, onClose }: EntryFormProps) {
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
   const styles = createStyles(theme);
+  const feedbackHooks = useAdminFeedbackHooks();
   const isEdit = entry !== undefined;
   const [kind, setKind] = useState<EntryKind>(entry?.kind ?? "feedback");
   const [title, setTitle] = useState(entry?.title ?? "");

@@ -1,0 +1,67 @@
+{
+  "name": "convex-feedback-admin-auth",
+  "version": "0.1.0",
+  "description": "Runtime configuration and native authentication adapters for convex-feedback admin apps.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Moumen-io/convex-feedback.git"
+  },
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./native": {
+      "types": "./dist/native.d.ts",
+      "default": "./dist/native.js"
+    },
+    "./native-callback": {
+      "types": "./dist/native-callback.d.ts",
+      "default": "./dist/native-callback.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@clerk/expo": "^4.6.6",
+    "@convex-dev/auth": "^0.0.95",
+    "convex": "^1.45.0",
+    "expo-application": "~57.0.3",
+    "expo-auth-session": "~57.0.12",
+    "expo-crypto": "~57.0.3",
+    "expo-linking": "~57.0.10",
+    "expo-secure-store": "~57.0.4",
+    "expo-web-browser": "~57.0.3"
+  },
+  "peerDependencies": {
+    "react": ">=18.2.0",
+    "react-native": ">=0.83.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-native": "^0.73.0",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.10"
+  },
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.js"
+}

@@ -1,4 +1,13 @@
-import { ChevronRight, Monitor, Moon, Sun } from "lucide-react-native";
+import {
+  Check,
+  ChevronRight,
+  Monitor,
+  Moon,
+  Pencil,
+  Plus,
+  Sun,
+  Trash2,
+} from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   Image,
@@ -42,6 +51,12 @@ export function AdminSettingsScreen({
   onAccentColorChange,
   colorPresets = ADMIN_COLOR_PRESETS,
   onManageAccount,
+  projects,
+  activeProjectId,
+  onSelectProject,
+  onAddProject,
+  onEditProject,
+  onRemoveProject,
   theme: themeProp,
 }: NativeAdminSettingsScreenProps) {
   const themeSettings = useAdminThemeSettings();
@@ -120,6 +135,119 @@ export function AdminSettingsScreen({
           </Pressable>
         </View>
       </View>
+
+      {projects && projects.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeadingRow}>
+            <View style={styles.sectionHeadingCopy}>
+              <Text style={styles.sectionTitle}>Projects</Text>
+              <Text style={styles.sectionHint}>
+                Switch between configured Convex deployments.
+              </Text>
+            </View>
+            {onAddProject && (
+              <Pressable
+                accessibilityLabel="Add project"
+                accessibilityRole="button"
+                onPress={onAddProject}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Plus color={theme.primary} size={18} />
+              </Pressable>
+            )}
+          </View>
+          <View style={styles.projectList}>
+            {projects.map((project) => {
+              const active = project.id === activeProjectId;
+              return (
+                <View
+                  key={project.id}
+                  style={[styles.projectRow, active && styles.projectRowActive]}
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => onSelectProject?.(project.id)}
+                    style={({ pressed }) => [
+                      styles.projectMain,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.projectMark,
+                        active && styles.projectMarkActive,
+                      ]}
+                    >
+                      {active && (
+                        <Check
+                          color={theme.primaryForeground}
+                          size={14}
+                          strokeWidth={2.5}
+                        />
+                      )}
+                    </View>
+                    <View style={styles.projectCopy}>
+                      <Text numberOfLines={1} style={styles.projectName}>
+                        {project.name}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.projectMeta}>
+                        api.{project.apiNamespace} · {project.authProvider}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <View style={styles.projectActions}>
+                    {onEditProject && (
+                      <Pressable
+                        accessibilityLabel={`Edit ${project.name}`}
+                        accessibilityRole="button"
+                        onPress={() => onEditProject(project.id)}
+                        style={({ pressed }) => [
+                          styles.smallIconButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Pencil color={theme.mutedText} size={15} />
+                      </Pressable>
+                    )}
+                    {onRemoveProject && (
+                      <Pressable
+                        accessibilityLabel={`Remove ${project.name}`}
+                        accessibilityRole="button"
+                        onPress={() => onRemoveProject(project.id)}
+                        style={({ pressed }) => [
+                          styles.smallIconButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Trash2 color={theme.danger} size={15} />
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+          {onAddProject && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={onAddProject}
+              style={({ pressed }) => [
+                styles.addProjectButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Plus color={theme.primary} size={16} />
+              <Text style={styles.addProjectText}>
+                Configure another project
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Appearance</Text>
@@ -216,6 +344,76 @@ function createStyles(theme: AdminScreenTheme) {
     accountSection: { paddingBottom: 30 },
     sectionBody: { gap: 14 },
     sectionTitle: { color: theme.text, fontSize: 17, fontWeight: "700" },
+    sectionHeadingRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    sectionHeadingCopy: { flex: 1, gap: 4 },
+    sectionHint: { color: theme.mutedText, fontSize: 12, lineHeight: 18 },
+    iconButton: {
+      alignItems: "center",
+      backgroundColor: theme.primarySoft,
+      borderRadius: 18,
+      height: 36,
+      justifyContent: "center",
+      width: 36,
+    },
+    projectList: { gap: 8 },
+    projectRow: {
+      alignItems: "center",
+      backgroundColor: theme.surface,
+      borderColor: theme.border,
+      borderRadius: 17,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 8,
+      padding: 8,
+    },
+    projectRowActive: {
+      borderColor: theme.primary,
+      backgroundColor: theme.primarySoft,
+    },
+    projectMain: {
+      alignItems: "center",
+      flex: 1,
+      flexDirection: "row",
+      gap: 10,
+      minWidth: 0,
+      padding: 4,
+    },
+    projectMark: {
+      alignItems: "center",
+      borderColor: theme.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      height: 24,
+      justifyContent: "center",
+      width: 24,
+    },
+    projectMarkActive: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    projectCopy: { flex: 1, gap: 3, minWidth: 0 },
+    projectName: { color: theme.text, fontSize: 13, fontWeight: "700" },
+    projectMeta: { color: theme.mutedText, fontSize: 11 },
+    projectActions: { alignItems: "center", flexDirection: "row", gap: 2 },
+    smallIconButton: {
+      alignItems: "center",
+      borderRadius: 15,
+      height: 30,
+      justifyContent: "center",
+      width: 30,
+    },
+    addProjectButton: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 8,
+      paddingVertical: 3,
+    },
+    addProjectText: { color: theme.primary, fontSize: 13, fontWeight: "700" },
     settingTitle: { color: theme.text, fontSize: 14, fontWeight: "700" },
     themeOptions: {
       backgroundColor: theme.surfaceMuted,

@@ -24,6 +24,12 @@ export type {
   AdminThemeSettings,
 } from "./theme.js";
 export { feedbackHooks } from "./lib/feedback.js";
+export {
+  AdminFeedbackHooksProvider,
+  useAdminFeedbackHooks,
+} from "./lib/feedback.js";
+export { AdminAuthScreen } from "./AuthScreen.js";
+export type { AdminAuthScreenProps } from "./AuthScreen.js";
 export { useAdminAction } from "./lib/action.js";
 export { useDebouncedValue } from "./hooks/use-debounced-value.js";
 export { EntryForm } from "./components/entry-form.js";

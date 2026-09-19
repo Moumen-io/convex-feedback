@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MetadataModal } from "../components/metadata-modal.js";
 import { useDebouncedValue } from "../hooks/use-debounced-value.js";
 import { useAdminAction } from "../lib/action.js";
-import { feedbackHooks } from "../lib/feedback.js";
+import { feedbackHooks, useAdminFeedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 
@@ -59,19 +59,20 @@ export function FeedbackDetailScreen({
   const insets = useSafeAreaInsets();
   const theme = useAdminTheme();
   const styles = createStyles(theme);
-  const entry = feedbackHooks.useAdminEntry(entryId);
-  const setStatus = feedbackHooks.useSetEntryStatus();
-  const setPriority = feedbackHooks.useSetEntryPriority();
-  const setEntryUpvote = feedbackHooks.useSetEntryUpvote();
-  const attachRoadmap = feedbackHooks.useAttachFeedbackToRoadmap();
-  const detachRoadmap = feedbackHooks.useDetachFeedbackFromRoadmap();
-  const createRoadmapForEntry = feedbackHooks.useCreateRoadmapForEntry();
+  const hooks = useAdminFeedbackHooks();
+  const entry = hooks.useAdminEntry(entryId);
+  const setStatus = hooks.useSetEntryStatus();
+  const setPriority = hooks.useSetEntryPriority();
+  const setEntryUpvote = hooks.useSetEntryUpvote();
+  const attachRoadmap = hooks.useAttachFeedbackToRoadmap();
+  const detachRoadmap = hooks.useDetachFeedbackFromRoadmap();
+  const createRoadmapForEntry = hooks.useCreateRoadmapForEntry();
   const action = useAdminAction();
   const upvoteAction = useAdminAction();
   const [roadmapSearch, setRoadmapSearch] = useState("");
   const [metadataOpen, setMetadataOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(roadmapSearch, 300);
-  const roadmapResults = feedbackHooks.useSearchRoadmap(debouncedSearch);
+  const roadmapResults = hooks.useSearchRoadmap(debouncedSearch);
   const changeStatus = (status: EntryStatus) => {
     if (!entry) return;
     void action.run(
@@ -442,8 +443,9 @@ function InfoControl({ label, value }: { label: string; value: string }) {
 function Discussion({ entryId }: { entryId: string }) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
-  const comments = feedbackHooks.useComments({ entryId, sort: "oldest" });
-  const createComment = feedbackHooks.useCreateComment();
+  const hooks = useAdminFeedbackHooks();
+  const comments = hooks.useComments({ entryId, sort: "oldest" });
+  const createComment = hooks.useCreateComment();
   const commentAction = useAdminAction();
   const [body, setBody] = useState("");
 
@@ -505,7 +507,7 @@ function Discussion({ entryId }: { entryId: string }) {
         <LoadMoreButton
           label="Load more comments"
           disabled={comments.status === "LoadingMore"}
-          onPress={() => comments.loadMore(feedbackHooks.pageSizes.comments)}
+          onPress={() => comments.loadMore(hooks.pageSizes.comments)}
         />
       )}
     </View>
@@ -521,11 +523,12 @@ function AdminCommentBranch({
 }) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
+  const hooks = useAdminFeedbackHooks();
   const [expanded, setExpanded] = useState(false);
   const [replying, setReplying] = useState(false);
   const [replyBody, setReplyBody] = useState("");
-  const setCommentLike = feedbackHooks.useSetCommentLike();
-  const createComment = feedbackHooks.useCreateComment();
+  const setCommentLike = hooks.useSetCommentLike();
+  const createComment = hooks.useCreateComment();
   const likeAction = useAdminAction();
   const replyAction = useAdminAction();
 
@@ -673,7 +676,8 @@ function AdminReplyList({
 }) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
-  const replies = feedbackHooks.useComments({
+  const hooks = useAdminFeedbackHooks();
+  const replies = hooks.useComments({
     entryId,
     parentCommentId,
     sort: "oldest",
@@ -699,7 +703,7 @@ function AdminReplyList({
         <LoadMoreButton
           label="Load more replies"
           disabled={replies.status === "LoadingMore"}
-          onPress={() => replies.loadMore(feedbackHooks.pageSizes.replies)}
+          onPress={() => replies.loadMore(hooks.pageSizes.replies)}
         />
       )}
     </View>

@@ -10,7 +10,7 @@ import {
 
 import { useAdminTheme, type AdminTheme } from "../theme.js";
 import { useAdminAction } from "../lib/action.js";
-import { feedbackHooks } from "../lib/feedback.js";
+import { useAdminFeedbackHooks } from "../lib/feedback.js";
 import { useToolbarIcon } from "../lib/toolbar-icon.js";
 
 const stages: { value: RoadmapStatus }[] = [
@@ -39,6 +39,7 @@ export function RoadmapScreen({
 }: RoadmapScreenProps) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
+  const feedbackHooks = useAdminFeedbackHooks();
   const { messages } = useFeedbackUi();
   const roadmap = feedbackHooks.useRoadmap();
   const items = roadmap.results;

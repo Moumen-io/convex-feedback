@@ -69,6 +69,14 @@ See **[convex-feedback-ui](./packages/convex-feedback-ui/README.md)** for web/na
 
 Fork either standalone Clerk reference app under [`apps/admin/withClerk`](./apps/admin/withClerk/README.md): a Vite + Tailwind + shadcn web app or an Expo app using native tabs. Expose the complete host feedback API, return `isAdmin` from the host actor resolver, copy the selected app's `.env.example`, and set its Convex and Clerk variables before deploying. Priority remains internal; roadmap data is available through the public roadmap API and does not alter the public feedback UI.
 
+For a single universal Expo/native build that can connect to multiple projects,
+use [`apps/admin/universal`](./apps/admin/universal/README.md). It collects a
+Convex deployment URL, API namespace, public auth configuration, and enabled
+admin sign-in methods at runtime. It stores the configuration in SecureStore,
+tests the configured `api.<namespace>.isAdmin` endpoint before saving, and
+reuses the shared native admin screens. It supports Convex Auth and Clerk today;
+Auth0, WorkOS, and generic OIDC are adapter placeholders.
+
 ## Packages
 
 | Package                                                       | Purpose                                         |
@@ -77,6 +85,8 @@ Fork either standalone Clerk reference app under [`apps/admin/withClerk`](./apps
 | [convex-feedback-ui](./packages/convex-feedback-ui/README.md) | Optional React DOM and React Native UI          |
 
 The repository also contains a shared example backend and deployable public web/native demos under `packages/example-*`, plus the standalone [Clerk admin clients](./apps/admin/withClerk/README.md).
+The universal app's runtime auth/configuration package is documented in
+[`packages/adminAuth`](./packages/adminAuth/README.md).
 
 ## Reporting bugs and issues
 

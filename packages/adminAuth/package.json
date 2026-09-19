@@ -39,6 +39,9 @@
     "@clerk/expo": "^4.6.6",
     "@convex-dev/auth": "^0.0.95",
     "convex": "^1.45.0",
+    "expo-application": "~57.0.3",
+    "expo-auth-session": "~57.0.12",
+    "expo-crypto": "~57.0.3",
     "expo-linking": "~57.0.10",
     "expo-secure-store": "~57.0.4",
     "expo-web-browser": "~57.0.3"

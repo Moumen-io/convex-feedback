@@ -3,9 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   clerkOAuthStrategy,
   completeClerkSignIn,
-  completeClerkSso,
   getOAuthCallbackCode,
+  isExpectedOAuthCallbackUrl,
   mapClerkMfaMethods,
+  signInWithClerkSso,
   signInWithConvexAuth,
 } from "../src/flows.js";
 import type { ConvexAuthProviderIds } from "../src/contracts.js";
@@ -66,24 +67,177 @@ describe("Clerk custom sign-in flows", () => {
     ]);
   });
 
-  it("uses the experimental SSO result contract, which auto-finalizes", () => {
+  it("normalizes Clerk OAuth strategies", () => {
     expect(clerkOAuthStrategy("google")).toBe("oauth_google");
     expect(clerkOAuthStrategy("oauth_custom")).toBe("oauth_custom");
-    expect(
-      completeClerkSso({
-        createdSessionId: "sess_1",
-        authSessionResult: {
-          type: "success",
-          url: "convex-feedback-admin://auth/callback",
+  });
+
+  it.each([
+    ["apple", "oauth_apple"],
+    ["google", "oauth_google"],
+  ])(
+    "completes existing-account %s SSO without a sign-up transfer",
+    async (methodId, strategy) => {
+      const create = vi.fn(
+        async (params: { strategy: unknown; redirectUrl: string }) => {
+          expect(params).toEqual({
+            strategy,
+            redirectUrl: "convex-feedback-admin://auth/callback",
+          });
+          return { error: null };
         },
-      }),
-    ).toEqual({ ok: true });
+      );
+      const finalize = vi.fn(async () => ({ error: null }));
+      const currentSignIn = {
+        status: "complete",
+        finalize,
+        create,
+        firstFactorVerification: { status: "verified" },
+        isTransferable: false,
+      };
+      const reload = vi.fn(async () => ({ __internal_future: currentSignIn }));
+      const openAuthSession = vi.fn(async () => ({
+        type: "success",
+        url: "convex-feedback-admin://auth/callback?rotating_token_nonce=nonce",
+      }));
+
+      await expect(
+        signInWithClerkSso(
+          methodId,
+          "convex-feedback-admin://auth/callback",
+          {
+            status: "needs_first_factor",
+            finalize,
+            create,
+            firstFactorVerification: {
+              externalVerificationRedirectURL: new URL(
+                "https://clerk.example/oauth",
+              ),
+            },
+          },
+          { signIn: { reload } },
+          openAuthSession,
+        ),
+      ).resolves.toEqual({ ok: true });
+      expect(reload).toHaveBeenCalledWith({ rotatingTokenNonce: "nonce" });
+      expect(finalize).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("rejects a transferable Clerk SSO result without finalizing", async () => {
+    const finalize = vi.fn(async () => ({ error: null }));
+    const currentSignIn = {
+      status: "needs_first_factor",
+      finalize,
+      create: vi.fn(async () => ({ error: null })),
+      firstFactorVerification: { status: "transferable" },
+      isTransferable: true,
+    };
+    const signIn = {
+      status: "needs_first_factor",
+      finalize,
+      create: vi.fn(async () => ({ error: null })),
+      signUp: { create: vi.fn() },
+      firstFactorVerification: {
+        externalVerificationRedirectURL: new URL("https://clerk.example/oauth"),
+      },
+    };
+
+    await expect(
+      signInWithClerkSso(
+        "apple",
+        "convex-feedback-admin://auth/callback",
+        signIn,
+        {
+          signIn: {
+            reload: vi.fn(async () => ({ __internal_future: currentSignIn })),
+          },
+        },
+        async () => ({
+          type: "success",
+          url: "convex-feedback-admin://auth/callback?rotating_token_nonce=nonce",
+        }),
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      error: "No existing Clerk account was found for this sign-in method.",
+    });
+    expect(signIn.signUp.create).not.toHaveBeenCalled();
+    expect(finalize).not.toHaveBeenCalled();
+  });
+
+  it("keeps Clerk MFA and cancellation states distinguishable", async () => {
+    const finalize = vi.fn(async () => ({ error: null }));
+    const signIn = {
+      status: "needs_first_factor",
+      finalize,
+      create: vi.fn(async () => ({ error: null })),
+      firstFactorVerification: {
+        externalVerificationRedirectURL: new URL("https://clerk.example/oauth"),
+      },
+    };
+    const currentSignIn = {
+      status: "needs_second_factor",
+      finalize,
+      create: signIn.create,
+      firstFactorVerification: { status: "verified" },
+    };
+    const client = {
+      signIn: {
+        reload: vi.fn(async () => ({ __internal_future: currentSignIn })),
+      },
+    };
+
+    await expect(
+      signInWithClerkSso(
+        "google",
+        "convex-feedback-admin://auth/callback",
+        signIn,
+        client,
+        async () => ({
+          type: "success",
+          url: "convex-feedback-admin://auth/callback?rotating_token_nonce=nonce",
+        }),
+      ),
+    ).resolves.toEqual({ ok: true });
+    expect(finalize).not.toHaveBeenCalled();
+
+    await expect(
+      signInWithClerkSso(
+        "google",
+        "convex-feedback-admin://auth/callback",
+        signIn,
+        client,
+        async () => ({ type: "cancel" }),
+      ),
+    ).resolves.toEqual({ ok: false, error: "The sign-in flow was cancelled." });
+  });
+
+  it("accepts only the configured callback scheme, host, and path", () => {
     expect(
-      completeClerkSso({
-        createdSessionId: null,
-        authSessionResult: { type: "cancel" },
-      }),
-    ).toEqual({ ok: false, error: "The sign-in flow was cancelled." });
+      isExpectedOAuthCallbackUrl(
+        "convex-feedback-admin://auth/callback?code=ok",
+        "convex-feedback-admin://auth/callback",
+      ),
+    ).toBe(true);
+    expect(
+      isExpectedOAuthCallbackUrl(
+        "other-app://auth/callback?code=ok",
+        "convex-feedback-admin://auth/callback",
+      ),
+    ).toBe(false);
+    expect(
+      isExpectedOAuthCallbackUrl(
+        "convex-feedback-admin://other-host/callback?code=ok",
+        "convex-feedback-admin://auth/callback",
+      ),
+    ).toBe(false);
+    expect(
+      isExpectedOAuthCallbackUrl(
+        "convex-feedback-admin://auth/other-path?code=ok",
+        "convex-feedback-admin://auth/callback",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -223,5 +377,31 @@ describe("Convex Auth native sign-in flows", () => {
       ),
     ).resolves.toEqual({ ok: false, error: "The sign-in flow was cancelled." });
     expect(getOAuthCallbackCode("not a URL")).toBeNull();
+  });
+
+  it("rejects a Convex callback outside the configured app link", async () => {
+    const signIn = vi.fn(async () => ({
+      signingIn: false,
+      redirect: new URL("https://host.example/oauth"),
+    }));
+
+    await expect(
+      signInWithConvexAuth(
+        { kind: "sso", method: { id: "google", label: "Google" } },
+        providerIds,
+        signIn,
+        {
+          redirectUri: "convex-feedback-admin://auth/callback",
+          openAuthSession: async () => ({
+            type: "success",
+            url: "other-app://auth/callback?code=oauth-code",
+          }),
+        },
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      error: "The sign-in callback did not return to the configured app link.",
+    });
+    expect(signIn).toHaveBeenCalledOnce();
   });
 });

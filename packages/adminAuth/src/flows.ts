@@ -7,6 +7,30 @@ import type {
 
 export const NATIVE_AUTH_CALLBACK_PATH = "auth/callback";
 
+export interface ClerkSsoSignInLike extends ClerkSignInResourceLike {
+  create: (params: {
+    // `never` keeps this structural adapter independent of Clerk's internal
+    // OAuth strategy union while still allowing a provider-specific string at
+    // the call site below.
+    strategy: never;
+    redirectUrl: string;
+  }) => Promise<ClerkOperationResult>;
+  firstFactorVerification: {
+    status?: string | null;
+    externalVerificationRedirectURL?: URL | null;
+  };
+  isTransferable?: boolean;
+  existingSession?: { sessionId: string };
+}
+
+export interface ClerkSsoClientLike {
+  signIn: {
+    reload: (params: { rotatingTokenNonce: string }) => Promise<{
+      __internal_future: ClerkSsoSignInLike;
+    }>;
+  };
+}
+
 export interface ClerkOperationResult {
   error: { message?: string } | null | undefined;
 }
@@ -73,20 +97,97 @@ export function clerkOAuthStrategy(methodId: string): string {
   return methodId.startsWith("oauth_") ? methodId : `oauth_${methodId}`;
 }
 
-export interface ClerkSsoResultLike {
-  createdSessionId: string | null;
-  authSessionResult: { type: string; url?: string } | null;
-}
+/**
+ * Run Clerk's native SSO flow without transferring an unknown identity to
+ * sign-up. The installed `@clerk/expo` `useSSO()` helper performs that
+ * transfer automatically, so the universal admin app must own this portion
+ * of the flow to keep its sign-in-only contract.
+ */
+export async function signInWithClerkSso(
+  methodId: string,
+  redirectUrl: string,
+  signIn: ClerkSsoSignInLike,
+  client: ClerkSsoClientLike,
+  openAuthSession: OpenAuthSession,
+  setActive?: (params: { session: string }) => Promise<void>,
+): Promise<AdminAuthResult> {
+  try {
+    const created = await signIn.create({
+      strategy: clerkOAuthStrategy(methodId) as never,
+      redirectUrl,
+    });
+    if (created.error) return clerkErrorResult(created.error.message);
 
-export function completeClerkSso(result: ClerkSsoResultLike): AdminAuthResult {
-  if (result.authSessionResult?.type === "success") return { ok: true };
-  if (
-    result.authSessionResult?.type === "cancel" ||
-    result.authSessionResult?.type === "dismiss"
-  ) {
-    return { ok: false, error: "The sign-in flow was cancelled." };
+    const externalRedirectUrl =
+      signIn.firstFactorVerification.externalVerificationRedirectURL;
+    if (!externalRedirectUrl) {
+      return {
+        ok: false,
+        error: "Clerk did not provide an SSO redirect URL.",
+      };
+    }
+
+    const browserResult = await openAuthSession(
+      externalRedirectUrl.toString(),
+      redirectUrl,
+    );
+    if (browserResult.type !== "success") {
+      return { ok: false, error: "The sign-in flow was cancelled." };
+    }
+    if (!isExpectedOAuthCallbackUrl(browserResult.url, redirectUrl)) {
+      return {
+        ok: false,
+        error:
+          "The Clerk sign-in callback did not return to the configured app link.",
+      };
+    }
+
+    const rotatingTokenNonce = getOAuthCallbackParam(
+      browserResult.url,
+      "rotating_token_nonce",
+    );
+    if (!rotatingTokenNonce) {
+      return {
+        ok: false,
+        error: "The Clerk sign-in callback did not include a session nonce.",
+      };
+    }
+
+    const reloaded = await client.signIn.reload({ rotatingTokenNonce });
+    const currentSignIn = reloaded.__internal_future;
+    if (
+      currentSignIn.isTransferable === true ||
+      currentSignIn.firstFactorVerification.status === "transferable"
+    ) {
+      return {
+        ok: false,
+        error: "No existing Clerk account was found for this sign-in method.",
+      };
+    }
+
+    if (currentSignIn.status === "complete") {
+      return finalizeClerkSignIn(currentSignIn);
+    }
+
+    if (
+      currentSignIn.status === "needs_second_factor" ||
+      currentSignIn.status === "needs_client_trust"
+    ) {
+      return { ok: true };
+    }
+
+    if (currentSignIn.existingSession && setActive) {
+      await setActive({ session: currentSignIn.existingSession.sessionId });
+      return { ok: true };
+    }
+
+    return {
+      ok: false,
+      error: `Clerk sign-in is not complete (status: ${currentSignIn.status}).`,
+    };
+  } catch (error) {
+    return clerkErrorResult(errorMessage(error, "Clerk"));
   }
-  return { ok: false, error: "The Clerk sign-in flow did not complete." };
 }
 
 export function clerkErrorResult(message: string | undefined): AdminAuthResult {
@@ -209,6 +310,13 @@ export async function signInWithConvexAuth(
     return { ok: false, error: "The sign-in flow was cancelled." };
   }
 
+  if (!isExpectedOAuthCallbackUrl(browserResult.url, options.redirectUri)) {
+    return {
+      ok: false,
+      error: "The sign-in callback did not return to the configured app link.",
+    };
+  }
+
   const code = getOAuthCallbackCode(browserResult.url);
   if (!code) {
     return {
@@ -228,11 +336,36 @@ export async function signInWithConvexAuth(
 }
 
 export function getOAuthCallbackCode(url: string | undefined): string | null {
+  return getOAuthCallbackParam(url, "code");
+}
+
+export function getOAuthCallbackParam(
+  url: string | undefined,
+  name: string,
+): string | null {
   if (!url) return null;
   try {
-    return new URL(url).searchParams.get("code");
+    return new URL(url).searchParams.get(name);
   } catch {
     return null;
+  }
+}
+
+export function isExpectedOAuthCallbackUrl(
+  url: string | undefined,
+  redirectUrl: string,
+): boolean {
+  if (!url) return false;
+  try {
+    const actual = new URL(url);
+    const expected = new URL(redirectUrl);
+    return (
+      actual.protocol === expected.protocol &&
+      actual.host === expected.host &&
+      actual.pathname === expected.pathname
+    );
+  } catch {
+    return false;
   }
 }
 

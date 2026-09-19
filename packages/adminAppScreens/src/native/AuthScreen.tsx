@@ -343,7 +343,9 @@ export function AdminAuthScreen({
           </Pressable>
         )}
         <Text style={styles.footer}>
-          Sign-in only · account creation is disabled.
+          {auth.ssoAccountCreationPolicy === "existing-only"
+            ? "Sign-in only · this app does not create accounts through SSO."
+            : "Sign in with an account that already has administrator access."}
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

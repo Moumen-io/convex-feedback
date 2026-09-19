@@ -1,5 +1,9 @@
-import { useAuth as useClerkAuth, useSignIn, useUser } from "@clerk/expo";
-import { useSSO } from "@clerk/expo/experimental";
+import {
+  useAuth as useClerkAuth,
+  useClerk,
+  useSignIn,
+  useUser,
+} from "@clerk/expo";
 import { ClerkProvider } from "@clerk/expo";
 import { UserProfileView } from "@clerk/expo/native";
 import {
@@ -14,7 +18,7 @@ import {
 } from "convex/react";
 import type { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
-import * as Linking from "expo-linking";
+import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import {
   createContext,
@@ -36,13 +40,12 @@ import type {
   AdminProjectConfig,
 } from "./contracts.js";
 import {
-  clerkOAuthStrategy,
   clerkErrorResult,
   completeClerkSignIn,
-  completeClerkSso,
   finalizeClerkSignIn,
   mapClerkMfaMethods,
   NATIVE_AUTH_CALLBACK_PATH,
+  signInWithClerkSso,
   signInWithConvexAuth,
 } from "./flows.js";
 import {
@@ -163,7 +166,7 @@ function ConvexAuthBridge({
           providerIds,
           actions.signIn,
           {
-            redirectUri: Linking.createURL(NATIVE_AUTH_CALLBACK_PATH),
+            redirectUri: createNativeAuthCallbackUrl(),
             openAuthSession: (url, redirectUri) =>
               WebBrowser.openAuthSessionAsync(url, redirectUri),
           },
@@ -190,6 +193,7 @@ function ConvexAuthBridge({
       isLoaded: !authState.isLoading,
       isAuthenticated: authState.isAuthenticated,
       availableSsoMethods,
+      ssoAccountCreationPolicy: "provider-managed",
       supportsPassword: methods.password === true,
       supportsEmailCode: methods.emailCode === true,
       challenge: emailCodeSent
@@ -244,10 +248,10 @@ function ClerkAuthBridge({
   children: ReactNode;
 }) {
   const clerkAuth = useClerkAuth({ treatPendingAsSignedOut: false });
+  const clerk = useClerk();
   const convexAuth = useConvexProviderAuth();
   const { user } = useUser();
   const signInResource = useSignIn();
-  const { startSSOFlow } = useSSO();
   const [emailCodeSent, setEmailCodeSent] = useState(false);
   const methods =
     project.auth.provider === "clerk" ? project.auth.publicConfig.methods : {};
@@ -289,18 +293,21 @@ function ClerkAuthBridge({
         }
 
         if (request.kind === "sso") {
-          const strategy = clerkOAuthStrategy(request.method.id);
-          const result = await startSSOFlow({
-            strategy: strategy as never,
-            redirectUrl: Linking.createURL(NATIVE_AUTH_CALLBACK_PATH),
-          });
-          return completeClerkSso(result);
+          return signInWithClerkSso(
+            request.method.id,
+            createNativeAuthCallbackUrl(),
+            signInFuture,
+            clerk.client,
+            (url, redirectUrl) =>
+              WebBrowser.openAuthSessionAsync(url, redirectUrl),
+            ({ session }) => clerk.setActive({ session }),
+          );
         }
 
         const code = request.code?.trim();
         if (request.method === "email-link") {
           const sent = await signInFuture.emailLink.sendLink({
-            verificationUrl: Linking.createURL(NATIVE_AUTH_CALLBACK_PATH),
+            verificationUrl: createNativeAuthCallbackUrl(),
           });
           if (sent.error) return clerkErrorResult(sent.error.message);
           const verification =
@@ -345,7 +352,7 @@ function ClerkAuthBridge({
         return { ok: false, error: errorMessage(error) };
       }
     },
-    [signInFuture, startSSOFlow],
+    [clerk, signInFuture],
   );
 
   const challenge = useMemo<AdminAuthChallenge | null>(() => {
@@ -393,6 +400,7 @@ function ClerkAuthBridge({
         clerkAuth.isSignedIn === true && convexAuth.isAuthenticated,
       account,
       availableSsoMethods,
+      ssoAccountCreationPolicy: "existing-only",
       supportsPassword: methods.password === true,
       supportsEmailCode: methods.emailCode === true,
       challenge,
@@ -434,6 +442,7 @@ function UnsupportedAuthRuntime({
       isLoaded: true,
       isAuthenticated: false,
       availableSsoMethods: [],
+      ssoAccountCreationPolicy: "provider-managed",
       supportsPassword: false,
       supportsEmailCode: false,
       challenge: null,
@@ -459,4 +468,11 @@ function errorMessage(error: unknown): string {
     if (typeof message === "string" && message) return message;
   }
   return "Authentication failed. Check the details and try again.";
+}
+
+function createNativeAuthCallbackUrl(): string {
+  // `makeRedirectUri` reads the configured Expo scheme in a development or
+  // release build, so changing app.json does not require a second hard-coded
+  // callback value in the auth adapter.
+  return AuthSession.makeRedirectUri({ path: NATIVE_AUTH_CALLBACK_PATH });
 }

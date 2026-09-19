@@ -78,6 +78,15 @@ The app uses a custom scheme because OAuth and email-link flows must return to a
 native build. Expo Go is not a release target for these flows; use a local
 development build or an EAS build.
 
+The login screen never exposes a sign-up screen, CTA, or registration flow.
+Clerk SSO is additionally sign-in-only in this app: after the provider callback,
+an identity Clerk marks as transferable is rejected instead of being passed to
+Clerk's sign-up transfer. Convex Auth keeps its normal provider-managed OAuth
+behavior because the installed `@convex-dev/auth` version creates or updates
+the account on the host during the OAuth callback; admin access is still
+checked by the host's `isAdmin` endpoint. No host configuration is added just
+to suppress account creation.
+
 ## Provider registration for a published app
 
 The app contains public client configuration, but the provider dashboards and

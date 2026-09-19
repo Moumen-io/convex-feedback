@@ -92,6 +92,13 @@ export type AdminAuthSignInRequest =
 
 export type AdminAuthResult = { ok: true } | { ok: false; error: string };
 
+/**
+ * Describes whether the selected SSO adapter can prevent a new account from
+ * being created without help from the provider's backend configuration.
+ */
+export type AdminSsoAccountCreationPolicy =
+  "existing-only" | "provider-managed";
+
 export interface AdminAuthController {
   provider: AdminAuthProviderId;
   status: "loading" | "signed-out" | "signed-in";
@@ -99,6 +106,7 @@ export interface AdminAuthController {
   isAuthenticated: boolean;
   account?: AdminAuthAccount;
   availableSsoMethods: AdminSsoMethod[];
+  ssoAccountCreationPolicy: AdminSsoAccountCreationPolicy;
   supportsPassword: boolean;
   supportsEmailCode: boolean;
   challenge: AdminAuthChallenge | null;

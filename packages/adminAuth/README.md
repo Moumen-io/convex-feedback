@@ -81,11 +81,22 @@ The host deployment remains responsible for authorization. The universal app
 checks the configured `isAdmin` endpoint before showing admin screens, and
 protected Convex operations must continue to enforce admin access themselves.
 
+SSO account creation follows the capabilities of the selected adapter. The
+Clerk native adapter owns the SSO callback and stops when Clerk reports a
+transferable identity, so this app never calls Clerk's sign-up transfer for an
+unknown SSO identity. That is an app-flow guarantee, not a restriction on the
+Clerk instance or other clients. Convex Auth `0.0.95` creates or updates the
+user during its server-side OAuth callback before the mobile code exchange, so
+the adapter keeps its normal provider-managed behavior; the client cannot make
+that provider existing-accounts-only without a host/backend change.
+
 ### Native Convex Auth OAuth callback
 
-The native adapter starts OAuth with `Linking.createURL("auth/callback")`,
-opens the returned URL with `WebBrowser.openAuthSessionAsync`, and exchanges the
-`code` returned to that deep link. The universal app's configured Expo scheme is
+The native adapter starts OAuth with
+`AuthSession.makeRedirectUri({ path: "auth/callback" })`, which resolves the
+configured Expo scheme through Expo Linking, opens the returned URL with
+`WebBrowser.openAuthSessionAsync`, and exchanges the `code` returned to that
+deep link. The universal app's configured Expo scheme is
 `convex-feedback-admin`, so the native redirect is
 `convex-feedback-admin://auth/callback`.
 
@@ -140,6 +151,8 @@ Adapters implement the provider-independent `AdminAuthController` contract:
 - `status`, `isAuthenticated`, and the optional admin account summary;
 - password, email-code, SSO, and MFA sign-in actions;
 - `availableSsoMethods` and the supported method flags;
+- `ssoAccountCreationPolicy`, which tells the shared UI whether this adapter
+  blocks SSO account creation in the app flow or leaves it provider-managed;
 - `challenge` for email verification or second-factor steps;
 - `getToken` and `signOut`.
 

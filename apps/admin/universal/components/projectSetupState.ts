@@ -2,6 +2,7 @@ import {
   isValidConvexUrl,
   isValidNamespace,
   normalizeApiNamespace,
+  normalizeConvexUrl,
   normalizeProjectConfig,
 } from "convex-feedback-admin-auth/config";
 import type {
@@ -26,6 +27,15 @@ export const EMPTY_CONVEX_AUTH_PROVIDER_IDS: ConvexAuthProviderIds = {
   sso: {},
 };
 
+export function getConnectionKey(
+  convexUrl: string,
+  apiNamespace: string,
+): string {
+  return `${normalizeConvexUrl(convexUrl)}\u0000${normalizeApiNamespace(
+    apiNamespace,
+  )}`;
+}
+
 export function createProjectSetupDraft(
   initialProject?: AdminProjectConfig,
   now = Date.now(),
@@ -33,6 +43,7 @@ export function createProjectSetupDraft(
   if (initialProject) {
     return {
       ...initialProject,
+      apiNamespace: normalizeApiNamespace(initialProject.apiNamespace),
       auth: cloneAuthConfig(initialProject.auth),
     };
   }
@@ -59,7 +70,13 @@ export function updateProjectIdentity(
     Pick<AdminProjectConfig, "name" | "convexUrl" | "apiNamespace">
   >,
 ): AdminProjectConfig {
-  return { ...draft, ...fields };
+  return {
+    ...draft,
+    ...fields,
+    apiNamespace: normalizeApiNamespace(
+      fields.apiNamespace ?? draft.apiNamespace,
+    ),
+  };
 }
 
 export function updateProjectAuthProvider(
@@ -128,7 +145,7 @@ export function buildFinalProjectConfig(
 
 export function getConvexSetupIssues(draft: AdminProjectConfig): string[] {
   const issues: string[] = [];
-  const convexUrl = draft.convexUrl.trim().replace(/\/+$/, "");
+  const convexUrl = normalizeConvexUrl(draft.convexUrl);
   const apiNamespace = normalizeApiNamespace(draft.apiNamespace);
 
   if (!draft.name.trim()) issues.push("Give this project a name.");

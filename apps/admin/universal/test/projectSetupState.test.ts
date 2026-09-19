@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildFinalProjectConfig,
   createProjectSetupDraft,
+  getConnectionKey,
   getConvexAuthProviderIds,
   getAuthMethods,
   updateConvexAuthProviderIds,
@@ -89,7 +90,7 @@ describe("universal project setup draft", () => {
 
     expect(draft.name).toBe("Feedback admin");
     expect(draft.convexUrl).toBe("https://admin.convex.cloud/");
-    expect(draft.apiNamespace).toBe("api.feedback");
+    expect(draft.apiNamespace).toBe("feedback");
     expect(draft.auth).toEqual({
       provider: "convex-auth",
       publicConfig: {
@@ -107,7 +108,40 @@ describe("universal project setup draft", () => {
     });
   });
 
-  test("generates the final normalized config without changing the draft", () => {
+  test("normalizes pasted API prefixes without rewriting api-prefixed namespaces", () => {
+    const draft = createProjectSetupDraft(undefined, 250);
+
+    expect(
+      updateProjectIdentity(draft, { apiNamespace: "feedback" }).apiNamespace,
+    ).toBe("feedback");
+    expect(
+      updateProjectIdentity(draft, { apiNamespace: "api.feedback" })
+        .apiNamespace,
+    ).toBe("feedback");
+    expect(
+      updateProjectIdentity(draft, { apiNamespace: "apiary.feedback" })
+        .apiNamespace,
+    ).toBe("apiary.feedback");
+  });
+
+  test("keeps connection keys distinct for similar api-prefixed namespaces", () => {
+    const url = "https://admin.convex.cloud/";
+
+    expect(getConnectionKey(url, "feedback")).toBe(
+      getConnectionKey(url, "api.feedback"),
+    );
+    expect(getConnectionKey(url, "apiary.feedback")).toBe(
+      "https://admin.convex.cloud\u0000apiary.feedback",
+    );
+    expect(getConnectionKey(url, "ary.feedback")).toBe(
+      "https://admin.convex.cloud\u0000ary.feedback",
+    );
+    expect(getConnectionKey(url, "apiary.feedback")).not.toBe(
+      getConnectionKey(url, "ary.feedback"),
+    );
+  });
+
+  test("generates the final normalized config while retaining draft-only whitespace", () => {
     let draft = createProjectSetupDraft(existingProject, 300);
     draft = updateProjectIdentity(draft, {
       name: "  Renamed project  ",
@@ -126,6 +160,6 @@ describe("universal project setup draft", () => {
     });
     expect(finalConfig.auth).toEqual(existingProject.auth);
     expect(draft.name).toBe("  Renamed project  ");
-    expect(draft.apiNamespace).toBe("api.feedback.admin");
+    expect(draft.apiNamespace).toBe("feedback.admin");
   });
 });

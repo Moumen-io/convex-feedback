@@ -16,7 +16,8 @@ const baseProject = {
 } as const;
 
 describe("runtime admin configuration", () => {
-  it("normalizes the api. prefix", () => {
+  it("normalizes an exact api. prefix", () => {
+    expect(normalizeApiNamespace("feedback")).toBe("feedback");
     expect(normalizeApiNamespace("api.feedback.admin")).toBe("feedback.admin");
   });
 

@@ -24,6 +24,7 @@ import {
   buildFinalProjectConfig,
   cloneAuthConfig,
   createProjectSetupDraft,
+  getConnectionKey,
   getAuthMethods,
   getClerkPublishableKey,
   getConvexAuthProviderIds,
@@ -36,6 +37,8 @@ import {
   updateProjectIdentity,
   type SetupSupportedProvider,
 } from "./projectSetupState";
+
+export { getConnectionKey };
 
 export type ConnectionTestState =
   | { key: string; status: "testing" }
@@ -369,17 +372,6 @@ export function useProjectSetup(): ProjectSetupContextValue {
     );
   }
   return value;
-}
-
-export function getConnectionKey(
-  convexUrl: string,
-  apiNamespace: string,
-): string {
-  return `${convexUrl.trim().replace(/\/+$/, "")}\u0000${apiNamespace
-    .trim()
-    .replace(/^api\.?/i, "")
-    .replace(/^\.+|\.+$/g, "")
-    .replace(/\.{2,}/g, ".")}`;
 }
 
 function replaceAuthMethods(

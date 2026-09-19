@@ -83,7 +83,7 @@ export default function ConvexSetupRoute() {
               placeholder="feedback"
               placeholderTextColor={theme.mutedText}
               style={styles.namespaceInput}
-              value={setup.draft.apiNamespace.replace(/^api\.?/i, "")}
+              value={setup.draft.apiNamespace}
             />
           </View>
           <Text style={styles.hint}>
@@ -116,9 +116,8 @@ export default function ConvexSetupRoute() {
             setup.connectionTest.status === "success" && (
               <Text style={styles.connectionSuccess}>
                 Connected: api.
-                {setup.draft.apiNamespace.replace(/^api\.?/i, "")}.isAdmin
-                responded successfully. It returned{" "}
-                {setup.connectionTest.isAdmin ? "true" : "false"};{" "}
+                {setup.draft.apiNamespace}.isAdmin responded successfully. It
+                returned {setup.connectionTest.isAdmin ? "true" : "false"};{" "}
                 {setup.connectionTest.isAdmin
                   ? "continue with an admin account after saving."
                   : "an unauthenticated connection is ready; sign in with an admin account after saving."}

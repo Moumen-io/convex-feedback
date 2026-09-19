@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import { goBackOrReplace } from "../src/native/expo/navigation.js";
 import {
   createFeedbackStackSettings,
   createRoadmapStackSettings,
@@ -19,6 +20,34 @@ import {
   roadmapRouteParams,
   roadmapStackSettings,
 } from "../src/native/expo/routes.js";
+
+describe("Expo routed navigation", () => {
+  test("backs when the route has navigation history", () => {
+    const calls: string[] = [];
+    const router = {
+      canGoBack: () => true,
+      back: () => calls.push("back"),
+      replace: (href: string) => calls.push(`replace:${href}`),
+    };
+
+    goBackOrReplace(router, "/inbox");
+
+    expect(calls).toEqual(["back"]);
+  });
+
+  test("replaces with the fallback when opened without history", () => {
+    const calls: string[] = [];
+    const router = {
+      canGoBack: () => false,
+      back: () => calls.push("back"),
+      replace: (href: string) => calls.push(`replace:${href}`),
+    };
+
+    goBackOrReplace(router, "/roadmap");
+
+    expect(calls).toEqual(["replace:/roadmap"]);
+  });
+});
 
 describe("Expo routed feedback contracts", () => {
   test("uses the prescribed route names by default", () => {

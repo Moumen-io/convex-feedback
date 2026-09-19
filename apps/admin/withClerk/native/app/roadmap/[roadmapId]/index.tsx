@@ -1,4 +1,5 @@
 import { RoadmapDetailScreen } from "convex-feedback-admin-app-screens/native";
+import { goBackOrReplace } from "convex-feedback-ui/expo";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { parseRoadmapRouteItem, roadmapRouteParams } from "@/lib/roadmap-route";
@@ -12,7 +13,7 @@ export default function RoadmapDetailRoute() {
 
   return (
     <RoadmapDetailScreen
-      onClose={() => router.back()}
+      onClose={() => goBackOrReplace(router, "/roadmap")}
       onEdit={(item) =>
         router.push({
           pathname: "/roadmap/[roadmapId]/edit",

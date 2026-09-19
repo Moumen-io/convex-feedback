@@ -1,19 +1,18 @@
-import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
+import { useRouter } from "expo-router";
 import { ShieldCheck } from "lucide-react-native";
-import { Text, View } from "react-native";
+import { Text } from "react-native";
 
 import { useProjectSetup } from "@/components/ProjectSetupContext";
 import {
   createSetupStyles,
-  SetupFooter,
   SetupIssues,
   SetupMethodToggle,
   SetupPage,
   SetupSection,
 } from "@/components/setup/SetupUI";
-import { DEFAULT_SSO_METHODS } from "convex-feedback-admin-auth";
 import { useAdminTheme } from "convex-feedback-admin-app-screens/native";
+import { DEFAULT_SSO_METHODS } from "convex-feedback-admin-auth";
 
 export default function SignInMethodsRoute() {
   const theme = useAdminTheme();
@@ -28,12 +27,7 @@ export default function SignInMethodsRoute() {
   };
 
   return (
-    <SetupPage
-      step={3}
-      subtitle="These choices describe the methods enabled for administrators by the selected provider."
-      title="Choose sign-in methods"
-      footer={<SetupFooter nextLabel="Continue" onNext={continueSetup} />}
-    >
+    <SetupPage step={3} onContinue={continueSetup} showBack>
       <SetupSection
         icon={<ShieldCheck color={theme.primary} size={18} />}
         title="Admin sign-in methods"

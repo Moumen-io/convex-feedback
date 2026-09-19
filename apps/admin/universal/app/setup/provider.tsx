@@ -1,18 +1,16 @@
 import { useRouter } from "expo-router";
-import type { Href } from "expo-router";
 import { ShieldCheck } from "lucide-react-native";
 import { View } from "react-native";
 
 import { useProjectSetup } from "@/components/ProjectSetupContext";
 import {
   createSetupStyles,
-  SetupFooter,
   SetupOption,
   SetupPage,
   SetupSection,
 } from "@/components/setup/SetupUI";
-import { ADMIN_AUTH_PROVIDERS } from "convex-feedback-admin-auth";
 import { useAdminTheme } from "convex-feedback-admin-app-screens/native";
+import { ADMIN_AUTH_PROVIDERS } from "convex-feedback-admin-auth";
 
 export default function ProviderSelectionRoute() {
   const theme = useAdminTheme();
@@ -23,14 +21,8 @@ export default function ProviderSelectionRoute() {
   return (
     <SetupPage
       step={2}
-      subtitle="Choose the authentication adapter used by the host deployment."
-      title="Choose an auth provider"
-      footer={
-        <SetupFooter
-          nextLabel="Continue"
-          onNext={() => router.push("/setup/methods" as Href)}
-        />
-      }
+      onContinue={() => router.push("/setup/methods")}
+      showBack
     >
       <SetupSection
         icon={<ShieldCheck color={theme.primary} size={18} />}

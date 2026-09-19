@@ -1,7 +1,6 @@
-import { Check, ChevronRight, LockKeyhole } from "lucide-react-native";
+import { Check, ShieldCheck } from "lucide-react-native";
 import type * as React from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -11,10 +10,12 @@ import {
   View,
 } from "react-native";
 
+import { Host } from "@expo/ui";
 import {
   useAdminTheme,
   type AdminTheme,
 } from "convex-feedback-admin-app-screens/native";
+import { Stack, useRouter } from "expo-router";
 
 export function createSetupStyles(theme: AdminTheme) {
   return StyleSheet.create({
@@ -224,60 +225,78 @@ export function createSetupStyles(theme: AdminTheme) {
     disabled: { opacity: 0.5 },
     pressed: { opacity: 0.68 },
     securityNote: {
+      flex: 1,
       color: theme.mutedText,
       fontSize: 11,
       lineHeight: 17,
-      textAlign: "center",
     },
   });
 }
 
 export function SetupPage({
-  step,
-  title,
-  subtitle,
   children,
-  footer,
+  step,
+  showBack = false,
+  backDisabled,
+  onBack,
+  continueLabel = "Continue",
+  continueDisabled,
+  onContinue,
 }: {
-  step: number;
-  title: string;
-  subtitle: string;
   children: React.ReactNode;
-  footer?: React.ReactNode;
+  step: number;
+  showBack?: boolean;
+  backDisabled?: boolean;
+  onBack?: () => void;
+  continueLabel?: string;
+  continueDisabled?: boolean;
+  onContinue?: () => void;
 }) {
   const theme = useAdminTheme();
   const styles = createSetupStyles(theme);
+  const router = useRouter();
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.screen}
-    >
+    <>
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        automaticallyAdjustKeyboardInsets
       >
-        <View style={styles.header}>
-          <View style={styles.logo}>
-            <LockKeyhole
-              color={theme.primaryForeground}
-              size={22}
-              strokeWidth={2.2}
-            />
-          </View>
-          <Text style={styles.eyebrow}>CONVEX FEEDBACK ADMIN</Text>
-          <Text style={styles.step}>STEP {step} OF 4</Text>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        </View>
+        <Text style={styles.step}>STEP {step} OF 4</Text>
         {children}
-        {footer}
-        <Text style={styles.securityNote}>
-          Configuration is encrypted with expo-secure-store. Server-side secrets
-          are never requested or stored.
-        </Text>
+        <View style={styles.sectionHeading}>
+          <ShieldCheck color={theme.primary} size={22} />
+          <Text style={styles.securityNote}>
+            Configuration is encrypted and stored locally with
+            expo-secure-store.
+            {"\n"}Server-side secrets are never requested or stored.
+          </Text>
+        </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      <Host>
+        <Stack.Toolbar>
+          <Stack.Toolbar.Button
+            hidden={!showBack && !onBack}
+            disabled={backDisabled}
+            icon="chevron.left"
+            onPress={() => (onBack ? onBack() : router.back())}
+          />
+          <Stack.Toolbar.Spacer />
+          <Stack.Toolbar.Button
+            variant="prominent"
+            disabled={continueDisabled}
+            tintColor={theme.primary}
+            onPress={onContinue}
+          >
+            {continueLabel}
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      </Host>
+    </>
   );
 }
 
@@ -363,10 +382,6 @@ export function SetupOption({
         </View>
         <Text style={styles.optionDescription}>{description}</Text>
       </View>
-      <ChevronRight
-        color={selected ? theme.primary : theme.mutedText}
-        size={17}
-      />
     </Pressable>
   );
 }

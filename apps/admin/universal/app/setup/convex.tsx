@@ -1,5 +1,4 @@
 import { useRouter } from "expo-router";
-import type { Href } from "expo-router";
 import { PlugZap, Server } from "lucide-react-native";
 import { useState } from "react";
 import {
@@ -14,7 +13,6 @@ import { useProjectSetup } from "@/components/ProjectSetupContext";
 import {
   createSetupStyles,
   SetupField,
-  SetupFooter,
   SetupIssues,
   SetupPage,
   SetupSection,
@@ -38,7 +36,7 @@ export default function ConvexSetupRoute() {
           ? { ok: true as const }
           : await setup.testConnection();
       if (!connection.ok) return;
-      router.push("/setup/provider" as Href);
+      router.push("/setup/provider");
     } finally {
       setContinuing(false);
     }
@@ -47,18 +45,13 @@ export default function ConvexSetupRoute() {
   return (
     <SetupPage
       step={1}
-      subtitle="Connect the deployment that hosts your feedback API before choosing how administrators sign in."
-      title={
-        setup.isEditing ? "Edit project connection" : "Connect an admin project"
+      backDisabled={!setup.canCancel}
+      onBack={setup.canCancel ? setup.cancel : undefined}
+      continueLabel="Continue"
+      continueDisabled={
+        setup.connectionTest?.status === "testing" || continuing
       }
-      footer={
-        <SetupFooter
-          disabled={continuing || setup.connectionTest?.status === "testing"}
-          nextLabel="Continue"
-          onCancel={setup.canCancel ? setup.cancel : undefined}
-          onNext={() => void continueSetup()}
-        />
-      }
+      onContinue={() => void continueSetup()}
     >
       <SetupSection
         icon={<Server color={theme.primary} size={18} />}

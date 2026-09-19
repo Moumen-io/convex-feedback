@@ -1,15 +1,16 @@
 import {
-  AdminAuthAccountView,
-  useAdminAuth,
-} from "convex-feedback-admin-auth/native";
-import {
   AdminAccountModal,
   AdminSettingsScreen,
   useAdminTheme,
 } from "convex-feedback-admin-app-screens/native";
+import {
+  AdminAuthAccountView,
+  useAdminAuth,
+} from "convex-feedback-admin-auth/native";
 import { useState } from "react";
 
 import { useUniversalAdmin } from "@/components/RuntimeContext";
+import { Alert } from "react-native";
 
 export default function SettingsScreen() {
   const auth = useAdminAuth();
@@ -23,7 +24,23 @@ export default function SettingsScreen() {
     await runtime.onSelectProject(projectId);
   };
   const removeProject = async (projectId: string) => {
-    await runtime.onRemoveProject(projectId);
+    Alert.alert(
+      "Are you sure?",
+      "This will remove the project from your account.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            await runtime.onRemoveProject(projectId);
+          },
+        },
+      ],
+    );
   };
 
   return (

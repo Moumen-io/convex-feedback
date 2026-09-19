@@ -1,11 +1,10 @@
 import { KeyRound } from "lucide-react-native";
-import { ActivityIndicator, Text } from "react-native";
+import { Text } from "react-native";
 
 import { useProjectSetup } from "@/components/ProjectSetupContext";
 import {
   createSetupStyles,
   SetupField,
-  SetupFooter,
   SetupIssues,
   SetupPage,
   SetupSection,
@@ -20,26 +19,17 @@ export default function ProviderConfigurationRoute() {
   return (
     <SetupPage
       step={4}
-      subtitle="Add only public provider configuration. The final save repeats connection validation before persistence."
-      title="Configure the provider"
-      footer={
-        <SetupFooter
-          disabled={setup.saving}
-          nextIcon={
-            setup.saving ? (
-              <ActivityIndicator color={theme.primaryForeground} />
-            ) : undefined
-          }
-          nextLabel={
-            setup.saving
-              ? "Saving…"
-              : setup.isEditing
-                ? "Save changes"
-                : "Save project"
-          }
-          onNext={() => void setup.save()}
-        />
+      showBack
+      backDisabled={setup.saving}
+      continueDisabled={setup.saving}
+      continueLabel={
+        setup.saving
+          ? "Saving…"
+          : setup.isEditing
+            ? "Save changes"
+            : "Save project"
       }
+      onContinue={() => void setup.save()}
     >
       {setup.provider === "clerk" ? (
         <SetupSection

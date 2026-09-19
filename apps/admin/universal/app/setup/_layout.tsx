@@ -1,5 +1,5 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import type { Href } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback } from "react";
 
 import { ProjectSetupProvider } from "@/components/ProjectSetupContext";
@@ -36,7 +36,7 @@ export default function ProjectSetupLayout() {
   const save = useCallback(
     async (project: Parameters<typeof projectStore.completeSetup>[0]) => {
       await projectStore.completeSetup(project);
-      router.replace("/inbox" as Href);
+      router.replace("/inbox");
     },
     [projectStore, router],
   );
@@ -54,6 +54,8 @@ export default function ProjectSetupLayout() {
           headerShadowVisible: false,
           headerTintColor: theme.text,
           headerTitleStyle: { color: theme.text },
+          headerBackButtonDisplayMode: "minimal",
+          headerTransparent: true,
         }}
       >
         <Stack.Screen
@@ -70,6 +72,15 @@ export default function ProjectSetupLayout() {
           options={{ title: "Provider configuration" }}
         />
       </Stack>
+      {/* <Host>
+        <Stack.Toolbar>
+          <Stack.Toolbar.Button icon="chevron.left" />
+          <Stack.Toolbar.Spacer />
+          <Stack.Toolbar.Button variant="prominent" tintColor={theme.primary}>
+            Continue
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      </Host> */}
     </ProjectSetupProvider>
   );
 }

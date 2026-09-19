@@ -44,10 +44,15 @@ export function createSecureProjectStore(
         // Repair older or manually edited records so discarded secret-looking
         // fields do not remain in SecureStore.
         if (JSON.stringify(sanitizedState) !== raw) {
-          await SecureStore.setItemAsync(
-            storageKey,
-            JSON.stringify(sanitizedState),
-          );
+          try {
+            await SecureStore.setItemAsync(
+              storageKey,
+              JSON.stringify(sanitizedState),
+            );
+          } catch {
+            // Repair is best-effort. The parsed state is still validated and
+            // safe to use for this process even if SecureStore is unavailable.
+          }
         }
         return sanitizedState;
       } catch {
@@ -285,8 +290,30 @@ function projectAuthKeyPrefix(namespace: string): string {
 }
 
 function secretKey(namespace: string, key: string): string {
-  return `convex-feedback-admin.${namespace}.${key}`.replace(
+  return `convex-feedback-admin.${storageNamespaceSegment(namespace)}.${key.replace(
     /[^A-Za-z0-9._-]/g,
     "_",
-  );
+  )}`;
+}
+
+/**
+ * Keep the old key layout for namespaces that were already safe and
+ * unambiguous. Encode everything else instead of replacing characters: the
+ * old replacement made values such as `team/a` and `team_a` identical.
+ *
+ * The marker contains an underscore, while legacy namespaces accepted here do
+ * not, so encoded and legacy segments cannot collide with one another.
+ */
+function storageNamespaceSegment(namespace: string): string {
+  if (/^[A-Za-z0-9-]+$/.test(namespace)) return namespace;
+  return `v2_${encodeNamespace(namespace)}`;
+}
+
+/** Encode UTF-16 code units without introducing any SecureStore-unsafe chars. */
+function encodeNamespace(namespace: string): string {
+  let encoded = "";
+  for (let index = 0; index < namespace.length; index += 1) {
+    encoded += namespace.charCodeAt(index).toString(16).padStart(4, "0");
+  }
+  return encoded;
 }

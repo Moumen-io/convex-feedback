@@ -121,6 +121,31 @@ describe("project auth storage", () => {
     ).toBeUndefined();
   });
 
+  it("keeps project IDs isolated when SecureStore sanitization would collide", async () => {
+    expect(getProjectAuthStorageRegistryKey("team/a")).not.toBe(
+      getProjectAuthStorageRegistryKey("team_a"),
+    );
+
+    const slashProject = createSecureTokenStorage("team/a");
+    const underscoreProject = createSecureTokenStorage("team_a");
+
+    await slashProject.setItem("provider-token", "slash-token");
+    await underscoreProject.setItem("provider-token", "underscore-token");
+
+    await expect(slashProject.getItem("provider-token")).resolves.toBe(
+      "slash-token",
+    );
+    await expect(underscoreProject.getItem("provider-token")).resolves.toBe(
+      "underscore-token",
+    );
+
+    await clearProjectAuthStorage("team/a");
+
+    await expect(underscoreProject.getItem("provider-token")).resolves.toBe(
+      "underscore-token",
+    );
+  });
+
   it("does not allow a stale runtime to recreate cleared auth state", async () => {
     const staleRuntime = createSecureTokenStorage("removed-project");
     await staleRuntime.setItem("provider-token", "token");
@@ -164,6 +189,62 @@ describe("project auth storage", () => {
     ).resolves.toEqual({
       projects: [],
       activeProjectId: null,
+    });
+  });
+
+  it("returns validated projects when a repair write fails", async () => {
+    const raw = JSON.stringify({
+      projects: [
+        {
+          id: "repairable",
+          name: " Repairable project ",
+          convexUrl: "https://example.convex.cloud/",
+          apiNamespace: "api.feedback",
+          auth: {
+            provider: "convex-auth",
+            publicConfig: {
+              methods: { password: true },
+              providerIds: {
+                password: "host-password",
+                emailCode: "",
+                sso: {},
+              },
+            },
+          },
+          updatedAt: 1,
+        },
+      ],
+      activeProjectId: "repairable",
+    });
+    secureStore.values.set("repairable-projects", raw);
+    secureStore.setItemAsync.mockRejectedValueOnce(
+      new Error("SecureStore is temporarily unavailable"),
+    );
+
+    await expect(
+      createSecureProjectStore("repairable-projects").load(),
+    ).resolves.toEqual({
+      projects: [
+        {
+          id: "repairable",
+          name: "Repairable project",
+          convexUrl: "https://example.convex.cloud",
+          apiNamespace: "feedback",
+          auth: {
+            provider: "convex-auth",
+            publicConfig: {
+              methods: { password: true, emailCode: false, sso: [] },
+              providerIds: {
+                password: "host-password",
+                emailCode: "",
+                sso: {},
+              },
+            },
+          },
+          updatedAt: 1,
+        },
+      ],
+      activeProjectId: "repairable",
     });
   });
 });

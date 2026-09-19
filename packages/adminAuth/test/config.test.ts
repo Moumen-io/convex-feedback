@@ -20,6 +20,12 @@ describe("runtime admin configuration", () => {
     expect(normalizeApiNamespace("api.feedback.admin")).toBe("feedback.admin");
   });
 
+  it("only strips an exact leading api. segment", () => {
+    expect(normalizeApiNamespace("apiary.feedback")).toBe("apiary.feedback");
+    expect(normalizeApiNamespace("api")).toBe("api");
+    expect(normalizeApiNamespace("API.feedback")).toBe("feedback");
+  });
+
   it("accepts deployment roots and rejects URL components Convex cannot use", () => {
     expect(isValidConvexUrl("https://example.convex.cloud/")).toBe(true);
     expect(isValidConvexUrl("http://localhost:3210")).toBe(true);

@@ -60,7 +60,7 @@ export const DEFAULT_SSO_METHODS: readonly AdminSsoMethod[] = [
 export function normalizeApiNamespace(value: string): string {
   return value
     .trim()
-    .replace(/^api\.?/i, "")
+    .replace(/^api\./i, "")
     .replace(/^\.+|\.+$/g, "")
     .replace(/\.{2,}/g, ".");
 }

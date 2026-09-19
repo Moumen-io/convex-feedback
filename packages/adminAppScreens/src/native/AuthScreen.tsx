@@ -1,3 +1,4 @@
+import { isClerkRedirectAllowlistError } from "convex-feedback-admin-auth";
 import type {
   AdminAuthController,
   AdminAuthSignInRequest,
@@ -7,6 +8,7 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Copy,
   LockKeyhole,
   Mail,
   ShieldCheck,
@@ -31,12 +33,18 @@ export interface AdminAuthScreenProps {
   auth: AdminAuthController;
   projectName: string;
   onCancel?: () => void;
+  nativeSsoRedirectUrl?: string;
+  onCopySsoRedirect?: () => void | Promise<unknown>;
+  onEditSsoSetup?: () => void;
 }
 
 export function AdminAuthScreen({
   auth,
   projectName,
   onCancel,
+  nativeSsoRedirectUrl,
+  onCopySsoRedirect,
+  onEditSsoSetup,
 }: AdminAuthScreenProps) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
@@ -47,6 +55,10 @@ export function AdminAuthScreen({
   const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const showClerkRedirectSetup =
+    auth.provider === "clerk" &&
+    error !== null &&
+    isClerkRedirectAllowlistError(error);
 
   const mfaMethods = useMemo(
     () => (auth.challenge?.kind === "mfa" ? auth.challenge.methods : []),
@@ -336,7 +348,61 @@ export function AdminAuthScreen({
           </>
         )}
 
-        {error && <Text style={styles.error}>{error}</Text>}
+        {error &&
+          (showClerkRedirectSetup ? (
+            <View style={styles.redirectSetupBox}>
+              <Text style={styles.redirectSetupTitle}>SSO setup required</Text>
+              <Text style={styles.redirectSetupBody}>
+                This project's Clerk instance has not authorized the universal
+                admin app callback yet.
+              </Text>
+              {nativeSsoRedirectUrl && (
+                <View style={styles.redirectFieldGroup}>
+                  <Text style={styles.redirectFieldLabel}>
+                    Mobile SSO redirect URL
+                  </Text>
+                  <View style={styles.redirectField}>
+                    <Text selectable style={styles.redirectFieldValue}>
+                      {nativeSsoRedirectUrl}
+                    </Text>
+                    {onCopySsoRedirect && (
+                      <Pressable
+                        accessibilityLabel="Copy mobile SSO redirect URL"
+                        accessibilityRole="button"
+                        onPress={() => void onCopySsoRedirect()}
+                        style={({ pressed }) => [
+                          styles.redirectCopyButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Copy color={theme.primary} size={15} />
+                        <Text style={styles.redirectCopyText}>Copy</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              )}
+              <Text style={styles.redirectSetupBody}>
+                Add this URL in Clerk Dashboard → Native applications →
+                Allowlist for mobile SSO redirect.
+              </Text>
+              <Text style={styles.redirectDetails}>Clerk error: {error}</Text>
+              {onEditSsoSetup && (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onEditSsoSetup}
+                  style={({ pressed }) => [
+                    styles.redirectEditButton,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.redirectEditText}>Edit SSO setup</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : (
+            <Text style={styles.error}>{error}</Text>
+          ))}
         {onCancel && (
           <Pressable onPress={onCancel} style={styles.cancelButton}>
             <Text style={styles.cancelText}>Use a different project</Text>
@@ -579,6 +645,65 @@ function createStyles(theme: AdminTheme) {
       lineHeight: 19,
       textAlign: "center",
     },
+    redirectSetupBox: {
+      backgroundColor: theme.surfaceMuted,
+      borderColor: theme.danger,
+      borderRadius: 14,
+      borderWidth: 1,
+      gap: 9,
+      padding: 14,
+    },
+    redirectSetupTitle: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: "800",
+    },
+    redirectSetupBody: {
+      color: theme.muted,
+      fontSize: 12,
+      lineHeight: 18,
+    },
+    redirectFieldGroup: { gap: 6 },
+    redirectFieldLabel: { color: theme.text, fontSize: 11, fontWeight: "700" },
+    redirectField: {
+      alignItems: "center",
+      backgroundColor: theme.input,
+      borderColor: theme.border,
+      borderRadius: 10,
+      borderWidth: 1,
+      flexDirection: "row",
+      minHeight: 42,
+      paddingLeft: 10,
+    },
+    redirectFieldValue: {
+      color: theme.muted,
+      flex: 1,
+      fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
+      fontSize: 10,
+      paddingVertical: 9,
+    },
+    redirectCopyButton: {
+      alignItems: "center",
+      borderLeftColor: theme.border,
+      borderLeftWidth: 1,
+      flexDirection: "row",
+      gap: 4,
+      minHeight: 40,
+      paddingHorizontal: 10,
+    },
+    redirectCopyText: { color: theme.primary, fontSize: 11, fontWeight: "700" },
+    redirectDetails: {
+      color: theme.mutedText,
+      fontSize: 10,
+      lineHeight: 15,
+    },
+    redirectEditButton: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      paddingVertical: 3,
+    },
+    redirectEditText: { color: theme.primary, fontSize: 12, fontWeight: "700" },
+    pressed: { opacity: 0.68 },
     cancelButton: { alignItems: "center", paddingVertical: 4 },
     cancelText: { color: theme.primary, fontSize: 13, fontWeight: "700" },
     footer: { color: theme.mutedText, fontSize: 11, textAlign: "center" },

@@ -4,6 +4,7 @@ import { ShieldCheck } from "lucide-react-native";
 import { Text } from "react-native";
 
 import { useProjectSetup } from "@/components/ProjectSetupContext";
+import { getSetupAfterMethodsRoute } from "@/components/projectSetupState";
 import {
   createSetupStyles,
   SetupIssues,
@@ -23,11 +24,17 @@ export default function SignInMethodsRoute() {
 
   const continueSetup = () => {
     if (!setup.validateSignInMethods()) return;
-    router.push("/setup/configuration" as Href);
+    const nextRoute = getSetupAfterMethodsRoute(setup.provider, setup.methods);
+    router.push(`/setup/${nextRoute}` as Href);
   };
 
   return (
-    <SetupPage step={3} onContinue={continueSetup} showBack>
+    <SetupPage
+      step={3}
+      totalSteps={setup.setupStepCount}
+      onContinue={continueSetup}
+      showBack
+    >
       <SetupSection
         icon={<ShieldCheck color={theme.primary} size={18} />}
         title="Admin sign-in methods"

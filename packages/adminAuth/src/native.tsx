@@ -18,7 +18,6 @@ import {
 } from "convex/react";
 import type { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
-import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import {
   createContext,
@@ -44,10 +43,10 @@ import {
   completeClerkSignIn,
   finalizeClerkSignIn,
   mapClerkMfaMethods,
-  NATIVE_AUTH_CALLBACK_PATH,
   signInWithClerkSso,
   signInWithConvexAuth,
 } from "./flows.js";
+import { getNativeAuthCallbackUrl } from "./native-callback.js";
 import {
   createSecureTokenStorage,
   createNamespacedClerkTokenCache,
@@ -471,8 +470,5 @@ function errorMessage(error: unknown): string {
 }
 
 function createNativeAuthCallbackUrl(): string {
-  // `makeRedirectUri` reads the configured Expo scheme in a development or
-  // release build, so changing app.json does not require a second hard-coded
-  // callback value in the auth adapter.
-  return AuthSession.makeRedirectUri({ path: NATIVE_AUTH_CALLBACK_PATH });
+  return getNativeAuthCallbackUrl();
 }

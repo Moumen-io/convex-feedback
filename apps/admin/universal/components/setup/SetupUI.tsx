@@ -1,4 +1,4 @@
-import { Check, ShieldCheck } from "lucide-react-native";
+import { Check, Copy, ShieldCheck } from "lucide-react-native";
 import type * as React from "react";
 import {
   Platform,
@@ -76,6 +76,37 @@ export function createSetupStyles(theme: AdminTheme) {
       paddingVertical: 10,
     },
     inputColor: { color: theme.mutedText },
+    copyField: {
+      alignItems: "center",
+      backgroundColor: theme.input,
+      borderColor: theme.border,
+      borderRadius: 13,
+      borderWidth: 1,
+      flexDirection: "row",
+      minHeight: 48,
+      paddingLeft: 13,
+    },
+    copyValue: {
+      color: theme.mutedText,
+      flex: 1,
+      fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
+      fontSize: 12,
+      paddingVertical: 10,
+    },
+    copyButton: {
+      alignItems: "center",
+      borderLeftColor: theme.border,
+      borderLeftWidth: 1,
+      flexDirection: "row",
+      gap: 5,
+      minHeight: 46,
+      paddingHorizontal: 12,
+    },
+    copyButtonText: {
+      color: theme.primary,
+      fontSize: 12,
+      fontWeight: "700",
+    },
     hint: { color: theme.mutedText, fontSize: 11, lineHeight: 17 },
     namespaceField: {
       alignItems: "center",
@@ -236,6 +267,7 @@ export function createSetupStyles(theme: AdminTheme) {
 export function SetupPage({
   children,
   step,
+  totalSteps = 4,
   showBack = false,
   backDisabled,
   onBack,
@@ -245,6 +277,7 @@ export function SetupPage({
 }: {
   children: React.ReactNode;
   step: number;
+  totalSteps?: number;
   showBack?: boolean;
   backDisabled?: boolean;
   onBack?: () => void;
@@ -266,7 +299,9 @@ export function SetupPage({
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         automaticallyAdjustKeyboardInsets
       >
-        <Text style={styles.step}>STEP {step} OF 4</Text>
+        <Text style={styles.step}>
+          STEP {step} OF {totalSteps}
+        </Text>
         {children}
         <View style={styles.sectionHeading}>
           <ShieldCheck color={theme.primary} size={22} />
@@ -338,6 +373,41 @@ export function SetupField({
         placeholderTextColor={theme.mutedText}
         style={[styles.input, props.style]}
       />
+    </View>
+  );
+}
+
+export function SetupCopyField({
+  label,
+  value,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  onCopy: () => void | Promise<unknown>;
+}) {
+  const theme = useAdminTheme();
+  const styles = createSetupStyles(theme);
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.copyField}>
+        <Text selectable style={styles.copyValue}>
+          {value}
+        </Text>
+        <Pressable
+          accessibilityLabel={`Copy ${label}`}
+          accessibilityRole="button"
+          onPress={() => void onCopy()}
+          style={({ pressed }) => [
+            styles.copyButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Copy color={theme.primary} size={15} />
+          <Text style={styles.copyButtonText}>Copy</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

@@ -15,6 +15,8 @@ import type {
 
 export type SetupSupportedProvider = "convex-auth" | "clerk";
 
+export type SetupAfterMethodsRoute = "sso" | "configuration";
+
 export const DEFAULT_SETUP_METHODS: AdminAuthMethods = {
   password: true,
   emailCode: false,
@@ -168,6 +170,29 @@ export function getSignInMethodIssues(methods: AdminAuthMethods): string[] {
   return hasMethod
     ? []
     : ["Choose at least one supported admin sign-in method."];
+}
+
+/**
+ * Both supported native OAuth adapters need the app callback to be accepted
+ * outside the universal app before a browser can return to it. Clerk uses its
+ * native redirect allowlist; Convex Auth uses the host's callbacks.redirect
+ * allowlist. Provider credentials remain outside this setup flow.
+ */
+export function requiresSsoAppSetup(
+  provider: SetupSupportedProvider,
+  methods: AdminAuthMethods,
+): boolean {
+  return (
+    (provider === "clerk" || provider === "convex-auth") &&
+    (methods.sso?.length ?? 0) > 0
+  );
+}
+
+export function getSetupAfterMethodsRoute(
+  provider: SetupSupportedProvider,
+  methods: AdminAuthMethods,
+): SetupAfterMethodsRoute {
+  return requiresSsoAppSetup(provider, methods) ? "sso" : "configuration";
 }
 
 export function getAuthMethods(auth: AdminAuthConfig): AdminAuthMethods {

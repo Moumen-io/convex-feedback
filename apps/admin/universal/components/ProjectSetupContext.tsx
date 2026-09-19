@@ -30,6 +30,7 @@ import {
   getConvexAuthProviderIds,
   getConvexSetupIssues,
   getSignInMethodIssues,
+  requiresSsoAppSetup,
   updateClerkPublishableKey,
   updateConvexAuthProviderIds,
   updateProjectAuthMethods,
@@ -51,6 +52,8 @@ export interface ProjectSetupContextValue {
   methods: AdminAuthMethods;
   providerIds: ConvexAuthProviderIds;
   publishableKey: string;
+  requiresSsoSetup: boolean;
+  setupStepCount: number;
   connectionKey: string;
   connectionTest: ConnectionTestState | null;
   issues: string[];
@@ -145,6 +148,8 @@ export function ProjectSetupProvider({
     [draft.auth],
   );
   const publishableKey = getClerkPublishableKey(draft.auth);
+  const requiresSsoSetup = requiresSsoAppSetup(provider, methods);
+  const setupStepCount = requiresSsoSetup ? 5 : 4;
 
   const setProjectName = useCallback(
     (name: string) =>
@@ -306,6 +311,8 @@ export function ProjectSetupProvider({
       methods,
       providerIds,
       publishableKey,
+      requiresSsoSetup,
+      setupStepCount,
       connectionKey,
       connectionTest,
       issues,
@@ -339,6 +346,8 @@ export function ProjectSetupProvider({
       provider,
       providerIds,
       publishableKey,
+      requiresSsoSetup,
+      setupStepCount,
       save,
       saving,
       selectProvider,

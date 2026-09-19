@@ -6,6 +6,8 @@ import {
   getConnectionKey,
   getConvexAuthProviderIds,
   getAuthMethods,
+  getSetupAfterMethodsRoute,
+  requiresSsoAppSetup,
   updateConvexAuthProviderIds,
   updateProjectAuthMethods,
   updateProjectAuthProvider,
@@ -36,6 +38,54 @@ const existingProject = {
 };
 
 describe("universal project setup draft", () => {
+  test("adds the SSO app setup step for Clerk when an SSO method is enabled", () => {
+    const methods = {
+      password: true,
+      emailCode: false,
+      sso: [{ id: "google", label: "Google" }],
+    };
+
+    expect(requiresSsoAppSetup("clerk", methods)).toBe(true);
+    expect(getSetupAfterMethodsRoute("clerk", methods)).toBe("sso");
+  });
+
+  test("skips SSO app setup for Clerk password/email-only configurations", () => {
+    const methods = { password: true, emailCode: true, sso: [] };
+
+    expect(requiresSsoAppSetup("clerk", methods)).toBe(false);
+    expect(getSetupAfterMethodsRoute("clerk", methods)).toBe("configuration");
+  });
+
+  test("removes the SSO app setup step when the last SSO method is disabled", () => {
+    const withSso = {
+      password: false,
+      emailCode: true,
+      sso: [{ id: "apple", label: "Apple" }],
+    };
+    const withoutSso = updateProjectAuthMethods(
+      createProjectSetupDraft(undefined, 150),
+      { ...withSso, sso: [] },
+    );
+
+    expect(requiresSsoAppSetup("clerk", withSso)).toBe(true);
+    expect(requiresSsoAppSetup("clerk", getAuthMethods(withoutSso.auth))).toBe(
+      false,
+    );
+    expect(
+      getSetupAfterMethodsRoute("clerk", getAuthMethods(withoutSso.auth)),
+    ).toBe("configuration");
+  });
+
+  test("only adds the Convex Auth app step when native SSO uses its callback allowlist", () => {
+    expect(requiresSsoAppSetup("convex-auth", { password: true })).toBe(false);
+    expect(
+      requiresSsoAppSetup("convex-auth", {
+        password: true,
+        sso: [{ id: "google", label: "Google" }],
+      }),
+    ).toBe(true);
+  });
+
   test("creates a new draft without writing project storage", () => {
     const draft = createProjectSetupDraft(undefined, 123);
 

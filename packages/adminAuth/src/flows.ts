@@ -5,7 +5,7 @@ import type {
   ConvexAuthProviderIds,
 } from "./contracts.js";
 
-export const NATIVE_AUTH_CALLBACK_PATH = "auth/callback";
+export { NATIVE_AUTH_CALLBACK_PATH } from "./native-callback-constants.js";
 
 export interface ClerkSsoSignInLike extends ClerkSignInResourceLike {
   create: (params: {
@@ -197,6 +197,22 @@ export function clerkErrorResult(message: string | undefined): AdminAuthResult {
       message ||
       "Clerk authentication failed. Check the details and try again.",
   };
+}
+
+/**
+ * Clerk reports an unauthorized native callback as a normal operation error.
+ * Keep the provider detail in the result, while allowing the native UI to
+ * add the app-specific recovery instructions.
+ */
+export function isClerkRedirectAllowlistError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    /does not match an authorized redirect (uri|url)/i.test(message) ||
+    (/redirect(?:[_ ]?(?:uri|url))?/.test(normalized) &&
+      /(not authorized|not allowlisted|not on the allowlist|allowlist)/.test(
+        normalized,
+      ))
+  );
 }
 
 export interface ConvexAuthSignInResult {

@@ -3,11 +3,13 @@ import {
   resolveConvexApiNamespace,
 } from "convex-feedback-admin-auth";
 import type { AdminProjectConfig } from "convex-feedback-admin-auth";
+import { getNativeAuthCallbackUrl } from "convex-feedback-admin-auth/native-callback";
 import {
   AdminAuthRuntime,
   useAdminAuth,
 } from "convex-feedback-admin-auth/native";
 import { createFeedbackHooks } from "convex-feedback/react";
+import * as Clipboard from "expo-clipboard";
 import {
   AdminAuthScreen,
   AdminFeedbackHooksProvider,
@@ -88,8 +90,9 @@ function UniversalAdminApp() {
   const beginEditProject = useCallback(
     (projectId: string) => {
       if (!projectStore.startEditProject(projectId)) return;
+      router.replace(projectSetupHref("edit", projectId));
     },
-    [projectStore],
+    [projectStore, router],
   );
 
   useEffect(() => {
@@ -141,6 +144,7 @@ function UniversalAdminApp() {
       <ConfiguredAdminApp
         contextValue={contextValue}
         key={getProjectRuntimeKey(activeProject)}
+        onEditProject={beginEditProject}
         onManageProjects={projectStore.openProjectManager}
         project={activeProject}
         showSetup={setupRequired}
@@ -217,12 +221,14 @@ function SetupRouteNavigator({
 function ConfiguredAdminApp({
   project,
   contextValue,
+  onEditProject,
   onManageProjects,
   showSetup,
   theme,
 }: {
   project: AdminProjectConfig;
   contextValue: UniversalAdminContextValue;
+  onEditProject: (projectId: string) => void;
   onManageProjects: () => void;
   showSetup: boolean;
   theme: AdminTheme;
@@ -283,6 +289,7 @@ function ConfiguredAdminApp({
             <SetupRouteNavigator includeAdminRoutes theme={theme} />
           ) : (
             <RuntimeGate
+              onEditProject={onEditProject}
               onManageProjects={onManageProjects}
               project={project}
             />
@@ -295,12 +302,15 @@ function ConfiguredAdminApp({
 
 function RuntimeGate({
   project,
+  onEditProject,
   onManageProjects,
 }: {
   project: AdminProjectConfig;
+  onEditProject: (projectId: string) => void;
   onManageProjects: () => void;
 }) {
   const auth = useAdminAuth();
+  const nativeSsoRedirectUrl = useMemo(() => getNativeAuthCallbackUrl(), []);
   const [accessCheckAttempt, setAccessCheckAttempt] = useState(0);
   const retryAccessCheck = useCallback(
     () => setAccessCheckAttempt((value) => value + 1),
@@ -319,6 +329,9 @@ function RuntimeGate({
       <AdminAuthScreen
         auth={auth}
         onCancel={onManageProjects}
+        onCopySsoRedirect={() => Clipboard.setStringAsync(nativeSsoRedirectUrl)}
+        onEditSsoSetup={() => onEditProject(project.id)}
+        nativeSsoRedirectUrl={nativeSsoRedirectUrl}
         projectName={project.name}
       />
     );

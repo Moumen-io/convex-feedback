@@ -97,6 +97,7 @@ export default function ProjectSetupLayout() {
         />
         <Stack.Screen name="provider" options={{ title: "Auth provider" }} />
         <Stack.Screen name="methods" options={{ title: "Sign-in methods" }} />
+        <Stack.Screen name="sso" options={{ title: "SSO app setup" }} />
         <Stack.Screen
           name="configuration"
           options={{ title: "Provider configuration" }}

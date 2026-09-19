@@ -5,6 +5,7 @@ import {
   completeClerkSignIn,
   getOAuthCallbackCode,
   isExpectedOAuthCallbackUrl,
+  isClerkRedirectAllowlistError,
   mapClerkMfaMethods,
   signInWithClerkSso,
   signInWithConvexAuth,
@@ -12,6 +13,16 @@ import {
 import type { ConvexAuthProviderIds } from "../src/contracts.js";
 
 describe("Clerk custom sign-in flows", () => {
+  it("recognizes Clerk native redirect allowlist failures without hiding the raw error", () => {
+    const error =
+      "The current redirect url convex-feedback-admin://auth/callback does not match an authorized redirect URI for this instance.";
+
+    expect(isClerkRedirectAllowlistError(error)).toBe(true);
+    expect(
+      isClerkRedirectAllowlistError("The sign-in flow was cancelled."),
+    ).toBe(false);
+  });
+
   it("finalizes a completed password, email-code, or MFA operation", async () => {
     const finalize = vi.fn(async () => ({ error: null }));
 

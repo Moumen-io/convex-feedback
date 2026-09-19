@@ -18,7 +18,8 @@ export default function ProviderConfigurationRoute() {
 
   return (
     <SetupPage
-      step={4}
+      step={setup.requiresSsoSetup ? 5 : 4}
+      totalSteps={setup.setupStepCount}
       showBack
       backDisabled={setup.saving}
       continueDisabled={setup.saving}

@@ -105,9 +105,9 @@ for a store build. In the Clerk Dashboard:
    `convex-feedback-admin://auth/callback` to the mobile SSO redirect
    allowlist. This is the custom URL used by this app; it is not Clerk's
    default `{bundleIdentifier}://callback` URL.
-5. Enable and configure each SSO connection selected in the setup screen,
-   including the production OAuth credentials and the provider's authorized
-   redirect URI shown by Clerk.
+5. Configure each SSO connection selected in the setup screen in Clerk
+   Dashboard. The universal app does not collect or store provider-dashboard
+   credentials; the developer owns that provider setup separately.
 
 The app passes the same callback to Clerk's native SSO and email-link flows.
 Password and email-code sign-in do not use a browser callback. Rebuild the
@@ -150,9 +150,8 @@ In the host Convex app:
    ```
 
    The callback belongs in the options passed to the host's `convexAuth({ ... })`
-   setup. The OAuth provider's own authorized redirect URI remains the Convex
-   Auth callback URL generated for that deployment; the native scheme is the
-   final `redirectTo` destination.
+   setup. Provider and host configuration remain outside this app; the native
+   scheme above is the final `redirectTo` destination for this app.
 
 4. Deploy the host before using **Test connection**. A successful unauthenticated
    `false` response confirms that the deployment and exported endpoint are

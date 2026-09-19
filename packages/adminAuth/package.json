@@ -27,6 +27,10 @@
     "./native": {
       "types": "./dist/native.d.ts",
       "default": "./dist/native.js"
+    },
+    "./native-callback": {
+      "types": "./dist/native-callback.d.ts",
+      "default": "./dist/native-callback.js"
     }
   },
   "scripts": {

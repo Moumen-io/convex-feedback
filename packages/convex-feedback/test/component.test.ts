@@ -16,7 +16,7 @@ async function createEntry(
   testInstance: ReturnType<typeof setup>,
   title = "Dark mode",
 ): Promise<Id<"entries">> {
-  return await testInstance.mutation(api.entries.create, {
+  const result = await testInstance.mutation(api.entries.create, {
     actorId: "author-1",
     kind: "feature_request",
     title,
@@ -26,15 +26,16 @@ async function createEntry(
     maxTitleLength: 160,
     maxBodyLength: 10_000,
   });
+  return result.id;
 }
 
 describe("convex-feedback component", () => {
   test("component functions preserve generated document ID types", () => {
-    expectTypeOf<FunctionReturnType<typeof api.entries.create>>().toEqualTypeOf<
-      Id<"entries">
-    >();
     expectTypeOf<
-      FunctionReturnType<typeof api.comments.create>
+      FunctionReturnType<typeof api.entries.create>["id"]
+    >().toEqualTypeOf<Id<"entries">>();
+    expectTypeOf<
+      FunctionReturnType<typeof api.comments.create>["id"]
     >().toEqualTypeOf<Id<"comments">>();
 
     expectTypeOf<
@@ -529,16 +530,18 @@ describe("convex-feedback component", () => {
       title: string,
       actorId = activityActor,
     ) =>
-      await testInstance.mutation(api.entries.create, {
-        actorId,
-        kind: "feature_request",
-        title,
-        body: `${title} body`,
-        defaultStatus: "open",
-        enabledKinds: ["feedback", "feature_request", "bug_report"],
-        maxTitleLength: 160,
-        maxBodyLength: 10_000,
-      });
+      (
+        await testInstance.mutation(api.entries.create, {
+          actorId,
+          kind: "feature_request",
+          title,
+          body: `${title} body`,
+          defaultStatus: "open",
+          enabledKinds: ["feedback", "feature_request", "bug_report"],
+          maxTitleLength: 160,
+          maxBodyLength: 10_000,
+        })
+      ).id;
 
     const firstEntryId = await createActivityEntry("Actor entry one");
     await createActivityEntry("Other actor entry", "other-author");
@@ -583,17 +586,20 @@ describe("convex-feedback component", () => {
       maxBodyLength: 10_000,
     });
 
-    const contextEntryId = await testInstance.mutation(api.entries.create, {
-      actorId: activityActor,
-      kind: "bug_report",
-      title: "Context entry",
-      body: "Context body",
-      defaultStatus: "open",
-      enabledKinds: ["feedback", "feature_request", "bug_report"],
-      maxTitleLength: 160,
-      maxBodyLength: 10_000,
-      metadata: { standard: { platform: "web" } },
-    });
+    const { id: contextEntryId } = await testInstance.mutation(
+      api.entries.create,
+      {
+        actorId: activityActor,
+        kind: "bug_report",
+        title: "Context entry",
+        body: "Context body",
+        defaultStatus: "open",
+        enabledKinds: ["feedback", "feature_request", "bug_report"],
+        maxTitleLength: 160,
+        maxBodyLength: 10_000,
+        metadata: { standard: { platform: "web" } },
+      },
+    );
     await testInstance.mutation(api.entries.setPriority, {
       actor: { id: "admin-author", isAdmin: true },
       entryId: contextEntryId,
@@ -617,21 +623,27 @@ describe("convex-feedback component", () => {
       "Comment context entry",
       "other-author",
     );
-    const parentCommentId = await testInstance.mutation(api.comments.create, {
-      actorId: "other-author",
-      entryId: entryForComments,
-      body: "Other actor parent",
-      maxDepth: 5,
-      maxCommentLength: 5_000,
-    });
-    const ownCommentId = await testInstance.mutation(api.comments.create, {
-      actorId: activityActor,
-      entryId: entryForComments,
-      parentCommentId,
-      body: "Retained actor comment",
-      maxDepth: 5,
-      maxCommentLength: 5_000,
-    });
+    const { id: parentCommentId } = await testInstance.mutation(
+      api.comments.create,
+      {
+        actorId: "other-author",
+        entryId: entryForComments,
+        body: "Other actor parent",
+        maxDepth: 5,
+        maxCommentLength: 5_000,
+      },
+    );
+    const { id: ownCommentId } = await testInstance.mutation(
+      api.comments.create,
+      {
+        actorId: activityActor,
+        entryId: entryForComments,
+        parentCommentId,
+        body: "Retained actor comment",
+        maxDepth: 5,
+        maxCommentLength: 5_000,
+      },
+    );
     await testInstance.mutation(api.comments.remove, {
       actor: { id: activityActor },
       commentId: ownCommentId,
@@ -657,7 +669,7 @@ describe("convex-feedback component", () => {
     const testInstance = setup();
     const activityActor = "reaction-author";
 
-    const ownEntryId = await testInstance.mutation(api.entries.create, {
+    const { id: ownEntryId } = await testInstance.mutation(api.entries.create, {
       actorId: activityActor,
       kind: "feature_request",
       title: "Own entry",
@@ -667,23 +679,26 @@ describe("convex-feedback component", () => {
       maxTitleLength: 160,
       maxBodyLength: 10_000,
     });
-    const otherEntryId = await testInstance.mutation(api.entries.create, {
-      actorId: "other-author",
-      kind: "bug_report",
-      title: "Other entry",
-      body: "Other entry body",
-      defaultStatus: "under_review",
-      enabledKinds: ["feedback", "feature_request", "bug_report"],
-      maxTitleLength: 160,
-      maxBodyLength: 10_000,
-    });
+    const { id: otherEntryId } = await testInstance.mutation(
+      api.entries.create,
+      {
+        actorId: "other-author",
+        kind: "bug_report",
+        title: "Other entry",
+        body: "Other entry body",
+        defaultStatus: "under_review",
+        enabledKinds: ["feedback", "feature_request", "bug_report"],
+        maxTitleLength: 160,
+        maxBodyLength: 10_000,
+      },
+    );
     await testInstance.mutation(api.entries.setUpvote, {
       actorId: activityActor,
       entryId: otherEntryId,
       desiredState: true,
     });
 
-    const commentId = await testInstance.mutation(api.comments.create, {
+    const { id: commentId } = await testInstance.mutation(api.comments.create, {
       actorId: "other-author",
       entryId: otherEntryId,
       body: "Comment to like",
@@ -701,16 +716,19 @@ describe("convex-feedback component", () => {
       deletableByAuthor: true,
     });
 
-    const orphanEntryId = await testInstance.mutation(api.entries.create, {
-      actorId: "other-author",
-      kind: "feedback",
-      title: "Deleted entry",
-      body: "This target will be removed",
-      defaultStatus: "open",
-      enabledKinds: ["feedback", "feature_request", "bug_report"],
-      maxTitleLength: 160,
-      maxBodyLength: 10_000,
-    });
+    const { id: orphanEntryId } = await testInstance.mutation(
+      api.entries.create,
+      {
+        actorId: "other-author",
+        kind: "feedback",
+        title: "Deleted entry",
+        body: "This target will be removed",
+        defaultStatus: "open",
+        enabledKinds: ["feedback", "feature_request", "bug_report"],
+        maxTitleLength: 160,
+        maxBodyLength: 10_000,
+      },
+    );
     await testInstance.mutation(api.entries.setUpvote, {
       actorId: activityActor,
       entryId: orphanEntryId,
@@ -886,7 +904,7 @@ describe("convex-feedback component", () => {
       standard: { platform: "web", screenWidth: 1440 },
       additional: { releaseChannel: "production", diagnosticsMode: true },
     };
-    const entryId = await testInstance.mutation(api.entries.create, {
+    const { id: entryId } = await testInstance.mutation(api.entries.create, {
       actorId: "author-1",
       kind: "bug_report",
       title: "Unexpected error",
@@ -989,14 +1007,14 @@ describe("convex-feedback component", () => {
   test("comments load one direct-child level at a time", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);
-    const rootId = await testInstance.mutation(api.comments.create, {
+    const { id: rootId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-1",
       entryId,
       body: "Root",
       maxDepth: 5,
       maxCommentLength: 5_000,
     });
-    const childId = await testInstance.mutation(api.comments.create, {
+    const { id: childId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-2",
       entryId,
       parentCommentId: rootId,
@@ -1034,14 +1052,14 @@ describe("convex-feedback component", () => {
   test("maximum comment depth is enforced on writes", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);
-    const rootId = await testInstance.mutation(api.comments.create, {
+    const { id: rootId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-1",
       entryId,
       body: "Root",
       maxDepth: 1,
       maxCommentLength: 5_000,
     });
-    const childId = await testInstance.mutation(api.comments.create, {
+    const { id: childId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-2",
       entryId,
       parentCommentId: rootId,
@@ -1065,14 +1083,14 @@ describe("convex-feedback component", () => {
   test("top comments are ordered by likes and comment likes are idempotent", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);
-    const firstId = await testInstance.mutation(api.comments.create, {
+    const { id: firstId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-1",
       entryId,
       body: "First",
       maxDepth: 5,
       maxCommentLength: 5_000,
     });
-    const secondId = await testInstance.mutation(api.comments.create, {
+    const { id: secondId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-2",
       entryId,
       body: "Second",

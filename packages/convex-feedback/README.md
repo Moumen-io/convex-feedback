@@ -257,6 +257,161 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
 });
 ```
 
+### Lifecycle callbacks
+
+Use the top-level `callbacks` option for host business logic around entry and
+comment creation and reaction changes. Callbacks receive the full host mutation
+context, including `db`, `auth`, `storage`, `scheduler`, `runQuery`,
+`runMutation`, and `meta`. Callback functions do not belong in `config`, which
+remains reserved for component behavior.
+
+Authentication and rate limiting run first. A `beforeCreate` callback can
+return `undefined`, return a supported field patch, or explicitly reject with
+the supplied `reject()` helper. Patched values still pass all normal component
+validation. Entry callbacks may patch `kind`, `title`, `body`, and `metadata`;
+comment callbacks may patch only `body`.
+
+```ts
+import { v } from "convex/values";
+
+const moderationRejection = v.object({
+  kind: v.literal("content_rejected"),
+  reason: v.string(),
+});
+
+export const feedbackApi = exposeFeedbackApi(components.feedback, {
+  actor: resolveFeedbackActor,
+  callbacks: {
+    rejection: {
+      behavior: "return",
+      returns: moderationRejection,
+    },
+    entries: {
+      beforeCreate: async (_ctx, event, { reject }) => {
+        const title = removeProfanity(event.input.title);
+        const body = removeProfanity(event.input.body);
+        if (!title.trim()) {
+          return reject({
+            kind: "content_rejected",
+            reason: "Title contains invalid content",
+          });
+        }
+        return { title, body };
+      },
+    },
+    comments: {
+      beforeCreate: async (_ctx, event, { reject }) => {
+        const body = removeProfanity(event.input.body);
+        if (!body.trim()) {
+          return reject({
+            kind: "content_rejected",
+            reason: "Comment was rejected",
+          });
+        }
+        return { body };
+      },
+    },
+  },
+});
+```
+
+The default rejection behavior is `"throw"`; an explicit `reject(value)`
+throws a `ConvexError` and the component mutation does not run. With
+`behavior: "return"`, only explicit `reject()` calls become the validated
+client result. Unexpected callback exceptions continue to propagate. The
+callback rejection type is added only to `createEntry` and `createComment` and
+composes with any configured rate-limit rejection type.
+
+After callbacks run in the same host mutation after a successful component
+write. An uncaught callback error therefore aborts and rolls back the
+originating mutation. Catch an error inside a callback only when continuing is
+an intentional application decision. Prefer ordinary shared TypeScript helpers
+over another `ctx.runQuery` or `ctx.runMutation` boundary when no separate
+Convex function is needed.
+
+For notifications and external APIs, schedule work to run after commit:
+
+```ts
+// convex/notifications.ts
+export const sendNotificationToUser = internalAction({
+  args: {
+    userId: v.string(),
+    title: v.string(),
+    body: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    // Push/email provider
+  },
+});
+
+// convex/feedback.ts
+export const { createEntry, createComment, setEntryUpvote, setCommentLike } =
+  exposeFeedbackApi(components.feedback, {
+    actor: resolveFeedbackActor,
+    callbacks: {
+      entries: {
+        afterCreate: async (ctx, { entry }) => {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.notifications.sendNotificationToUser,
+            {
+              userId: ADMIN_USER_ID,
+              title: "New feedback",
+              body: entry.title,
+            },
+          );
+        },
+      },
+      comments: {
+        afterCreate: async (ctx, { comment, entry }) => {
+          if (comment.actorId === entry.actorId) return;
+          await ctx.scheduler.runAfter(
+            0,
+            internal.notifications.sendNotificationToUser,
+            {
+              userId: entry.actorId,
+              title: "New comment",
+              body: entry.title,
+            },
+          );
+        },
+      },
+      reactions: {
+        afterChange: async (ctx, event) => {
+          if (event.transition !== "added") return;
+          const thresholds = [5, 10, 20];
+          const crossed = thresholds.some(
+            (threshold) =>
+              event.previousCount < threshold && event.count >= threshold,
+          );
+          if (!crossed) return;
+
+          const userId =
+            event.type === "entry_upvote"
+              ? event.entry.actorId
+              : event.comment.actorId;
+          await ctx.scheduler.runAfter(
+            0,
+            internal.notifications.sendNotificationToUser,
+            {
+              userId,
+              title: "Your feedback is getting attention",
+              body: `Reaction count: ${event.count}`,
+            },
+          );
+        },
+      },
+    },
+  });
+```
+
+Scheduling from a mutation is transactional: if feedback creation rolls back,
+the scheduled function is not enqueued. Scheduled actions execute at most once
+and are not automatically retried after transient failures. Applications that
+need retries or stronger durability should schedule a mutation that manages an
+outbox, or use a durable workflow. Scheduled mutations have different
+guarantees and are automatically retried for transient Convex errors.
+
 ## 4. Create typed React hooks
 
 If your client uses React or React Native, bind the generated host API once. Calling `createFeedbackHooks()` without an API argument defaults to `anyApi.feedback`; pass the generated namespace explicitly when the component is exposed elsewhere:

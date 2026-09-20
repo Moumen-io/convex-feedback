@@ -58,6 +58,63 @@ const createEntryArgs = {
   body: "Please protect this endpoint.",
 };
 
+const createdEntryResult = {
+  id: "entry-1",
+  entry: {
+    id: "entry-1",
+    actorId: "actor-1",
+    kind: "feedback" as const,
+    status: "open" as const,
+    title: "Rate limits",
+    body: "Please protect this endpoint.",
+    upvoteCount: 1,
+    commentCount: 0,
+  },
+};
+
+function successfulComponentMutation(reference: string) {
+  if (reference === "entries:create")
+    return Promise.resolve(createdEntryResult);
+  if (reference === "comments:create") {
+    return Promise.resolve({
+      id: "comment-1",
+      comment: {
+        id: "comment-1",
+        actorId: "admin-1",
+        entryId: "entry-1",
+        body: "A comment",
+        depth: 0,
+      },
+      entry: {
+        id: "entry-1",
+        actorId: "actor-1",
+        kind: "feedback",
+        status: "open",
+        title: "Rate limits",
+      },
+    });
+  }
+  if (reference === "entries:setUpvote") {
+    return Promise.resolve({
+      changed: false,
+      active: true,
+      transition: null,
+      previousCount: 1,
+      count: 1,
+    });
+  }
+  if (reference === "comments:setLike") {
+    return Promise.resolve({
+      changed: false,
+      active: true,
+      transition: null,
+      previousCount: 0,
+      count: 0,
+    });
+  }
+  return Promise.resolve(null);
+}
+
 describe("feedback rate limiting", () => {
   test("uses actor IDs as keys and preserves throwing limiter behavior", async () => {
     const runMutation = vi.fn();
@@ -113,7 +170,7 @@ describe("feedback rate limiting", () => {
   });
 
   test("treats undefined as a pass and runs the component mutation", async () => {
-    const runMutation = vi.fn(() => Promise.resolve("entry-1"));
+    const runMutation = vi.fn(() => Promise.resolve(createdEntryResult));
     const api = exposeFeedbackApi(component, {
       actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
       rateLimiters: { createEntry: () => Promise.resolve(undefined) },
@@ -136,7 +193,7 @@ describe("feedback rate limiting", () => {
   });
 
   test("ignores a defined return value at runtime in throwing mode", async () => {
-    const runMutation = vi.fn(() => Promise.resolve("entry-1"));
+    const runMutation = vi.fn(() => Promise.resolve(createdEntryResult));
     const nullLimiter = (() =>
       Promise.resolve(null)) as unknown as FeedbackRateLimiter;
     const api = exposeFeedbackApi(component, {
@@ -182,7 +239,49 @@ describe("feedback rate limiting", () => {
   });
 
   test("bypasses admins by default and can opt them into limits", async () => {
-    const runMutation = vi.fn(() => Promise.resolve(null));
+    const runMutation = vi.fn((reference: string) => {
+      if (reference === "entries:create") {
+        return Promise.resolve(createdEntryResult);
+      }
+      if (reference === "comments:create") {
+        return Promise.resolve({
+          id: "comment-1",
+          comment: {
+            id: "comment-1",
+            actorId: "admin-1",
+            entryId: "entry-1",
+            body: "A comment",
+            depth: 0,
+          },
+          entry: {
+            id: "entry-1",
+            actorId: "actor-1",
+            kind: "feedback",
+            status: "open",
+            title: "Rate limits",
+          },
+        });
+      }
+      if (reference === "entries:setUpvote") {
+        return Promise.resolve({
+          changed: false,
+          active: true,
+          transition: null,
+          previousCount: 1,
+          count: 1,
+        });
+      }
+      if (reference === "comments:setLike") {
+        return Promise.resolve({
+          changed: false,
+          active: true,
+          transition: null,
+          previousCount: 0,
+          count: 0,
+        });
+      }
+      return Promise.resolve(null);
+    });
     const limiter = vi.fn(() => Promise.resolve(undefined));
     const defaultApi = exposeFeedbackApi(component, {
       actor: () => Promise.resolve({ id: "admin-1", isAdmin: true }),
@@ -210,7 +309,7 @@ describe("feedback rate limiting", () => {
   });
 
   test("supports deprecated moderator names for authorization and limits", async () => {
-    const runMutation = vi.fn(() => Promise.resolve(null));
+    const runMutation = vi.fn(successfulComponentMutation);
     const limiter = vi.fn(() => Promise.resolve(undefined));
     const api = exposeFeedbackApi(component, {
       actor: () => Promise.resolve({ id: "moderator-1", isModerator: true }),
@@ -246,7 +345,7 @@ describe("feedback rate limiting", () => {
   });
 
   test("applies each limiter to every mutation in its group", async () => {
-    const runMutation = vi.fn(() => Promise.resolve(null));
+    const runMutation = vi.fn(successfulComponentMutation);
     const createEntry = vi.fn(() => Promise.resolve(undefined));
     const createComment = vi.fn(() => Promise.resolve(undefined));
     const editContent = vi.fn(() => Promise.resolve(undefined));
@@ -293,9 +392,9 @@ describe("feedback rate limiting", () => {
   });
 });
 
-// @ts-expect-error Return behavior requires a `returns` validator.
 exposeFeedbackApi(component, {
   actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
+  // @ts-expect-error Return behavior requires a `returns` validator.
   config: { rateLimiting: { behavior: "return" } },
 });
 
@@ -311,6 +410,7 @@ exposeFeedbackApi(component, {
   actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
   config: {
     rateLimiting: {
+      // @ts-expect-error Return-mode validators may not include null in a union.
       behavior: "return",
       // @ts-expect-error Return-mode validators may not include null in a union.
       returns: v.union(v.object({ kind: v.literal("rate_limited") }), v.null()),
@@ -322,6 +422,7 @@ exposeFeedbackApi(component, {
   actor: () => Promise.resolve({ id: "actor-1", isAdmin: false }),
   config: {
     rateLimiting: {
+      // @ts-expect-error Return-mode rejection validators may not include null.
       behavior: "return",
       // @ts-expect-error Return-mode rejection validators may not include null.
       returns: v.null(),
@@ -337,7 +438,9 @@ exposeFeedbackApi(component, {
   },
   config: {
     rateLimiting: {
+      // @ts-expect-error Null does not match this return-mode validator.
       behavior: "return",
+      // @ts-expect-error Null does not match this return-mode validator.
       returns: v.object({ kind: v.literal("rate_limited") }),
     },
   },
@@ -351,7 +454,9 @@ exposeFeedbackApi(component, {
   },
   config: {
     rateLimiting: {
+      // @ts-expect-error Rejection values must match the configured validator.
       behavior: "return",
+      // @ts-expect-error Rejection values must match the configured validator.
       returns: v.object({ kind: v.literal("rate_limited") }),
     },
   },

@@ -214,7 +214,31 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           maxDepth: number;
           parentCommentId?: string;
         },
-        string,
+        {
+          comment: {
+            actorId: string;
+            body: string;
+            depth: number;
+            entryId: string;
+            id: string;
+            parentCommentId?: string;
+          };
+          entry: {
+            actorId: string;
+            id: string;
+            kind: "feedback" | "feature_request" | "bug_report";
+            status:
+              | "open"
+              | "under_review"
+              | "planned"
+              | "in_progress"
+              | "completed"
+              | "closed";
+            title: string;
+          };
+          id: string;
+          parentComment?: { actorId: string; id: string };
+        },
         Name
       >;
       list: FunctionReference<
@@ -307,7 +331,28 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         { actorId: string; commentId: string; desiredState: boolean },
-        { active: boolean; likeCount: number },
+        | {
+            active: boolean;
+            changed: false;
+            count: number;
+            previousCount: number;
+            transition: null;
+          }
+        | {
+            active: boolean;
+            changed: true;
+            comment: {
+              actorId: string;
+              body: string;
+              entryId: string;
+              id: string;
+              parentCommentId?: string;
+            };
+            count: number;
+            entry: { actorId: string; id: string; title: string };
+            previousCount: number;
+            transition: "added" | "removed";
+          },
         Name
       >;
       update: FunctionReference<
@@ -348,7 +393,29 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           };
           title: string;
         },
-        string,
+        {
+          entry: {
+            actorId: string;
+            body: string;
+            commentCount: number;
+            id: string;
+            kind: "feedback" | "feature_request" | "bug_report";
+            metadata?: {
+              additional?: Record<string, string | number | boolean>;
+              standard?: Record<string, string | number | boolean>;
+            };
+            status:
+              | "open"
+              | "under_review"
+              | "planned"
+              | "in_progress"
+              | "completed"
+              | "closed";
+            title: string;
+            upvoteCount: number;
+          };
+          id: string;
+        },
         Name
       >;
       get: FunctionReference<
@@ -579,7 +646,33 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         { actorId: string; desiredState: boolean; entryId: string },
-        { active: boolean; upvoteCount: number },
+        | {
+            active: boolean;
+            changed: false;
+            count: number;
+            previousCount: number;
+            transition: null;
+          }
+        | {
+            active: boolean;
+            changed: true;
+            count: number;
+            entry: {
+              actorId: string;
+              id: string;
+              kind: "feedback" | "feature_request" | "bug_report";
+              status:
+                | "open"
+                | "under_review"
+                | "planned"
+                | "in_progress"
+                | "completed"
+                | "closed";
+              title: string;
+            };
+            previousCount: number;
+            transition: "added" | "removed";
+          },
         Name
       >;
       similar: FunctionReference<

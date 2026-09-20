@@ -606,7 +606,20 @@ export const create = mutation({
     maxBodyLength: v.number(),
     metadata: v.optional(feedbackMetadataValidator),
   },
-  returns: v.id("entries"),
+  returns: v.object({
+    id: v.id("entries"),
+    entry: v.object({
+      id: v.id("entries"),
+      actorId: v.string(),
+      kind: entryKindValidator,
+      status: entryStatusValidator,
+      title: v.string(),
+      body: v.string(),
+      metadata: v.optional(feedbackMetadataValidator),
+      upvoteCount: v.number(),
+      commentCount: v.number(),
+    }),
+  }),
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
     if (!args.enabledKinds.includes(args.kind)) {
@@ -640,7 +653,20 @@ export const create = mutation({
       entryId: entry,
     });
 
-    return entry;
+    return {
+      id: entry,
+      entry: {
+        id: entry,
+        actorId: args.actorId,
+        kind: args.kind,
+        status: args.defaultStatus,
+        title,
+        body,
+        ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
+        upvoteCount: 1,
+        commentCount: 0,
+      },
+    };
   },
 });
 
@@ -772,7 +798,29 @@ export const setUpvote = mutation({
     entryId: v.id("entries"),
     desiredState: v.boolean(),
   },
-  returns: v.object({ active: v.boolean(), upvoteCount: v.number() }),
+  returns: v.union(
+    v.object({
+      changed: v.literal(false),
+      active: v.boolean(),
+      transition: v.null(),
+      previousCount: v.number(),
+      count: v.number(),
+    }),
+    v.object({
+      changed: v.literal(true),
+      active: v.boolean(),
+      transition: v.union(v.literal("added"), v.literal("removed")),
+      previousCount: v.number(),
+      count: v.number(),
+      entry: v.object({
+        id: v.id("entries"),
+        actorId: v.string(),
+        kind: entryKindValidator,
+        status: entryStatusValidator,
+        title: v.string(),
+      }),
+    }),
+  ),
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
     const entry = await ctx.db.get("entries", args.entryId);
@@ -795,7 +843,20 @@ export const setUpvote = mutation({
         upvoteCount,
         statusFilter: entryStatusFilterForStatus(entry.status),
       });
-      return { active: true, upvoteCount };
+      return {
+        changed: true as const,
+        active: true,
+        transition: "added" as const,
+        previousCount: entry.upvoteCount,
+        count: upvoteCount,
+        entry: {
+          id: entry._id,
+          actorId: entry.actorId,
+          kind: entry.kind,
+          status: entry.status,
+          title: entry.title,
+        },
+      };
     }
 
     if (!args.desiredState && existing !== null) {
@@ -805,9 +866,28 @@ export const setUpvote = mutation({
         upvoteCount,
         statusFilter: entryStatusFilterForStatus(entry.status),
       });
-      return { active: false, upvoteCount };
+      return {
+        changed: true as const,
+        active: false,
+        transition: "removed" as const,
+        previousCount: entry.upvoteCount,
+        count: upvoteCount,
+        entry: {
+          id: entry._id,
+          actorId: entry.actorId,
+          kind: entry.kind,
+          status: entry.status,
+          title: entry.title,
+        },
+      };
     }
 
-    return { active: args.desiredState, upvoteCount: entry.upvoteCount };
+    return {
+      changed: false as const,
+      active: args.desiredState,
+      transition: null,
+      previousCount: entry.upvoteCount,
+      count: entry.upvoteCount,
+    };
   },
 });

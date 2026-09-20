@@ -395,10 +395,13 @@ export type SetCommentLikeResult = {
  * @typeParam RateLimitResult A validated rejection value returned by mutations
  * when non-throwing rate limiting is configured. The default `never` preserves
  * the original success-only mutation results.
+ * @typeParam CallbackRejectionResult A validated rejection value returned only
+ * by create mutations when callback return mode is configured.
  */
 export interface FeedbackPublicApi<
   Name extends string | undefined = string | undefined,
   RateLimitResult = never,
+  CallbackRejectionResult = never,
 > {
   /** Returns whether the host actor has admin permissions. */
   isAdmin: FunctionReference<
@@ -468,7 +471,7 @@ export interface FeedbackPublicApi<
     "mutation",
     "public",
     CreateEntryArgs,
-    string | RateLimitResult,
+    string | RateLimitResult | CallbackRejectionResult,
     Name
   >;
 
@@ -648,7 +651,7 @@ export interface FeedbackPublicApi<
     "mutation",
     "public",
     CreateCommentArgs,
-    string | RateLimitResult,
+    string | RateLimitResult | CallbackRejectionResult,
     Name
   >;
 

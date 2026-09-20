@@ -16,7 +16,7 @@ async function createEntry(
   testInstance: ReturnType<typeof setup>,
   title: string,
 ): Promise<Id<"entries">> {
-  return await testInstance.mutation(api.entries.create, {
+  const result = await testInstance.mutation(api.entries.create, {
     actorId: "author-1",
     kind: "feature_request",
     title,
@@ -26,6 +26,7 @@ async function createEntry(
     maxTitleLength: 160,
     maxBodyLength: 10_000,
   });
+  return result.id;
 }
 
 describe("admin filtering pagination", () => {

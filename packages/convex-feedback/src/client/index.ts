@@ -40,7 +40,10 @@ import {
   roadmapStatusValidator,
   similarEntriesValidator,
   actorIsAdmin,
+  type EntryKind,
+  type EntryStatus,
   type FeedbackActor,
+  type FeedbackMetadata,
 } from "../component/model.js";
 import type { FeedbackPublicApi } from "./api.js";
 import {
@@ -255,6 +258,213 @@ type RateLimiterResult<
   ? Infer<ReturnsValidator>
   : void;
 
+/** Full host mutation context supplied to lifecycle callbacks. */
+export type FeedbackMutationContext = GenericMutationCtx<GenericDataModel>;
+
+/** Entry creation input visible to `entries.beforeCreate`. */
+export interface FeedbackEntryBeforeCreateEvent {
+  actor: FeedbackActor;
+  input: {
+    kind: EntryKind;
+    title: string;
+    body: string;
+    metadata?: FeedbackMetadata;
+  };
+}
+
+/** Fields an entry callback may transform before component validation. */
+export type FeedbackEntryCreatePatch = Partial<
+  FeedbackEntryBeforeCreateEvent["input"]
+>;
+
+/** Comment creation input visible to `comments.beforeCreate`. */
+export interface FeedbackCommentBeforeCreateEvent {
+  actor: FeedbackActor;
+  input: {
+    entryId: string;
+    parentCommentId?: string;
+    body: string;
+  };
+}
+
+/** Fields a comment callback may transform before component validation. */
+export interface FeedbackCommentCreatePatch {
+  body?: string;
+}
+
+/** Explicit business-rejection helper supplied to before-create callbacks. */
+export interface FeedbackCallbackHelpers<Rejection = Value> {
+  reject: (value: Rejection) => never;
+}
+
+type MaybePromise<ValueType> = ValueType | Promise<ValueType>;
+
+/** Host callback invoked before entry creation. */
+export type FeedbackEntryBeforeCreateCallback<Rejection = Value> = (
+  ctx: FeedbackMutationContext,
+  event: FeedbackEntryBeforeCreateEvent,
+  helpers: FeedbackCallbackHelpers<Rejection>,
+) => MaybePromise<FeedbackEntryCreatePatch | undefined>;
+
+/** Sanitized persisted entry passed to `entries.afterCreate`. */
+export interface FeedbackEntryAfterCreateEvent {
+  actor: FeedbackActor;
+  entry: {
+    id: string;
+    actorId: string;
+    kind: EntryKind;
+    status: EntryStatus;
+    title: string;
+    body: string;
+    metadata?: FeedbackMetadata;
+    upvoteCount: number;
+    commentCount: number;
+  };
+}
+
+/** Host callback invoked after successful entry creation. */
+export type FeedbackEntryAfterCreateCallback = (
+  ctx: FeedbackMutationContext,
+  event: FeedbackEntryAfterCreateEvent,
+) => MaybePromise<void>;
+
+/** Host callback invoked before comment creation. */
+export type FeedbackCommentBeforeCreateCallback<Rejection = Value> = (
+  ctx: FeedbackMutationContext,
+  event: FeedbackCommentBeforeCreateEvent,
+  helpers: FeedbackCallbackHelpers<Rejection>,
+) => MaybePromise<FeedbackCommentCreatePatch | undefined>;
+
+/** Persisted comment and notification context passed after creation. */
+export interface FeedbackCommentAfterCreateEvent {
+  actor: FeedbackActor;
+  comment: {
+    id: string;
+    actorId: string;
+    entryId: string;
+    parentCommentId?: string;
+    body: string;
+    depth: number;
+  };
+  entry: {
+    id: string;
+    actorId: string;
+    kind: EntryKind;
+    status: EntryStatus;
+    title: string;
+  };
+  parentComment?: {
+    id: string;
+    actorId: string;
+  };
+}
+
+/** Host callback invoked after successful comment/reply creation. */
+export type FeedbackCommentAfterCreateCallback = (
+  ctx: FeedbackMutationContext,
+  event: FeedbackCommentAfterCreateEvent,
+) => MaybePromise<void>;
+
+interface FeedbackReactionChangeBase {
+  transition: "added" | "removed";
+  active: boolean;
+  previousCount: number;
+  count: number;
+  actor: FeedbackActor;
+}
+
+/** Discriminated entry-upvote or comment-like transition event. */
+export type FeedbackReactionChangeEvent =
+  | (FeedbackReactionChangeBase & {
+      type: "entry_upvote";
+      entry: {
+        id: string;
+        actorId: string;
+        kind: EntryKind;
+        status: EntryStatus;
+        title: string;
+      };
+    })
+  | (FeedbackReactionChangeBase & {
+      type: "comment_like";
+      comment: {
+        id: string;
+        actorId: string;
+        entryId: string;
+        parentCommentId?: string;
+        body: string;
+      };
+      entry: {
+        id: string;
+        actorId: string;
+        title: string;
+      };
+    });
+
+/** Host callback invoked only when reaction state changes. */
+export type FeedbackReactionAfterChangeCallback = (
+  ctx: FeedbackMutationContext,
+  event: FeedbackReactionChangeEvent,
+) => MaybePromise<void>;
+
+/** Convex validator for a callback rejection returned to the client. */
+export type FeedbackCallbackReturnValidator = Validator<
+  Value,
+  "required",
+  string
+>;
+
+export interface ThrowingFeedbackCallbackRejectionConfig {
+  behavior?: "throw";
+  returns?: never;
+}
+
+export interface ReturningFeedbackCallbackRejectionConfig<
+  ReturnsValidator extends FeedbackCallbackReturnValidator,
+> {
+  behavior: "return";
+  returns: ReturnsValidator;
+}
+
+/** Controls how explicit calls to a callback's `reject()` helper behave. */
+export type FeedbackCallbackRejectionConfig<
+  ReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
+    undefined,
+> = ReturnsValidator extends FeedbackCallbackReturnValidator
+  ? ReturningFeedbackCallbackRejectionConfig<ReturnsValidator>
+  : ThrowingFeedbackCallbackRejectionConfig;
+
+type CallbackRejectionValue<
+  ReturnsValidator extends FeedbackCallbackReturnValidator | undefined,
+> = ReturnsValidator extends FeedbackCallbackReturnValidator
+  ? Infer<ReturnsValidator>
+  : Value;
+
+interface FeedbackCallbackScopes<Rejection> {
+  entries?: {
+    beforeCreate?: FeedbackEntryBeforeCreateCallback<Rejection>;
+    afterCreate?: FeedbackEntryAfterCreateCallback;
+  };
+  comments?: {
+    beforeCreate?: FeedbackCommentBeforeCreateCallback<Rejection>;
+    afterCreate?: FeedbackCommentAfterCreateCallback;
+  };
+  reactions?: {
+    afterChange?: FeedbackReactionAfterChangeCallback;
+  };
+}
+
+/** Optional host lifecycle callbacks grouped by feedback domain. */
+export type FeedbackCallbacks<
+  ReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
+    undefined,
+> = FeedbackCallbackScopes<CallbackRejectionValue<ReturnsValidator>> &
+  (ReturnsValidator extends FeedbackCallbackReturnValidator
+    ? {
+        rejection: ReturningFeedbackCallbackRejectionConfig<ReturnsValidator>;
+      }
+    : { rejection?: ThrowingFeedbackCallbackRejectionConfig });
+
 type RegisteredFeedbackFunction<Function> =
   Function extends FunctionReference<
     "mutation",
@@ -276,11 +486,19 @@ type RegisteredFeedbackFunction<Function> =
         : never
       : never;
 
-type ExposedFeedbackApi<RateLimitResult> = {
+type ExposedFeedbackApi<RateLimitResult, CallbackRejectionResult> = {
   [
-    FunctionName in keyof FeedbackPublicApi<string | undefined, RateLimitResult>
+    FunctionName in keyof FeedbackPublicApi<
+      string | undefined,
+      RateLimitResult,
+      CallbackRejectionResult
+    >
   ]: RegisteredFeedbackFunction<
-    FeedbackPublicApi<string | undefined, RateLimitResult>[FunctionName]
+    FeedbackPublicApi<
+      string | undefined,
+      RateLimitResult,
+      CallbackRejectionResult
+    >[FunctionName]
   >;
 };
 
@@ -302,11 +520,17 @@ interface ExposeFeedbackOptionsBase {
   config?: FeedbackConfigOverrides;
 }
 
+type FeedbackCallbackOptions<
+  ReturnsValidator extends FeedbackCallbackReturnValidator | undefined,
+> = ReturnsValidator extends FeedbackCallbackReturnValidator
+  ? { callbacks: FeedbackCallbacks<ReturnsValidator> }
+  : { callbacks?: FeedbackCallbacks };
+
 /** Options for the default mode, where limiter functions reject by throwing. */
-export type ThrowingExposeFeedbackOptions = Omit<
-  ExposeFeedbackOptionsBase,
-  "config"
-> & {
+export type ThrowingExposeFeedbackOptions<
+  CallbackReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
+    undefined,
+> = Omit<ExposeFeedbackOptionsBase, "config"> & {
   /** Optional throwing rate limiters for the component's mutation groups. */
   rateLimiters?: FeedbackRateLimiters;
 
@@ -320,11 +544,13 @@ export type ThrowingExposeFeedbackOptions = Omit<
      */
     rateLimiting?: FeedbackRateLimitConfig;
   };
-};
+} & FeedbackCallbackOptions<CallbackReturnsValidator>;
 
 /** Options for returning a validated rejection value instead of throwing. */
 export type ReturningExposeFeedbackOptions<
   ReturnsValidator extends FeedbackRateLimitReturnValidator,
+  CallbackReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
+    undefined,
 > = Omit<ExposeFeedbackOptionsBase, "config"> & {
   /**
    * Optional returning rate limiters for the component's mutation groups.
@@ -344,7 +570,7 @@ export type ReturningExposeFeedbackOptions<
      */
     rateLimiting: FeedbackRateLimitConfig<ReturnsValidator>;
   };
-};
+} & FeedbackCallbackOptions<CallbackReturnsValidator>;
 
 /**
  * Configuration used when exposing feedback functions from the host app.
@@ -356,9 +582,11 @@ export type ReturningExposeFeedbackOptions<
 export type ExposeFeedbackOptions<
   ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined =
     undefined,
+  CallbackReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
+    undefined,
 > = ReturnsValidator extends FeedbackRateLimitReturnValidator
-  ? ReturningExposeFeedbackOptions<ReturnsValidator>
-  : ThrowingExposeFeedbackOptions;
+  ? ReturningExposeFeedbackOptions<ReturnsValidator, CallbackReturnsValidator>
+  : ThrowingExposeFeedbackOptions<CallbackReturnsValidator>;
 
 function requireActor(actor: FeedbackActor | null): FeedbackActor {
   if (actor === null) {
@@ -387,6 +615,78 @@ function rateLimitedReturns<
   return (
     limit === undefined ? base : v.union(base, limit)
   ) as RateLimitedReturnsValidator<Base, Limit>;
+}
+
+type CallbackLimitedReturnsValidator<
+  Base extends FeedbackFunctionReturnValidator,
+  Rejection extends FeedbackCallbackReturnValidator | undefined,
+> = Rejection extends FeedbackCallbackReturnValidator
+  ? VUnion<Infer<Base> | Infer<Rejection>, [Base, Rejection]>
+  : Base;
+
+function callbackLimitedReturns<
+  Base extends FeedbackFunctionReturnValidator,
+  Rejection extends FeedbackCallbackReturnValidator | undefined,
+>(
+  base: Base,
+  rejection: Rejection,
+): CallbackLimitedReturnsValidator<Base, Rejection> {
+  return (
+    rejection === undefined ? base : v.union(base, rejection)
+  ) as CallbackLimitedReturnsValidator<Base, Rejection>;
+}
+
+type CallbackResult<
+  ReturnsValidator extends FeedbackCallbackReturnValidator | undefined,
+> = ReturnsValidator extends FeedbackCallbackReturnValidator
+  ? Infer<ReturnsValidator>
+  : never;
+
+class ExplicitFeedbackCallbackRejection extends Error {
+  constructor(readonly value: Value) {
+    super("Feedback callback rejected creation.");
+    this.name = "ExplicitFeedbackCallbackRejection";
+  }
+}
+
+async function runBeforeCreate<Patch, Event, Rejection extends Value>(
+  ctx: FeedbackMutationContext,
+  event: Event,
+  callback:
+    | ((
+        ctx: FeedbackMutationContext,
+        event: Event,
+        helpers: FeedbackCallbackHelpers<Rejection>,
+      ) => MaybePromise<Patch | undefined>)
+    | undefined,
+  rejectionConfig:
+    | ThrowingFeedbackCallbackRejectionConfig
+    | ReturningFeedbackCallbackRejectionConfig<FeedbackCallbackReturnValidator>
+    | undefined,
+): Promise<
+  | { rejected: false; patch: Patch | undefined }
+  | { rejected: true; value: Rejection }
+> {
+  if (callback === undefined) {
+    return { rejected: false, patch: undefined };
+  }
+
+  try {
+    const patch = await callback(ctx, event, {
+      reject: (value) => {
+        throw new ExplicitFeedbackCallbackRejection(value);
+      },
+    });
+    return { rejected: false, patch };
+  } catch (error) {
+    if (!(error instanceof ExplicitFeedbackCallbackRejection)) {
+      throw error;
+    }
+    if (rejectionConfig?.behavior === "return") {
+      return { rejected: true, value: error.value as Rejection };
+    }
+    throw new ConvexError(error.value);
+  }
 }
 
 async function applyRateLimiter<
@@ -422,6 +722,10 @@ function asRateLimitContext(ctx: unknown): FeedbackRateLimitContext {
   return ctx as FeedbackRateLimitContext;
 }
 
+function asMutationContext(ctx: unknown): FeedbackMutationContext {
+  return ctx as FeedbackMutationContext;
+}
+
 function clampPositive(
   value: number | undefined,
   fallback: number,
@@ -452,9 +756,11 @@ function buildFeedbackApi<
   Name extends string | undefined,
   ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined =
     undefined,
+  CallbackReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
+    undefined,
 >(
   component: ComponentApi<Name>,
-  options: ExposeFeedbackOptions<ReturnsValidator>,
+  options: ExposeFeedbackOptions<ReturnsValidator, CallbackReturnsValidator>,
 ) {
   const config = createFeedbackConfig(options.config);
   const rateLimitConfig = options.config?.rateLimiting;
@@ -462,8 +768,17 @@ function buildFeedbackApi<
     rateLimitConfig?.behavior === "return"
       ? rateLimitConfig.returns
       : undefined;
+  const callbackRejectionConfig = options.callbacks?.rejection;
+  const callbackReturnValidator =
+    callbackRejectionConfig?.behavior === "return"
+      ? callbackRejectionConfig.returns
+      : undefined;
 
   const idReturns = rateLimitedReturns(v.string(), rateLimitReturnValidator);
+  const createIdReturns = callbackLimitedReturns(
+    idReturns,
+    callbackReturnValidator,
+  );
   const nullReturns = rateLimitedReturns(v.null(), rateLimitReturnValidator);
   const entryUpvoteReturns = rateLimitedReturns(
     v.object({ active: v.boolean(), upvoteCount: v.number() }),
@@ -642,7 +957,7 @@ function buildFeedbackApi<
         body: v.string(),
         metadata: v.optional(feedbackMetadataValidator),
       },
-      returns: idReturns,
+      returns: createIdReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
         const limited = await applyRateLimiter(
@@ -652,17 +967,47 @@ function buildFeedbackApi<
           rateLimitConfig,
         );
         if (limited !== undefined) return limited;
-        return await ctx.runMutation(component.entries.create, {
-          actorId: actor.id,
+
+        const input: FeedbackEntryBeforeCreateEvent["input"] = {
           kind: args.kind,
           title: args.title,
           body: args.body,
+          ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
+        };
+        const before = await runBeforeCreate(
+          asMutationContext(ctx),
+          { actor, input },
+          options.callbacks?.entries?.beforeCreate,
+          callbackRejectionConfig,
+        );
+        if (before.rejected) {
+          return before.value as CallbackResult<CallbackReturnsValidator>;
+        }
+        const patch = before.patch;
+        const metadata =
+          patch !== undefined &&
+          Object.prototype.hasOwnProperty.call(patch, "metadata")
+            ? patch.metadata
+            : input.metadata;
+        const result = await ctx.runMutation(component.entries.create, {
+          actorId: actor.id,
+          kind: patch?.kind ?? input.kind,
+          title: patch?.title ?? input.title,
+          body: patch?.body ?? input.body,
           defaultStatus: config.entries.defaultStatus,
           enabledKinds: [...config.entries.enabledKinds],
           maxTitleLength: config.limits.titleLength,
           maxBodyLength: config.limits.bodyLength,
-          ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
+          ...(metadata === undefined ? {} : { metadata }),
         });
+        await options.callbacks?.entries?.afterCreate?.(
+          asMutationContext(ctx),
+          {
+            actor,
+            entry: result.entry,
+          },
+        );
+        return result.id;
       },
     }),
 
@@ -827,11 +1172,26 @@ function buildFeedbackApi<
           rateLimitConfig,
         );
         if (limited !== undefined) return limited;
-        return await ctx.runMutation(component.entries.setUpvote, {
+        const result = await ctx.runMutation(component.entries.setUpvote, {
           actorId: actor.id,
           entryId: args.entryId,
           desiredState: args.desiredState,
         });
+        if (result.changed) {
+          await options.callbacks?.reactions?.afterChange?.(
+            asMutationContext(ctx),
+            {
+              type: "entry_upvote",
+              transition: result.transition,
+              active: result.active,
+              previousCount: result.previousCount,
+              count: result.count,
+              actor,
+              entry: result.entry,
+            },
+          );
+        }
+        return { active: result.active, upvoteCount: result.count };
       },
     }),
 
@@ -883,7 +1243,7 @@ function buildFeedbackApi<
         parentCommentId: v.optional(v.string()),
         body: v.string(),
       },
-      returns: idReturns,
+      returns: createIdReturns,
       handler: async (ctx, args) => {
         const actor = requireActor(await options.actor(ctx));
         const limited = await applyRateLimiter(
@@ -893,16 +1253,45 @@ function buildFeedbackApi<
           rateLimitConfig,
         );
         if (limited !== undefined) return limited;
-        return await ctx.runMutation(component.comments.create, {
-          actorId: actor.id,
+
+        const input: FeedbackCommentBeforeCreateEvent["input"] = {
           entryId: args.entryId,
           ...(args.parentCommentId === undefined
             ? {}
             : { parentCommentId: args.parentCommentId }),
           body: args.body,
+        };
+        const before = await runBeforeCreate(
+          asMutationContext(ctx),
+          { actor, input },
+          options.callbacks?.comments?.beforeCreate,
+          callbackRejectionConfig,
+        );
+        if (before.rejected) {
+          return before.value as CallbackResult<CallbackReturnsValidator>;
+        }
+        const result = await ctx.runMutation(component.comments.create, {
+          actorId: actor.id,
+          entryId: input.entryId,
+          ...(input.parentCommentId === undefined
+            ? {}
+            : { parentCommentId: input.parentCommentId }),
+          body: before.patch?.body ?? input.body,
           maxDepth: config.comments.maxDepth,
           maxCommentLength: config.limits.commentLength,
         });
+        await options.callbacks?.comments?.afterCreate?.(
+          asMutationContext(ctx),
+          {
+            actor,
+            comment: result.comment,
+            entry: result.entry,
+            ...(result.parentComment === undefined
+              ? {}
+              : { parentComment: result.parentComment }),
+          },
+        );
+        return result.id;
       },
     }),
 
@@ -960,11 +1349,27 @@ function buildFeedbackApi<
           rateLimitConfig,
         );
         if (limited !== undefined) return limited;
-        return await ctx.runMutation(component.comments.setLike, {
+        const result = await ctx.runMutation(component.comments.setLike, {
           actorId: actor.id,
           commentId: args.commentId,
           desiredState: args.desiredState,
         });
+        if (result.changed) {
+          await options.callbacks?.reactions?.afterChange?.(
+            asMutationContext(ctx),
+            {
+              type: "comment_like",
+              transition: result.transition,
+              active: result.active,
+              previousCount: result.previousCount,
+              count: result.count,
+              actor,
+              comment: result.comment,
+              entry: result.entry,
+            },
+          );
+        }
+        return { active: result.active, likeCount: result.count };
       },
     }),
 
@@ -1189,24 +1594,53 @@ function buildFeedbackApi<
  */
 export function exposeFeedbackApi<
   Name extends string | undefined,
-  ReturnsValidator extends FeedbackRateLimitReturnValidator,
+  RateReturnsValidator extends FeedbackRateLimitReturnValidator,
+  CallbackReturnsValidator extends FeedbackCallbackReturnValidator,
 >(
   component: ComponentApi<Name>,
-  options: ReturningExposeFeedbackOptions<ReturnsValidator>,
-): ExposedFeedbackApi<Infer<ReturnsValidator>>;
+  options: ReturningExposeFeedbackOptions<
+    RateReturnsValidator,
+    CallbackReturnsValidator
+  >,
+): ExposedFeedbackApi<
+  Infer<RateReturnsValidator>,
+  Infer<CallbackReturnsValidator>
+>;
+
+/** Exposes returning rate limits with throwing callback rejections. */
+export function exposeFeedbackApi<
+  Name extends string | undefined,
+  RateReturnsValidator extends FeedbackRateLimitReturnValidator,
+>(
+  component: ComponentApi<Name>,
+  options: ReturningExposeFeedbackOptions<RateReturnsValidator>,
+): ExposedFeedbackApi<Infer<RateReturnsValidator>, never>;
+
+/** Exposes throwing rate limits with returning callback rejections. */
+export function exposeFeedbackApi<
+  Name extends string | undefined,
+  CallbackReturnsValidator extends FeedbackCallbackReturnValidator,
+>(
+  component: ComponentApi<Name>,
+  options: ThrowingExposeFeedbackOptions<CallbackReturnsValidator>,
+): ExposedFeedbackApi<never, Infer<CallbackReturnsValidator>>;
 
 /** Exposes feedback using optional throwing rate limiters. */
 export function exposeFeedbackApi<Name extends string | undefined>(
   component: ComponentApi<Name>,
   options: ThrowingExposeFeedbackOptions,
-): ExposedFeedbackApi<never>;
+): ExposedFeedbackApi<never, never>;
 
 export function exposeFeedbackApi<
   Name extends string | undefined,
   ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined,
+  CallbackReturnsValidator extends FeedbackCallbackReturnValidator | undefined,
 >(
   component: ComponentApi<Name>,
-  options: ExposeFeedbackOptions<ReturnsValidator>,
-): ExposedFeedbackApi<RateLimitResult<ReturnsValidator>> {
+  options: ExposeFeedbackOptions<ReturnsValidator, CallbackReturnsValidator>,
+): ExposedFeedbackApi<
+  RateLimitResult<ReturnsValidator>,
+  CallbackResult<CallbackReturnsValidator>
+> {
   return buildFeedbackApi(component, options);
 }

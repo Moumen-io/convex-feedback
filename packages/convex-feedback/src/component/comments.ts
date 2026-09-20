@@ -5,6 +5,7 @@ import {
 } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
+import type { Id } from "./_generated/dataModel.js";
 import { mutation, query } from "./_generated/server.js";
 import {
   assertActorId,
@@ -18,6 +19,8 @@ import {
   actorValidator,
   actorIsAdmin,
   commentSortValidator,
+  entryKindValidator,
+  entryStatusValidator,
   entryStatusFilterForStatus,
   publicCommentValidator,
 } from "./model.js";
@@ -116,7 +119,27 @@ export const create = mutation({
     maxDepth: v.number(),
     maxCommentLength: v.number(),
   },
-  returns: v.id("comments"),
+  returns: v.object({
+    id: v.id("comments"),
+    comment: v.object({
+      id: v.id("comments"),
+      actorId: v.string(),
+      entryId: v.id("entries"),
+      parentCommentId: v.optional(v.id("comments")),
+      body: v.string(),
+      depth: v.number(),
+    }),
+    entry: v.object({
+      id: v.id("entries"),
+      actorId: v.string(),
+      kind: entryKindValidator,
+      status: entryStatusValidator,
+      title: v.string(),
+    }),
+    parentComment: v.optional(
+      v.object({ id: v.id("comments"), actorId: v.string() }),
+    ),
+  }),
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
     assertPositiveInteger(args.maxDepth, "Maximum comment depth");
@@ -132,11 +155,13 @@ export const create = mutation({
     );
 
     let depth = 0;
+    let parentComment: { id: Id<"comments">; actorId: string } | undefined;
     if (args.parentCommentId !== undefined) {
       const parent = await ctx.db.get("comments", args.parentCommentId);
       if (parent === null || parent.entryId !== args.entryId) {
         throw new ConvexError("Parent comment not found on this entry.");
       }
+      parentComment = { id: parent._id, actorId: parent.actorId };
       depth = parent.depth + 1;
       if (depth > args.maxDepth) {
         throw new ConvexError(
@@ -171,7 +196,27 @@ export const create = mutation({
       }
     }
 
-    return commentId;
+    return {
+      id: commentId,
+      comment: {
+        id: commentId,
+        actorId: args.actorId,
+        entryId: args.entryId,
+        ...(args.parentCommentId === undefined
+          ? {}
+          : { parentCommentId: args.parentCommentId }),
+        body,
+        depth,
+      },
+      entry: {
+        id: entry._id,
+        actorId: entry.actorId,
+        kind: entry.kind,
+        status: entry.status,
+        title: entry.title,
+      },
+      ...(parentComment === undefined ? {} : { parentComment }),
+    };
   },
 });
 
@@ -241,7 +286,34 @@ export const setLike = mutation({
     commentId: v.id("comments"),
     desiredState: v.boolean(),
   },
-  returns: v.object({ active: v.boolean(), likeCount: v.number() }),
+  returns: v.union(
+    v.object({
+      changed: v.literal(false),
+      active: v.boolean(),
+      transition: v.null(),
+      previousCount: v.number(),
+      count: v.number(),
+    }),
+    v.object({
+      changed: v.literal(true),
+      active: v.boolean(),
+      transition: v.union(v.literal("added"), v.literal("removed")),
+      previousCount: v.number(),
+      count: v.number(),
+      comment: v.object({
+        id: v.id("comments"),
+        actorId: v.string(),
+        entryId: v.id("entries"),
+        parentCommentId: v.optional(v.id("comments")),
+        body: v.string(),
+      }),
+      entry: v.object({
+        id: v.id("entries"),
+        actorId: v.string(),
+        title: v.string(),
+      }),
+    }),
+  ),
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
     const comment = await ctx.db.get("comments", args.commentId);
@@ -258,22 +330,72 @@ export const setLike = mutation({
       .unique();
 
     if (args.desiredState && existing === null) {
+      const entry = await ctx.db.get("entries", comment.entryId);
+      if (entry === null) throw new ConvexError("Entry not found.");
       await ctx.db.insert("reactions", {
         actorId: args.actorId,
         commentId: args.commentId,
       });
       const likeCount = comment.likeCount + 1;
       await ctx.db.patch("comments", args.commentId, { likeCount });
-      return { active: true, likeCount };
+      return {
+        changed: true as const,
+        active: true,
+        transition: "added" as const,
+        previousCount: comment.likeCount,
+        count: likeCount,
+        comment: {
+          id: comment._id,
+          actorId: comment.actorId,
+          entryId: comment.entryId,
+          ...(comment.parentCommentId === undefined
+            ? {}
+            : { parentCommentId: comment.parentCommentId }),
+          body: comment.body,
+        },
+        entry: {
+          id: entry._id,
+          actorId: entry.actorId,
+          title: entry.title,
+        },
+      };
     }
 
     if (!args.desiredState && existing !== null) {
+      const entry = await ctx.db.get("entries", comment.entryId);
+      if (entry === null) throw new ConvexError("Entry not found.");
       await ctx.db.delete("reactions", existing._id);
       const likeCount = Math.max(0, comment.likeCount - 1);
       await ctx.db.patch("comments", args.commentId, { likeCount });
-      return { active: false, likeCount };
+      return {
+        changed: true as const,
+        active: false,
+        transition: "removed" as const,
+        previousCount: comment.likeCount,
+        count: likeCount,
+        comment: {
+          id: comment._id,
+          actorId: comment.actorId,
+          entryId: comment.entryId,
+          ...(comment.parentCommentId === undefined
+            ? {}
+            : { parentCommentId: comment.parentCommentId }),
+          body: comment.body,
+        },
+        entry: {
+          id: entry._id,
+          actorId: entry.actorId,
+          title: entry.title,
+        },
+      };
     }
 
-    return { active: args.desiredState, likeCount: comment.likeCount };
+    return {
+      changed: false as const,
+      active: args.desiredState,
+      transition: null,
+      previousCount: comment.likeCount,
+      count: comment.likeCount,
+    };
   },
 });

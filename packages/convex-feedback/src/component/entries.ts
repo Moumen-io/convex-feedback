@@ -605,21 +605,25 @@ export const create = mutation({
     maxTitleLength: v.number(),
     maxBodyLength: v.number(),
     metadata: v.optional(feedbackMetadataValidator),
+    includeCallbackContext: v.optional(v.boolean()),
   },
-  returns: v.object({
-    id: v.id("entries"),
-    entry: v.object({
+  returns: v.union(
+    v.object({ id: v.id("entries") }),
+    v.object({
       id: v.id("entries"),
-      actorId: v.string(),
-      kind: entryKindValidator,
-      status: entryStatusValidator,
-      title: v.string(),
-      body: v.string(),
-      metadata: v.optional(feedbackMetadataValidator),
-      upvoteCount: v.number(),
-      commentCount: v.number(),
+      entry: v.object({
+        id: v.id("entries"),
+        actorId: v.string(),
+        kind: entryKindValidator,
+        status: entryStatusValidator,
+        title: v.string(),
+        body: v.string(),
+        metadata: v.optional(feedbackMetadataValidator),
+        upvoteCount: v.number(),
+        commentCount: v.number(),
+      }),
     }),
-  }),
+  ),
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
     if (!args.enabledKinds.includes(args.kind)) {
@@ -652,6 +656,8 @@ export const create = mutation({
       actorId: args.actorId,
       entryId: entry,
     });
+
+    if (!args.includeCallbackContext) return { id: entry };
 
     return {
       id: entry,
@@ -797,8 +803,13 @@ export const setUpvote = mutation({
     actorId: v.string(),
     entryId: v.id("entries"),
     desiredState: v.boolean(),
+    includeCallbackContext: v.optional(v.boolean()),
   },
   returns: v.union(
+    v.object({
+      active: v.boolean(),
+      upvoteCount: v.number(),
+    }),
     v.object({
       changed: v.literal(false),
       active: v.boolean(),
@@ -843,6 +854,9 @@ export const setUpvote = mutation({
         upvoteCount,
         statusFilter: entryStatusFilterForStatus(entry.status),
       });
+      if (!args.includeCallbackContext) {
+        return { active: true, upvoteCount };
+      }
       return {
         changed: true as const,
         active: true,
@@ -866,6 +880,9 @@ export const setUpvote = mutation({
         upvoteCount,
         statusFilter: entryStatusFilterForStatus(entry.status),
       });
+      if (!args.includeCallbackContext) {
+        return { active: false, upvoteCount };
+      }
       return {
         changed: true as const,
         active: false,
@@ -882,6 +899,9 @@ export const setUpvote = mutation({
       };
     }
 
+    if (!args.includeCallbackContext) {
+      return { active: args.desiredState, upvoteCount: entry.upvoteCount };
+    }
     return {
       changed: false as const,
       active: args.desiredState,

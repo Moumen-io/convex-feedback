@@ -122,6 +122,7 @@ describe("feedback lifecycle callbacks", () => {
     const runMutation = vi.fn(
       (reference: string, args: Parameters<typeof entryResult>[0]) => {
         expect(reference).toBe("entries:create");
+        expect(args).toMatchObject({ includeCallbackContext: true });
         calls.push("component");
         return Promise.resolve(entryResult(args));
       },
@@ -204,11 +205,27 @@ describe("feedback lifecycle callbacks", () => {
     const api = exposeFeedbackApi(component, {
       actor: () => Promise.resolve({ id: "actor-1" }),
       callbacks: {
-        entries: { beforeCreate: () => undefined },
+        entries: {
+          beforeCreate: (_callbackCtx, event) => {
+            // @ts-expect-error Callback actor identity is readonly.
+            event.actor.id = "leaked-actor";
+            // @ts-expect-error Callback inputs are readonly snapshots.
+            event.input.title = "leaked title";
+            if (event.input.metadata?.standard !== undefined) {
+              // @ts-expect-error Nested callback metadata is readonly too.
+              event.input.metadata.standard.source = "leaked source";
+            }
+            return undefined;
+          },
+        },
         comments: {
           beforeCreate: (_callbackCtx, event) => {
             expect(event.input.entryId).toBe("entry-1");
             expect(event.input.parentCommentId).toBe("parent-1");
+            // @ts-expect-error Callback inputs are readonly.
+            event.input.entryId = "leaked-entry";
+            // @ts-expect-error Callback relationship inputs are readonly.
+            event.input.parentCommentId = "leaked-parent";
             return { body: "  transformed comment  " };
           },
           afterCreate: (_callbackCtx, event) => {
@@ -218,18 +235,27 @@ describe("feedback lifecycle callbacks", () => {
       },
     });
 
-    await invokeMutation(api.createEntry, ctx, createEntryArgs);
+    const originalEntryArgs = {
+      ...createEntryArgs,
+      metadata: { standard: { source: "original source" } },
+    };
+    await invokeMutation(api.createEntry, ctx, originalEntryArgs);
     await invokeMutation(api.createComment, ctx, {
       entryId: "entry-1",
       parentCommentId: "parent-1",
       body: "original comment",
     });
 
-    expect(runMutation.mock.calls[0]?.[1]).toMatchObject(createEntryArgs);
+    expect(runMutation.mock.calls[0]?.[1]).toMatchObject(originalEntryArgs);
+    expect(runMutation.mock.calls[0]?.[1]).toMatchObject({
+      actorId: "actor-1",
+      includeCallbackContext: false,
+    });
     expect(runMutation.mock.calls[1]?.[1]).toMatchObject({
       entryId: "entry-1",
       parentCommentId: "parent-1",
       body: "  transformed comment  ",
+      includeCallbackContext: true,
     });
     const afterEvent = commentAfter.mock.calls[0]?.[0];
     expect(afterEvent?.comment.body).toBe("transformed comment");
@@ -453,7 +479,6 @@ describe("feedback lifecycle callbacks", () => {
           entryId: "entry-1",
           body: "Comment body",
         },
-        entry: { id: "entry-1", actorId: "entry-author", title: "Entry title" },
       },
       {
         changed: false as const,
@@ -508,8 +533,63 @@ describe("feedback lifecycle callbacks", () => {
       previousCount: 3,
       count: 2,
       comment: { actorId: "comment-author" },
-      entry: { actorId: "entry-author" },
     });
+    expect(runMutation.mock.calls).toEqual(
+      expect.arrayContaining([
+        expect.arrayContaining([
+          "entries:setUpvote",
+          expect.objectContaining({ includeCallbackContext: true }),
+        ]),
+        expect.arrayContaining([
+          "comments:setLike",
+          expect.objectContaining({ includeCallbackContext: true }),
+        ]),
+      ]),
+    );
+  });
+
+  test("keeps all component mutation results lean when after callbacks are absent", async () => {
+    const runMutation = vi.fn(
+      (reference: string, args: { desiredState?: boolean }) => {
+        expect(args).toMatchObject({ includeCallbackContext: false });
+        if (reference === "entries:create")
+          return Promise.resolve({ id: "entry-1" });
+        if (reference === "comments:create") {
+          return Promise.resolve({ id: "comment-1" });
+        }
+        if (reference === "entries:setUpvote") {
+          return Promise.resolve({ active: args.desiredState, upvoteCount: 2 });
+        }
+        return Promise.resolve({ active: args.desiredState, likeCount: 3 });
+      },
+    );
+    const ctx = context(runMutation);
+    const api = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve({ id: "actor-1" }),
+    });
+
+    await expect(
+      invokeMutation(api.createEntry, ctx, createEntryArgs),
+    ).resolves.toBe("entry-1");
+    await expect(
+      invokeMutation(api.createComment, ctx, {
+        entryId: "entry-1",
+        body: "Comment",
+      }),
+    ).resolves.toBe("comment-1");
+    await expect(
+      invokeMutation(api.setEntryUpvote, ctx, {
+        entryId: "entry-1",
+        desiredState: true,
+      }),
+    ).resolves.toEqual({ active: true, upvoteCount: 2 });
+    await expect(
+      invokeMutation(api.setCommentLike, ctx, {
+        commentId: "comment-1",
+        desiredState: false,
+      }),
+    ).resolves.toEqual({ active: false, likeCount: 3 });
+    expect(runMutation).toHaveBeenCalledTimes(4);
   });
 
   test("composes rate-limit and callback rejection unions only for create mutations", () => {

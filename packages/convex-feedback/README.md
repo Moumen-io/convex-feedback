@@ -308,6 +308,9 @@ patch is still passed through the component's normal validation; a callback
 cannot bypass enabled-kind, length, nesting, or other component rules. Entry
 callbacks may patch `kind`, `title`, `body`, and `metadata`. Comment callbacks
 may patch only `body`; `entryId` and `parentCommentId` remain component-owned.
+Callback inputs are readonly snapshots. The wrapper builds component arguments
+from the original mutation arguments plus only the explicitly returned patch,
+so mutating an event object cannot leak changes into component relationships.
 
 For example, a host can sanitize profanity and reject content that becomes
 empty after sanitization:
@@ -415,7 +418,13 @@ Reaction `afterChange` runs only when the actor's desired state actually changes
 It runs for both additions and removals. The event exposes
 `transition: "added" | "removed"`, `previousCount`, and `count` (the final
 count), plus the reacting actor and the target author/context: `entry` for an
-entry upvote, or `comment` and its parent `entry` for a comment like.
+entry upvote, or `comment` for a comment like. Comment-like events include the
+comment author and `entryId` without reading or serializing the parent entry.
+
+Rich component callback context is requested only when the corresponding
+`afterCreate` or `afterChange` callback is configured. With no after callback,
+creation and reaction mutations keep their lean result path and avoid
+callback-only reads and serialization.
 
 ```ts
 afterChange: async (ctx, event) => {

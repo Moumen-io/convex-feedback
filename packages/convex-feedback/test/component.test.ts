@@ -4,6 +4,7 @@ import { describe, expect, expectTypeOf, test, vi } from "vitest";
 
 import { api, internal } from "../src/component/_generated/api.js";
 import type { Id } from "../src/component/_generated/dataModel.js";
+import { create as createCommentMutation } from "../src/component/comments.js";
 import schema from "../src/component/schema.js";
 
 const modules = import.meta.glob("../src/component/**/*.ts");
@@ -1047,6 +1048,116 @@ describe("convex-feedback component", () => {
     });
     expect(children.page.map((comment) => comment.body)).toEqual(["Child"]);
     expect(children.page[0]?.replyCount).toBe(1);
+  });
+
+  test("comment likes do not require the parent entry", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance);
+    const creation = await testInstance.mutation(api.comments.create, {
+      actorId: "author-1",
+      entryId,
+      body: "Orphaned comment",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    expect(creation).toEqual({ id: creation.id });
+    const commentId = creation.id;
+    await testInstance.run((ctx) => ctx.db.delete("entries", entryId));
+
+    await expect(
+      testInstance.mutation(api.comments.setLike, {
+        actorId: "user-a",
+        commentId,
+        desiredState: true,
+      }),
+    ).resolves.toEqual({ active: true, likeCount: 1 });
+
+    const callbackResult = await testInstance.mutation(api.comments.setLike, {
+      actorId: "user-b",
+      commentId,
+      desiredState: true,
+      includeCallbackContext: true,
+    });
+    expect(callbackResult).toMatchObject({
+      changed: true,
+      transition: "added",
+      previousCount: 1,
+      count: 2,
+      comment: { id: commentId, entryId },
+    });
+    expect(callbackResult).not.toHaveProperty("entry");
+  });
+
+  test("reply creation reuses its single parent-comment read", async () => {
+    const entryId = "entry-1" as Id<"entries">;
+    const parentId = "parent-1" as Id<"comments">;
+    const parent = {
+      _id: parentId,
+      _creationTime: 1,
+      entryId,
+      actorId: "parent-author",
+      depth: 0,
+      body: "Parent",
+      likeCount: 0,
+      replyCount: 2,
+    };
+    const get = vi.fn((table: string) =>
+      Promise.resolve(
+        table === "entries"
+          ? {
+              _id: entryId,
+              actorId: "entry-author",
+              kind: "feedback",
+              status: "open",
+              title: "Entry",
+              commentCount: 1,
+            }
+          : parent,
+      ),
+    );
+    const patch = vi.fn(() => Promise.resolve());
+    const handler = (
+      createCommentMutation as unknown as {
+        _handler: (
+          ctx: unknown,
+          args: {
+            actorId: string;
+            entryId: Id<"entries">;
+            parentCommentId: Id<"comments">;
+            body: string;
+            maxDepth: number;
+            maxCommentLength: number;
+            includeCallbackContext: boolean;
+          },
+        ) => Promise<unknown>;
+      }
+    )._handler;
+
+    await handler(
+      {
+        db: {
+          get,
+          insert: vi.fn((table: string) =>
+            Promise.resolve(table === "comments" ? "comment-1" : "reaction-1"),
+          ),
+          patch,
+        },
+      },
+      {
+        actorId: "reply-author",
+        entryId,
+        parentCommentId: parentId,
+        body: "Reply",
+        maxDepth: 5,
+        maxCommentLength: 5_000,
+        includeCallbackContext: true,
+      },
+    );
+
+    expect(get.mock.calls.filter(([table]) => table === "comments")).toEqual([
+      ["comments", parentId],
+    ]);
+    expect(patch).toHaveBeenCalledWith("comments", parentId, { replyCount: 3 });
   });
 
   test("maximum comment depth is enforced on writes", async () => {

@@ -210,35 +210,37 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           actorId: string;
           body: string;
           entryId: string;
+          includeCallbackContext?: boolean;
           maxCommentLength: number;
           maxDepth: number;
           parentCommentId?: string;
         },
-        {
-          comment: {
-            actorId: string;
-            body: string;
-            depth: number;
-            entryId: string;
+        | { id: string }
+        | {
+            comment: {
+              actorId: string;
+              body: string;
+              depth: number;
+              entryId: string;
+              id: string;
+              parentCommentId?: string;
+            };
+            entry: {
+              actorId: string;
+              id: string;
+              kind: "feedback" | "feature_request" | "bug_report";
+              status:
+                | "open"
+                | "under_review"
+                | "planned"
+                | "in_progress"
+                | "completed"
+                | "closed";
+              title: string;
+            };
             id: string;
-            parentCommentId?: string;
-          };
-          entry: {
-            actorId: string;
-            id: string;
-            kind: "feedback" | "feature_request" | "bug_report";
-            status:
-              | "open"
-              | "under_review"
-              | "planned"
-              | "in_progress"
-              | "completed"
-              | "closed";
-            title: string;
-          };
-          id: string;
-          parentComment?: { actorId: string; id: string };
-        },
+            parentComment?: { actorId: string; id: string };
+          },
         Name
       >;
       list: FunctionReference<
@@ -330,7 +332,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       setLike: FunctionReference<
         "mutation",
         "internal",
-        { actorId: string; commentId: string; desiredState: boolean },
+        {
+          actorId: string;
+          commentId: string;
+          desiredState: boolean;
+          includeCallbackContext?: boolean;
+        },
+        | { active: boolean; likeCount: number }
         | {
             active: boolean;
             changed: false;
@@ -349,7 +357,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               parentCommentId?: string;
             };
             count: number;
-            entry: { actorId: string; id: string; title: string };
             previousCount: number;
             transition: "added" | "removed";
           },
@@ -384,6 +391,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "completed"
             | "closed";
           enabledKinds: Array<"feedback" | "feature_request" | "bug_report">;
+          includeCallbackContext?: boolean;
           kind: "feedback" | "feature_request" | "bug_report";
           maxBodyLength: number;
           maxTitleLength: number;
@@ -393,29 +401,30 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           };
           title: string;
         },
-        {
-          entry: {
-            actorId: string;
-            body: string;
-            commentCount: number;
-            id: string;
-            kind: "feedback" | "feature_request" | "bug_report";
-            metadata?: {
-              additional?: Record<string, string | number | boolean>;
-              standard?: Record<string, string | number | boolean>;
+        | { id: string }
+        | {
+            entry: {
+              actorId: string;
+              body: string;
+              commentCount: number;
+              id: string;
+              kind: "feedback" | "feature_request" | "bug_report";
+              metadata?: {
+                additional?: Record<string, string | number | boolean>;
+                standard?: Record<string, string | number | boolean>;
+              };
+              status:
+                | "open"
+                | "under_review"
+                | "planned"
+                | "in_progress"
+                | "completed"
+                | "closed";
+              title: string;
+              upvoteCount: number;
             };
-            status:
-              | "open"
-              | "under_review"
-              | "planned"
-              | "in_progress"
-              | "completed"
-              | "closed";
-            title: string;
-            upvoteCount: number;
-          };
-          id: string;
-        },
+            id: string;
+          },
         Name
       >;
       get: FunctionReference<
@@ -645,7 +654,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       setUpvote: FunctionReference<
         "mutation",
         "internal",
-        { actorId: string; desiredState: boolean; entryId: string },
+        {
+          actorId: string;
+          desiredState: boolean;
+          entryId: string;
+          includeCallbackContext?: boolean;
+        },
+        | { active: boolean; upvoteCount: number }
         | {
             active: boolean;
             changed: false;

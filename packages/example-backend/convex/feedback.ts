@@ -48,6 +48,7 @@ export const {
       isAdmin: true,
     };
   },
+  
   config: {
     comments: {
       maxDepth: 5,

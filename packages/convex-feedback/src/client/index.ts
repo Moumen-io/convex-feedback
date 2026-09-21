@@ -258,48 +258,78 @@ type RateLimiterResult<
   ? Infer<ReturnsValidator>
   : void;
 
-/** Full host mutation context supplied to lifecycle callbacks. */
+/** Full host mutation context supplied to every lifecycle callback. */
 export type FeedbackMutationContext = GenericMutationCtx<GenericDataModel>;
 
-/** Entry creation input visible to `entries.beforeCreate`. */
+/**
+ * Readonly entry creation event passed after auth/rate limiting and before any
+ * component work. Return a {@link FeedbackEntryCreatePatch} to transform only
+ * the supported fields; mutating `event.input` is neither supported nor used.
+ */
 export interface FeedbackEntryBeforeCreateEvent {
-  actor: FeedbackActor;
-  input: {
-    kind: EntryKind;
-    title: string;
-    body: string;
-    metadata?: FeedbackMetadata;
+  readonly actor: Readonly<FeedbackActor>;
+  readonly input: {
+    readonly kind: EntryKind;
+    readonly title: string;
+    readonly body: string;
+    readonly metadata?: Readonly<{
+      standard?: Readonly<Record<string, string | number | boolean>>;
+      additional?: Readonly<Record<string, string | number | boolean>>;
+    }>;
   };
 }
 
-/** Fields an entry callback may transform before component validation. */
-export type FeedbackEntryCreatePatch = Partial<
-  FeedbackEntryBeforeCreateEvent["input"]
->;
+/**
+ * Explicit entry creation transformations. Omitted fields retain the original
+ * mutation arguments, and all returned values still undergo component
+ * validation. Actor identity, IDs, and configured defaults cannot be changed.
+ */
+export interface FeedbackEntryCreatePatch {
+  kind?: EntryKind;
+  title?: string;
+  body?: string;
+  metadata?: FeedbackMetadata;
+}
 
-/** Comment creation input visible to `comments.beforeCreate`. */
+/**
+ * Readonly comment creation event passed after auth/rate limiting and before
+ * component work. `entryId` and `parentCommentId` are immutable relationship
+ * fields; only an explicitly returned `body` patch is applied.
+ */
 export interface FeedbackCommentBeforeCreateEvent {
-  actor: FeedbackActor;
-  input: {
-    entryId: string;
-    parentCommentId?: string;
-    body: string;
+  readonly actor: Readonly<FeedbackActor>;
+  readonly input: {
+    readonly entryId: string;
+    readonly parentCommentId?: string;
+    readonly body: string;
   };
 }
 
-/** Fields a comment callback may transform before component validation. */
+/**
+ * Explicit comment creation transformation. Only `body` is supported and the
+ * transformed value still undergoes length and permission validation.
+ */
 export interface FeedbackCommentCreatePatch {
   body?: string;
 }
 
-/** Explicit business-rejection helper supplied to before-create callbacks. */
+/**
+ * Helpers supplied to before-create callbacks. `reject(value)` is the only
+ * exception translated by callback rejection configuration: it throws a
+ * `ConvexError` by default or returns the validated value in return mode.
+ * Unexpected callback errors always propagate normally.
+ */
 export interface FeedbackCallbackHelpers<Rejection = Value> {
   reject: (value: Rejection) => never;
 }
 
 type MaybePromise<ValueType> = ValueType | Promise<ValueType>;
 
-/** Host callback invoked before entry creation. */
+/**
+ * Runs after actor resolution and rate limiting, before the component entry
+ * mutation. It is awaited and may return an explicit creation patch or call
+ * `reject()`; it cannot replace normal component validation.
+ */
 export type FeedbackEntryBeforeCreateCallback<Rejection = Value> = (
   ctx: FeedbackMutationContext,
   event: FeedbackEntryBeforeCreateEvent,
@@ -308,58 +338,69 @@ export type FeedbackEntryBeforeCreateCallback<Rejection = Value> = (
 
 /** Sanitized persisted entry passed to `entries.afterCreate`. */
 export interface FeedbackEntryAfterCreateEvent {
-  actor: FeedbackActor;
-  entry: {
-    id: string;
-    actorId: string;
-    kind: EntryKind;
-    status: EntryStatus;
-    title: string;
-    body: string;
-    metadata?: FeedbackMetadata;
-    upvoteCount: number;
-    commentCount: number;
+  readonly actor: FeedbackActor;
+  readonly entry: {
+    readonly id: string;
+    readonly actorId: string;
+    readonly kind: EntryKind;
+    readonly status: EntryStatus;
+    readonly title: string;
+    readonly body: string;
+    readonly metadata?: FeedbackMetadata;
+    readonly upvoteCount: number;
+    readonly commentCount: number;
   };
 }
 
-/** Host callback invoked after successful entry creation. */
+/**
+ * Runs exactly once after successful component entry creation and is awaited
+ * in the same host mutation. An uncaught error rolls back creation. Rich entry
+ * context is requested from the component only when this callback is set.
+ */
 export type FeedbackEntryAfterCreateCallback = (
   ctx: FeedbackMutationContext,
   event: FeedbackEntryAfterCreateEvent,
 ) => MaybePromise<void>;
 
-/** Host callback invoked before comment creation. */
+/**
+ * Runs after actor resolution and rate limiting, before the component comment
+ * mutation. It is awaited and may transform only `body` or call `reject()`.
+ */
 export type FeedbackCommentBeforeCreateCallback<Rejection = Value> = (
   ctx: FeedbackMutationContext,
   event: FeedbackCommentBeforeCreateEvent,
   helpers: FeedbackCallbackHelpers<Rejection>,
 ) => MaybePromise<FeedbackCommentCreatePatch | undefined>;
 
-/** Persisted comment and notification context passed after creation. */
+/** Persisted comment, entry, and optional parent context passed after creation. */
 export interface FeedbackCommentAfterCreateEvent {
-  actor: FeedbackActor;
-  comment: {
-    id: string;
-    actorId: string;
-    entryId: string;
-    parentCommentId?: string;
-    body: string;
-    depth: number;
+  readonly actor: FeedbackActor;
+  readonly comment: {
+    readonly id: string;
+    readonly actorId: string;
+    readonly entryId: string;
+    readonly parentCommentId?: string;
+    readonly body: string;
+    readonly depth: number;
   };
-  entry: {
-    id: string;
-    actorId: string;
-    kind: EntryKind;
-    status: EntryStatus;
-    title: string;
+  readonly entry: {
+    readonly id: string;
+    readonly actorId: string;
+    readonly kind: EntryKind;
+    readonly status: EntryStatus;
+    readonly title: string;
   };
-  parentComment?: {
-    id: string;
-    actorId: string;
+  readonly parentComment?: {
+    readonly id: string;
+    readonly actorId: string;
   };
 }
 
-/** Host callback invoked after successful comment/reply creation. */
+/**
+ * Runs exactly once after successful component comment creation and is awaited
+ * in the same host mutation. An uncaught error rolls back creation. Rich
+ * comment/entry/parent context is requested only when this callback is set.
+ */
 export type FeedbackCommentAfterCreateCallback = (
   ctx: FeedbackMutationContext,
   event: FeedbackCommentAfterCreateEvent,
@@ -373,7 +414,13 @@ interface FeedbackReactionChangeBase {
   actor: FeedbackActor;
 }
 
-/** Discriminated entry-upvote or comment-like transition event. */
+/**
+ * Discriminated reaction transition. Events exist only for real state changes:
+ * `added` is false→true and `removed` is true→false. `previousCount` is the
+ * persisted count immediately before the change and `count` is the final one.
+ * Comment-like events intentionally use comment context without reading or
+ * serializing the parent entry.
+ */
 export type FeedbackReactionChangeEvent =
   | (FeedbackReactionChangeBase & {
       type: "entry_upvote";
@@ -394,31 +441,32 @@ export type FeedbackReactionChangeEvent =
         parentCommentId?: string;
         body: string;
       };
-      entry: {
-        id: string;
-        actorId: string;
-        title: string;
-      };
     });
 
-/** Host callback invoked only when reaction state changes. */
+/**
+ * Runs after a successful reaction mutation only for an actual transition and
+ * is awaited in the same transaction, so uncaught errors roll back the change.
+ * Extra reaction context is requested only when this callback is configured.
+ */
 export type FeedbackReactionAfterChangeCallback = (
   ctx: FeedbackMutationContext,
   event: FeedbackReactionChangeEvent,
 ) => MaybePromise<void>;
 
-/** Convex validator for a callback rejection returned to the client. */
+/** Convex validator for an explicit callback rejection returned to the client. */
 export type FeedbackCallbackReturnValidator = Validator<
   Value,
   "required",
   string
 >;
 
+/** Default mode: `reject(value)` throws a `ConvexError`. */
 export interface ThrowingFeedbackCallbackRejectionConfig {
   behavior?: "throw";
   returns?: never;
 }
 
+/** Return mode: `reject(value)` short-circuits with a validated client result. */
 export interface ReturningFeedbackCallbackRejectionConfig<
   ReturnsValidator extends FeedbackCallbackReturnValidator,
 > {
@@ -426,7 +474,11 @@ export interface ReturningFeedbackCallbackRejectionConfig<
   returns: ReturnsValidator;
 }
 
-/** Controls how explicit calls to a callback's `reject()` helper behave. */
+/**
+ * Controls only explicit `reject()` calls from entry/comment before callbacks.
+ * Runtime/programming errors are never converted. Return-mode inference is
+ * added only to `createEntry` and `createComment`.
+ */
 export type FeedbackCallbackRejectionConfig<
   ReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
     undefined,
@@ -454,7 +506,15 @@ interface FeedbackCallbackScopes<Rejection> {
   };
 }
 
-/** Optional host lifecycle callbacks grouped by feedback domain. */
+/**
+ * Optional host lifecycle callbacks grouped by domain. Creation order is
+ * actor/auth → rate limiter → beforeCreate → component mutation → afterCreate.
+ * Reaction order is actor/auth → rate limiter → component mutation →
+ * afterChange for a real transition. All callbacks are awaited in the host
+ * mutation; uncaught failures roll back its component writes. Component
+ * callback context and any associated work are requested only for the relevant
+ * configured after-callback.
+ */
 export type FeedbackCallbacks<
   ReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
     undefined,
@@ -523,10 +583,19 @@ interface ExposeFeedbackOptionsBase {
 type FeedbackCallbackOptions<
   ReturnsValidator extends FeedbackCallbackReturnValidator | undefined,
 > = ReturnsValidator extends FeedbackCallbackReturnValidator
-  ? { callbacks: FeedbackCallbacks<ReturnsValidator> }
-  : { callbacks?: FeedbackCallbacks };
+  ? {
+      /** Host lifecycle callbacks with validated return-mode rejection. */
+      callbacks: FeedbackCallbacks<ReturnsValidator>;
+    }
+  : {
+      /** Optional host lifecycle callbacks; explicit rejection throws by default. */
+      callbacks?: FeedbackCallbacks;
+    };
 
-/** Options for the default mode, where limiter functions reject by throwing. */
+/**
+ * Exposure options with throwing rate limits and optional lifecycle callbacks.
+ * Callback execution/rollback semantics are documented by {@link FeedbackCallbacks}.
+ */
 export type ThrowingExposeFeedbackOptions<
   CallbackReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
     undefined,
@@ -546,7 +615,10 @@ export type ThrowingExposeFeedbackOptions<
   };
 } & FeedbackCallbackOptions<CallbackReturnsValidator>;
 
-/** Options for returning a validated rejection value instead of throwing. */
+/**
+ * Exposure options for validated rate-limit returns plus optional lifecycle
+ * callbacks and independently inferred callback-rejection behavior.
+ */
 export type ReturningExposeFeedbackOptions<
   ReturnsValidator extends FeedbackRateLimitReturnValidator,
   CallbackReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
@@ -577,7 +649,8 @@ export type ReturningExposeFeedbackOptions<
  *
  * When `ReturnsValidator` is omitted, limiter functions use throwing behavior.
  * Supplying a validator selects return behavior and adds its inferred value to
- * the exposed mutation result types.
+ * the exposed mutation result types. `CallbackReturnsValidator` independently
+ * controls explicit before-callback rejection inference.
  */
 export type ExposeFeedbackOptions<
   ReturnsValidator extends FeedbackRateLimitReturnValidator | undefined =
@@ -750,6 +823,20 @@ function actorIdFields(actor: FeedbackActor | null): {
   viewerActorId?: string;
 } {
   return actor === null ? {} : { viewerActorId: actor.id };
+}
+
+function cloneFeedbackMetadata(
+  metadata: FeedbackMetadata | undefined,
+): FeedbackMetadata | undefined {
+  if (metadata === undefined) return undefined;
+  return {
+    ...(metadata.standard === undefined
+      ? {}
+      : { standard: { ...metadata.standard } }),
+    ...(metadata.additional === undefined
+      ? {}
+      : { additional: { ...metadata.additional } }),
+  };
 }
 
 function buildFeedbackApi<
@@ -968,15 +1055,17 @@ function buildFeedbackApi<
         );
         if (limited !== undefined) return limited;
 
-        const input: FeedbackEntryBeforeCreateEvent["input"] = {
+        const callbackInput: FeedbackEntryBeforeCreateEvent["input"] = {
           kind: args.kind,
           title: args.title,
           body: args.body,
-          ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
+          ...(args.metadata === undefined
+            ? {}
+            : { metadata: cloneFeedbackMetadata(args.metadata) }),
         };
         const before = await runBeforeCreate(
           asMutationContext(ctx),
-          { actor, input },
+          { actor: { ...actor }, input: callbackInput },
           options.callbacks?.entries?.beforeCreate,
           callbackRejectionConfig,
         );
@@ -988,25 +1077,29 @@ function buildFeedbackApi<
           patch !== undefined &&
           Object.prototype.hasOwnProperty.call(patch, "metadata")
             ? patch.metadata
-            : input.metadata;
+            : args.metadata;
+        const afterCreate = options.callbacks?.entries?.afterCreate;
         const result = await ctx.runMutation(component.entries.create, {
           actorId: actor.id,
-          kind: patch?.kind ?? input.kind,
-          title: patch?.title ?? input.title,
-          body: patch?.body ?? input.body,
+          kind: patch?.kind ?? args.kind,
+          title: patch?.title ?? args.title,
+          body: patch?.body ?? args.body,
           defaultStatus: config.entries.defaultStatus,
           enabledKinds: [...config.entries.enabledKinds],
           maxTitleLength: config.limits.titleLength,
           maxBodyLength: config.limits.bodyLength,
           ...(metadata === undefined ? {} : { metadata }),
+          includeCallbackContext: afterCreate !== undefined,
         });
-        await options.callbacks?.entries?.afterCreate?.(
-          asMutationContext(ctx),
-          {
+        if (afterCreate !== undefined) {
+          if (!("entry" in result)) {
+            throw new ConvexError("Entry callback context was not returned.");
+          }
+          await afterCreate(asMutationContext(ctx), {
             actor,
             entry: result.entry,
-          },
-        );
+          });
+        }
         return result.id;
       },
     }),
@@ -1172,26 +1265,31 @@ function buildFeedbackApi<
           rateLimitConfig,
         );
         if (limited !== undefined) return limited;
+        const afterChange = options.callbacks?.reactions?.afterChange;
         const result = await ctx.runMutation(component.entries.setUpvote, {
           actorId: actor.id,
           entryId: args.entryId,
           desiredState: args.desiredState,
+          includeCallbackContext: afterChange !== undefined,
         });
-        if (result.changed) {
-          await options.callbacks?.reactions?.afterChange?.(
-            asMutationContext(ctx),
-            {
-              type: "entry_upvote",
-              transition: result.transition,
-              active: result.active,
-              previousCount: result.previousCount,
-              count: result.count,
-              actor,
-              entry: result.entry,
-            },
-          );
+        if (
+          "changed" in result &&
+          result.changed &&
+          afterChange !== undefined
+        ) {
+          await afterChange(asMutationContext(ctx), {
+            type: "entry_upvote",
+            transition: result.transition,
+            active: result.active,
+            previousCount: result.previousCount,
+            count: result.count,
+            actor,
+            entry: result.entry,
+          });
         }
-        return { active: result.active, upvoteCount: result.count };
+        return "upvoteCount" in result
+          ? result
+          : { active: result.active, upvoteCount: result.count };
       },
     }),
 
@@ -1254,7 +1352,7 @@ function buildFeedbackApi<
         );
         if (limited !== undefined) return limited;
 
-        const input: FeedbackCommentBeforeCreateEvent["input"] = {
+        const callbackInput: FeedbackCommentBeforeCreateEvent["input"] = {
           entryId: args.entryId,
           ...(args.parentCommentId === undefined
             ? {}
@@ -1263,34 +1361,38 @@ function buildFeedbackApi<
         };
         const before = await runBeforeCreate(
           asMutationContext(ctx),
-          { actor, input },
+          { actor: { ...actor }, input: callbackInput },
           options.callbacks?.comments?.beforeCreate,
           callbackRejectionConfig,
         );
         if (before.rejected) {
           return before.value as CallbackResult<CallbackReturnsValidator>;
         }
+        const afterCreate = options.callbacks?.comments?.afterCreate;
         const result = await ctx.runMutation(component.comments.create, {
           actorId: actor.id,
-          entryId: input.entryId,
-          ...(input.parentCommentId === undefined
+          entryId: args.entryId,
+          ...(args.parentCommentId === undefined
             ? {}
-            : { parentCommentId: input.parentCommentId }),
-          body: before.patch?.body ?? input.body,
+            : { parentCommentId: args.parentCommentId }),
+          body: before.patch?.body ?? args.body,
           maxDepth: config.comments.maxDepth,
           maxCommentLength: config.limits.commentLength,
+          includeCallbackContext: afterCreate !== undefined,
         });
-        await options.callbacks?.comments?.afterCreate?.(
-          asMutationContext(ctx),
-          {
+        if (afterCreate !== undefined) {
+          if (!("comment" in result)) {
+            throw new ConvexError("Comment callback context was not returned.");
+          }
+          await afterCreate(asMutationContext(ctx), {
             actor,
             comment: result.comment,
             entry: result.entry,
             ...(result.parentComment === undefined
               ? {}
               : { parentComment: result.parentComment }),
-          },
-        );
+          });
+        }
         return result.id;
       },
     }),
@@ -1349,27 +1451,31 @@ function buildFeedbackApi<
           rateLimitConfig,
         );
         if (limited !== undefined) return limited;
+        const afterChange = options.callbacks?.reactions?.afterChange;
         const result = await ctx.runMutation(component.comments.setLike, {
           actorId: actor.id,
           commentId: args.commentId,
           desiredState: args.desiredState,
+          includeCallbackContext: afterChange !== undefined,
         });
-        if (result.changed) {
-          await options.callbacks?.reactions?.afterChange?.(
-            asMutationContext(ctx),
-            {
-              type: "comment_like",
-              transition: result.transition,
-              active: result.active,
-              previousCount: result.previousCount,
-              count: result.count,
-              actor,
-              comment: result.comment,
-              entry: result.entry,
-            },
-          );
+        if (
+          "changed" in result &&
+          result.changed &&
+          afterChange !== undefined
+        ) {
+          await afterChange(asMutationContext(ctx), {
+            type: "comment_like",
+            transition: result.transition,
+            active: result.active,
+            previousCount: result.previousCount,
+            count: result.count,
+            actor,
+            comment: result.comment,
+          });
         }
-        return { active: result.active, likeCount: result.count };
+        return "likeCount" in result
+          ? result
+          : { active: result.active, likeCount: result.count };
       },
     }),
 

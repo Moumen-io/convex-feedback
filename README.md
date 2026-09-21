@@ -9,11 +9,20 @@ GitHub forks GitHub Repo stars
 
 # Convex Feedback
 
-A type-safe Convex component for product feedback, feature requests, bug reports, upvotes, nested comments, comment likes, full-text search, and duplicate suggestions and an optional React and React Native UI.
+A type-safe Convex component for product feedback, feature requests, bug reports, upvotes, nested comments, comment likes, full-text search, duplicate suggestions, and optional React and React Native UI. It gives your app a ready-made feedback data model and typed queries and mutations for collecting, discussing, searching, and managing user feedback without requiring you to build those backend workflows yourself. Authentication, user profiles, and app-specific permissions remain in your host app.
 
 ## Quick Start
 
 ### Headless Convex component
+
+- Product feedback, feature requests, and bug reports.
+- Upvotes, nested comments, and comment likes.
+- Full-text search and duplicate suggestions.
+- Roadmap and admin workflows.
+- Host-controlled authentication, permissions, and optional rate limiting.
+- Typed Convex functions and React hooks for building a custom interface.
+
+Use `convex-feedback` when you want to add a feedback board or roadmap to an existing Convex app. The component stores feedback entries, comments, reactions, and roadmap data in Convex, while your app decides who the current actor is and which actors are admins. You can use the generated host API from your own UI, or pair it with the optional `convex-feedback-ui` package below.
 
 ```bash
 npm install convex-feedback
@@ -32,7 +41,180 @@ app.use(feedback);
 export default app;
 ```
 
-Then expose the feedback API from your host Convex app so you can resolve authentication and permissions there.
+Start Convex once to generate the component references, then expose the feedback API from a host module. In that wrapper, resolve the authenticated actor from your app's auth provider and return a stable actor ID plus an admin flag when applicable. This keeps authentication and authorization in your app while `convex-feedback` provides the feedback operations and data model.
+
+```bash
+npx convex dev
+```
+
+Expose the generated functions from a host module. This simplified example shows the complete shape of the wrapper, including the public and admin APIs, configuration, rate-limit groups, and lifecycle hooks. Replace the comments with your app's auth, moderation, rate-limiting, and notification logic.
+
+```ts
+// convex/feedback.ts
+import { exposeFeedbackApi } from "convex-feedback";
+import { components } from "./_generated/api";
+
+export const {
+  isAdmin,
+  isAuthenticated,
+  listEntries,
+  listUserEntries,
+  getEntry,
+  searchEntries,
+  findSimilarEntries,
+  createEntry,
+  updateEntry,
+  deleteEntry,
+  setEntryStatus,
+  adminListEntries,
+  adminGetEntry,
+  adminSearchEntries,
+  setEntryPriority,
+  setEntryUpvote,
+  listComments,
+  listUserComments,
+  listUserReactions,
+  createComment,
+  updateComment,
+  deleteComment,
+  setCommentLike,
+  listRoadmap,
+  getRoadmapItem,
+  searchRoadmap,
+  createRoadmap,
+  createRoadmapForEntry,
+  updateRoadmap,
+  deleteRoadmap,
+  moveRoadmapItem,
+  attachFeedbackToRoadmap,
+  detachFeedbackFromRoadmap,
+  listRoadmapFeedback,
+} = exposeFeedbackApi(components.feedback, {
+  actor: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) return null;
+
+    return {
+      id: identity.tokenIdentifier,
+      // Look up your app's admin role here.
+      isAdmin: false,
+    };
+  },
+  config: {
+    entries: {
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      defaultStatus: "open",
+      defaultSort: "top",
+      maxPageSize: 50,
+      editableByAuthor: true,
+    },
+    comments: {
+      maxDepth: 5,
+      maxPageSize: 50,
+      defaultSort: "top",
+      editableByAuthor: true,
+      deletableByAuthor: true,
+    },
+    search: {
+      duplicateSuggestions: true,
+      duplicateSuggestionLimit: 5,
+      defaultLimit: 20,
+      maxLimit: 50,
+    },
+    limits: {
+      titleLength: 160,
+      bodyLength: 10_000,
+      commentLength: 5_000,
+    },
+    rateLimiting: {
+      limitAdmins: false,
+      behavior: "throw",
+      // Or return a custom rejection value instead of throwing. This requires additional configuration on the frontend to handle the returned value.
+      // behavior: "return",
+      // returns: v.object({ kind: v.string(), reason: v.string() }),
+    },
+  },
+  rateLimiters: {
+    createEntry: async (ctx, actorId) => {},
+    createComment: async (ctx, actorId) => {},
+    editContent: async (ctx, actorId) => {},
+    reactions: async (ctx, actorId) => {},
+  },
+  callbacks: {
+    rejection: { behavior: "throw" },
+    // Or return a custom rejection value instead of throwing. This requires additional configuration on the frontend to handle the returned value.
+    // rejection: {
+    //   behavior: "return",
+    //   returns: v.object({ kind: v.string(), reason: v.string() }),
+    // },
+    entries: {
+      beforeCreate: async (ctx, event, helpers) => {
+        // Example: Moderate or sanitize event.input before it is stored.
+        const titleContainsProfanity = checkForProfanity(event.input.title);
+        const bodyContainsProfanity = checkForProfanity(event.input.body);
+
+        if (titleContainsProfanity || bodyContainsProfanity) {
+          helpers.reject({
+            kind: "profanity_detected",
+            reason: "Entry content contains profanity",
+          });
+        }
+      },
+      afterCreate: async (ctx, event) => {
+        // Example: Send a notification about the new feedback entry to the admins.
+        await ctx.scheduler.runAfter(
+          0,
+          internal.notifications.sendFeedbackNotificationToAdmins,
+          {
+            title: event.entry.title,
+            body: event.entry.body,
+          },
+        );
+      },
+    },
+    comments: {
+      beforeCreate: async (ctx, event, helpers) => {
+        // Example: Moderate or sanitize event.input before it is stored.
+        const bodyContainsProfanity = checkForProfanity(event.input.body);
+
+        if (bodyContainsProfanity) {
+          helpers.reject({
+            kind: "profanity_detected",
+            reason: "Comment content contains profanity",
+          });
+        }
+      },
+      afterCreate: async (ctx, event) => {
+        // Notify the entry author about the comment.
+        await ctx.scheduler.runAfter(
+          0,
+          internal.notifications.sendCommentNotificationToAuthor,
+          {
+            userId: event.actor.id,
+            body: event.comment.body,
+          },
+        );
+      },
+    },
+    reactions: {
+      afterChange: async (ctx, event) => {
+        // Example: Send a notification when an upvote or like changes.
+        if (event.transition === "removed") return;
+
+        await ctx.scheduler.runAfter(
+          0,
+          // fetches the target comment/entry and sends a notification to the author
+          internal.notifications.sendReactionNotificationToAuthor,
+          {
+            targetId: event.targetId,
+            kind: event.type,
+          },
+        );
+      },
+    },
+  },
+});
+```
 
 See **[convex-feedback](./packages/convex-feedback/README.md)** for the complete integration guide, configuration, API, hooks, authentication, search, comments, and testing.
 
@@ -40,6 +222,13 @@ For host-side lifecycle callbacks, rejection modes, transaction behavior, and
 notification scheduling, see the [lifecycle callback reference](./packages/convex-feedback/README.md#lifecycle-callbacks).
 
 ### React or React Native UI
+
+- Prebuilt feedback board and public roadmap screens.
+- React DOM, React Native, and Expo Router entry points.
+- Compound primitives for custom layouts.
+- Configurable themes, colors, copy, and localization.
+- Host-controlled sign-in handling and navigation callbacks.
+- Custom component rendering when the prebuilt screens are not enough.
 
 | Expo                                                                                                | React Native                                                                                                  |
 | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |

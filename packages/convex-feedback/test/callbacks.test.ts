@@ -10,6 +10,7 @@ import { describe, expect, expectTypeOf, test, vi } from "vitest";
 import {
   exposeFeedbackApi,
   type FeedbackCommentAfterCreateEvent,
+  type FeedbackReactionAfterChangeCallback,
 } from "../src/client/index.js";
 import type { ComponentApi } from "../src/component/_generated/component.js";
 
@@ -444,7 +445,7 @@ describe("feedback lifecycle callbacks", () => {
   });
 
   test("emits authoritative entry and comment reaction transitions only on changes", async () => {
-    const afterChange = vi.fn();
+    const afterChange = vi.fn<FeedbackReactionAfterChangeCallback>();
     const results = [
       {
         changed: true as const,
@@ -519,21 +520,41 @@ describe("feedback lifecycle callbacks", () => {
     expect(afterChange).toHaveBeenCalledTimes(2);
     expect(afterChange.mock.calls[0]?.[1]).toMatchObject({
       type: "entry_upvote",
+      entryId: "entry-1",
       transition: "added",
       active: true,
       previousCount: 4,
       count: 5,
       actor: { id: "reactor" },
-      entry: { actorId: "entry-author" },
+      entry: { id: "entry-1", actorId: "entry-author" },
     });
     expect(afterChange.mock.calls[1]?.[1]).toMatchObject({
       type: "comment_like",
+      commentId: "comment-1",
+      entryId: "entry-1",
       transition: "removed",
       active: false,
       previousCount: 3,
       count: 2,
-      comment: { actorId: "comment-author" },
+      comment: {
+        id: "comment-1",
+        entryId: "entry-1",
+        actorId: "comment-author",
+      },
     });
+
+    const entryEvent = afterChange.mock.calls[0]?.[1];
+    const commentEvent = afterChange.mock.calls[1]?.[1];
+    expect(entryEvent?.type).toBe("entry_upvote");
+    expect(commentEvent?.type).toBe("comment_like");
+    if (entryEvent?.type === "entry_upvote") {
+      expect(entryEvent.entryId).toBe(entryEvent.entry.id);
+    }
+    if (commentEvent?.type === "comment_like") {
+      expect(commentEvent.commentId).toBe(commentEvent.comment.id);
+      expect(commentEvent.entryId).toBe(commentEvent.comment.entryId);
+    }
+    expect(ctx.runQuery).not.toHaveBeenCalled();
     expect(runMutation.mock.calls).toEqual(
       expect.arrayContaining([
         expect.arrayContaining([
@@ -546,6 +567,22 @@ describe("feedback lifecycle callbacks", () => {
         ]),
       ]),
     );
+  });
+
+  test("types direct reaction IDs for both target kinds", () => {
+    const callback: FeedbackReactionAfterChangeCallback = (_ctx, event) => {
+      if (event.type === "entry_upvote") {
+        expectTypeOf(event.entryId).toEqualTypeOf<string>();
+        expectTypeOf(event.entry.id).toEqualTypeOf<string>();
+      } else {
+        expectTypeOf(event.commentId).toEqualTypeOf<string>();
+        expectTypeOf(event.entryId).toEqualTypeOf<string>();
+        expectTypeOf(event.comment.id).toEqualTypeOf<string>();
+        expectTypeOf(event.comment.entryId).toEqualTypeOf<string>();
+      }
+    };
+
+    expect(callback).toBeTypeOf("function");
   });
 
   test("keeps all component mutation results lean when after callbacks are absent", async () => {

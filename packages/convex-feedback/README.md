@@ -339,11 +339,11 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
   callbacks: {
     rejection: { behavior: "return", returns: moderationRejection },
     entries: {
-      beforeCreate: (ctx, event, { reject }) => {
+      beforeCreate: (ctx, event, handlers) => {
         const title = removeProfanity(event.input.title);
         const body = removeProfanity(event.input.body);
         if (!title.trim() || !body.trim()) {
-          return reject({
+          return handlers.reject({
             kind: "content_rejected",
             reason: "Entry content is empty after sanitization",
           });
@@ -352,10 +352,11 @@ export const feedbackApi = exposeFeedbackApi(components.feedback, {
       },
     },
     comments: {
-      beforeCreate: (_ctx, event, { reject }) => {
+      beforeCreate: (ctx, event, handlers) => {
+        void ctx;
         const body = removeProfanity(event.input.body);
         if (!body.trim()) {
-          return reject({
+          return handlers.reject({
             kind: "content_rejected",
             reason: "Comment content is empty after sanitization",
           });
@@ -429,8 +430,11 @@ Reaction `afterChange` runs only when the actor's desired state actually changes
 It runs for both additions and removals. The event exposes
 `transition: "added" | "removed"`, `previousCount`, and `count` (the final
 count), plus the reacting actor and the target author/context: `entry` for an
-entry upvote, or `comment` for a comment like. Comment-like events include the
-comment author and `entryId` without reading or serializing the parent entry.
+entry upvote, or `comment` for a comment like. Entry-upvote events also expose
+`entryId`, while comment-like events expose `commentId` and `entryId`; these
+top-level IDs always match the IDs in the nested target context. Comment-like
+events include the comment author and `entryId` without reading or serializing
+the parent entry.
 
 Rich component callback context is requested only when the corresponding
 `afterCreate` or `afterChange` callback is configured. With no after callback,
@@ -467,7 +471,8 @@ export const sendNotificationToUser = internalAction({
     title: v.string(),
     body: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
+    void ctx;
     // `notificationProvider` is an app-owned email/push integration.
     await notificationProvider.send(args);
   },
@@ -489,7 +494,7 @@ export const { createEntry, createComment, setEntryUpvote, setCommentLike } =
     actor: resolveFeedbackActor,
     callbacks: {
       entries: {
-        afterCreate: async (ctx, { entry }) => {
+        afterCreate: async (ctx, event) => {
           await Promise.all(
             ADMIN_USER_IDS.map((userId) =>
               ctx.scheduler.runAfter(
@@ -498,7 +503,7 @@ export const { createEntry, createComment, setEntryUpvote, setCommentLike } =
                 {
                   userId,
                   title: "New feedback",
-                  body: entry.title,
+                  body: event.entry.title,
                 },
               ),
             ),
@@ -506,15 +511,15 @@ export const { createEntry, createComment, setEntryUpvote, setCommentLike } =
         },
       },
       comments: {
-        afterCreate: async (ctx, { comment, entry, parentComment }) => {
-          const userId = parentComment?.actorId ?? entry.actorId;
+        afterCreate: async (ctx, event) => {
+          const userId = event.parentComment?.actorId ?? event.entry.actorId;
           await ctx.scheduler.runAfter(
             0,
             internal.notifications.sendNotificationToUser,
             {
               userId,
-              title: parentComment ? "New reply" : "New comment",
-              body: comment.body,
+              title: event.parentComment ? "New reply" : "New comment",
+              body: event.comment.body,
             },
           );
         },

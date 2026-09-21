@@ -1,7 +1,6 @@
 import { exposeFeedbackApi } from "convex-feedback";
 
-import { v } from "convex/values";
-import { api, components } from "./_generated/api";
+import { components } from "./_generated/api";
 
 export const {
   isAdmin,

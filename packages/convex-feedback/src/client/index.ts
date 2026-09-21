@@ -22,10 +22,12 @@ import {
 } from "convex/values";
 
 import type { ComponentApi } from "../component/_generated/component.js";
+import { stripActivityEntryContext } from "../component/helpers.js";
 import {
-  adminEntryValidator,
   activityCommentValidator,
   activityEntryValidator,
+  actorIsAdmin,
+  adminEntryValidator,
   commentSortValidator,
   entryKindValidator,
   entryPriorityValidator,
@@ -33,13 +35,12 @@ import {
   entryStatusFilterValidator,
   entryStatusValidator,
   feedbackMetadataValidator,
+  feedbackReactionValidator,
   publicCommentValidator,
   publicEntryValidator,
-  feedbackReactionValidator,
   roadmapItemValidator,
   roadmapStatusValidator,
   similarEntriesValidator,
-  actorIsAdmin,
   type EntryKind,
   type EntryStatus,
   type FeedbackActor,
@@ -50,26 +51,25 @@ import {
   createFeedbackConfig,
   type FeedbackConfigOverrides,
 } from "./config.js";
-import { stripActivityEntryContext } from "../component/helpers.js";
 
 export type {
   AdminFeedbackEntry,
-  FeedbackActivityComment,
-  FeedbackActivityEntry,
-  FeedbackActivityEntryWithContext,
-  FeedbackCommentReactionTarget,
   CommentSort,
   EntryKind,
   EntryPriority,
   EntrySort,
   EntryStatus,
   EntryStatusFilter,
+  FeedbackActivityComment,
+  FeedbackActivityEntry,
+  FeedbackActivityEntryWithContext,
   FeedbackActor,
   FeedbackComment,
+  FeedbackCommentReactionTarget,
   FeedbackEntry,
+  FeedbackEntryReactionTarget,
   FeedbackMetadata,
   FeedbackMetadataValue,
-  FeedbackEntryReactionTarget,
   FeedbackReaction,
   RoadmapItem,
   RoadmapStatus,
@@ -80,19 +80,20 @@ export type {
   AdminSearchEntriesArgs,
   CreateCommentArgs,
   CreateEntryArgs,
-  DeleteEntryArgs,
   DeleteCommentArgs,
+  DeleteEntryArgs,
   DetachFeedbackFromRoadmapArgs,
+  FeedbackPublicApi,
   FindSimilarEntriesArgs,
   GetEntryArgs,
   GetRoadmapItemArgs,
   ListCommentsArgs,
   ListEntriesArgs,
+  ListRoadmapArgs,
+  ListRoadmapFeedbackArgs,
   ListUserCommentsArgs,
   ListUserEntriesArgs,
   ListUserReactionsArgs,
-  ListRoadmapArgs,
-  ListRoadmapFeedbackArgs,
   SearchEntriesArgs,
   SetCommentLikeArgs,
   SetEntryPriorityArgs,
@@ -100,7 +101,6 @@ export type {
   SetEntryUpvoteArgs,
   UpdateCommentArgs,
   UpdateEntryArgs,
-  FeedbackPublicApi,
 } from "./api.js";
 export {
   createFeedbackConfig,
@@ -258,7 +258,30 @@ type RateLimiterResult<
   ? Infer<ReturnsValidator>
   : void;
 
-/** Full host mutation context supplied to every lifecycle callback. */
+/**
+ * Full host mutation context supplied to every lifecycle callback.
+ *
+ * This is the host mutation context for the request that triggered the
+ * callback. It includes the host database, authentication, storage,
+ * scheduler, and nested function-call helpers, so callbacks can apply host
+ * business rules or schedule follow-up work.
+ *
+ * When a callback needs to read or write feedback data, prefer a direct
+ * component reference through `ctx.runQuery(components.feedback....)` or
+ * `ctx.runMutation(components.feedback....)`. Calling an exposed host API
+ * through `api.feedback...` is also valid, but it re-enters the host wrapper
+ * and its actor/auth-resolution path. Use the host API when those host-facing
+ * semantics are specifically desired.
+ *
+ * @example Query component data from a callback
+ * ```ts
+ * import { components } from "./_generated/api";
+ *
+ * const entry = await ctx.runQuery(components.feedback.entries.get, {
+ *   entryId: event.entryId,
+ * });
+ * ```
+ */
 export type FeedbackMutationContext = GenericMutationCtx<GenericDataModel>;
 
 /**
@@ -267,13 +290,26 @@ export type FeedbackMutationContext = GenericMutationCtx<GenericDataModel>;
  * the supported fields; mutating `event.input` is neither supported nor used.
  */
 export interface FeedbackEntryBeforeCreateEvent {
+  /** Actor resolved by the host for the request being created. */
   readonly actor: Readonly<FeedbackActor>;
+
+  /** Readonly snapshot of the caller's validated mutation input. */
   readonly input: {
+    /** Requested entry category. */
     readonly kind: EntryKind;
+
+    /** Title submitted by the caller, before component normalization. */
     readonly title: string;
+
+    /** Body submitted by the caller, before component normalization. */
     readonly body: string;
+
+    /** Optional diagnostic metadata submitted with the entry. */
     readonly metadata?: Readonly<{
+      /** Standard metadata collected by the host or UI. */
       standard?: Readonly<Record<string, string | number | boolean>>;
+
+      /** Additional host-defined metadata. */
       additional?: Readonly<Record<string, string | number | boolean>>;
     }>;
   };
@@ -285,9 +321,16 @@ export interface FeedbackEntryBeforeCreateEvent {
  * validation. Actor identity, IDs, and configured defaults cannot be changed.
  */
 export interface FeedbackEntryCreatePatch {
+  /** Replacement entry category. */
   kind?: EntryKind;
+
+  /** Replacement title. */
   title?: string;
+
+  /** Replacement body. */
   body?: string;
+
+  /** Replacement diagnostic metadata. */
   metadata?: FeedbackMetadata;
 }
 
@@ -297,10 +340,18 @@ export interface FeedbackEntryCreatePatch {
  * fields; only an explicitly returned `body` patch is applied.
  */
 export interface FeedbackCommentBeforeCreateEvent {
+  /** Actor resolved by the host for the request being created. */
   readonly actor: Readonly<FeedbackActor>;
+
+  /** Readonly snapshot of the caller's validated mutation input. */
   readonly input: {
+    /** ID of the entry that will own the comment. */
     readonly entryId: string;
+
+    /** ID of the parent comment when this input creates a reply. */
     readonly parentCommentId?: string;
+
+    /** Comment body submitted by the caller, before normalization. */
     readonly body: string;
   };
 }
@@ -310,6 +361,7 @@ export interface FeedbackCommentBeforeCreateEvent {
  * transformed value still undergoes length and permission validation.
  */
 export interface FeedbackCommentCreatePatch {
+  /** Replacement comment body. */
   body?: string;
 }
 
@@ -318,8 +370,18 @@ export interface FeedbackCommentCreatePatch {
  * exception translated by callback rejection configuration: it throws a
  * `ConvexError` by default or returns the validated value in return mode.
  * Unexpected callback errors always propagate normally.
+ * The third callback parameter is commonly named `handlers`.
+ *
+ * @typeParam Rejection Value accepted by `reject`. In return mode this is
+ * inferred from `callbacks.rejection.returns`.
  */
 export interface FeedbackCallbackHelpers<Rejection = Value> {
+  /**
+   * Reject the pending entry or comment creation.
+   *
+   * The call never returns: it throws in the default mode or short-circuits
+   * with the validated rejection value in return mode.
+   */
   reject: (value: Rejection) => never;
 }
 
@@ -329,25 +391,86 @@ type MaybePromise<ValueType> = ValueType | Promise<ValueType>;
  * Runs after actor resolution and rate limiting, before the component entry
  * mutation. It is awaited and may return an explicit creation patch or call
  * `reject()`; it cannot replace normal component validation.
+ *
+ * @typeParam Rejection Value accepted by `handlers.reject`.
+ * @param ctx Host mutation context for the originating request. Use direct
+ * component references with `ctx.runQuery`/`ctx.runMutation` for feedback data.
+ * @param event Readonly event containing `actor` and `input` (`kind`, `title`,
+ * `body`, and optional `metadata`) for this request.
+ * @param handlers Callback handlers. Call `handlers.reject(value)` to reject
+ * creation.
+ * @returns A supported entry patch, or `undefined` to keep the original input.
+ *
+ * @example Validate and reject an entry before creation
+ * ```ts
+ * const beforeCreate: FeedbackEntryBeforeCreateCallback = (
+ *   ctx,
+ *   event,
+ *   handlers,
+ * ) => {
+ *   void ctx;
+ *   if (event.input.title.trim() === "") {
+ *     handlers.reject("An entry title is required");
+ *   }
+ * };
+ * ```
+ *
+ * @example No-op entry before-create hook
+ * ```ts
+ * const beforeCreate: FeedbackEntryBeforeCreateCallback = (
+ *   ctx,
+ *   event,
+ *   handlers,
+ * ) => {
+ *   void ctx;
+ *   void event;
+ *   void handlers;
+ * };
+ * ```
  */
 export type FeedbackEntryBeforeCreateCallback<Rejection = Value> = (
   ctx: FeedbackMutationContext,
   event: FeedbackEntryBeforeCreateEvent,
-  helpers: FeedbackCallbackHelpers<Rejection>,
+  handlers: FeedbackCallbackHelpers<Rejection>,
 ) => MaybePromise<FeedbackEntryCreatePatch | undefined>;
 
-/** Sanitized persisted entry passed to `entries.afterCreate`. */
+/**
+ * Sanitized persisted entry passed to `entries.afterCreate`.
+ *
+ * The entry is the authoritative component result after creation and
+ * normalization. It is available without another component query.
+ */
 export interface FeedbackEntryAfterCreateEvent {
+  /** Actor resolved by the host for the creation request. */
   readonly actor: FeedbackActor;
+
+  /** Persisted entry created by the component. */
   readonly entry: {
+    /** Public component identifier for the created entry. */
     readonly id: string;
+
+    /** Stable identifier of the actor who created the entry. */
     readonly actorId: string;
+
+    /** Persisted entry category. */
     readonly kind: EntryKind;
+
+    /** Initial workflow status assigned by the component. */
     readonly status: EntryStatus;
+
+    /** Normalized persisted title. */
     readonly title: string;
+
+    /** Normalized persisted body. */
     readonly body: string;
+
+    /** Persisted diagnostic metadata, when supplied. */
     readonly metadata?: FeedbackMetadata;
+
+    /** Authoritative number of upvotes immediately after creation. */
     readonly upvoteCount: number;
+
+    /** Authoritative number of comments immediately after creation. */
     readonly commentCount: number;
   };
 }
@@ -356,6 +479,19 @@ export interface FeedbackEntryAfterCreateEvent {
  * Runs exactly once after successful component entry creation and is awaited
  * in the same host mutation. An uncaught error rolls back creation. Rich entry
  * context is requested from the component only when this callback is set.
+ *
+ * @param ctx Host mutation context for the originating request.
+ * @param event Persisted event containing `actor` and the created `entry`
+ * (`id`, `actorId`, `kind`, `status`, `title`, `body`, metadata, and counts).
+ * @returns Nothing. The callback may be synchronous or asynchronous.
+ *
+ * @example No-op entry after-create hook
+ * ```ts
+ * const afterCreate: FeedbackEntryAfterCreateCallback = async (ctx, event) => {
+ *   void ctx;
+ *   void event;
+ * };
+ * ```
  */
 export type FeedbackEntryAfterCreateCallback = (
   ctx: FeedbackMutationContext,
@@ -365,33 +501,93 @@ export type FeedbackEntryAfterCreateCallback = (
 /**
  * Runs after actor resolution and rate limiting, before the component comment
  * mutation. It is awaited and may transform only `body` or call `reject()`.
+ *
+ * @typeParam Rejection Value accepted by `handlers.reject`.
+ * @param ctx Host mutation context for the originating request.
+ * @param event Readonly event containing `actor` and `input` (`entryId`,
+ * optional `parentCommentId`, and `body`) for this request.
+ * @param handlers Callback handlers. Call `handlers.reject(value)` to reject
+ * creation.
+ * @returns A supported comment patch, or `undefined` to keep the original
+ * input.
+ *
+ * @example No-op comment before-create hook
+ * ```ts
+ * const beforeCreate: FeedbackCommentBeforeCreateCallback = (
+ *   ctx,
+ *   event,
+ *   handlers,
+ * ) => {
+ *   void ctx;
+ *   void event;
+ *   void handlers;
+ * };
+ * ```
  */
 export type FeedbackCommentBeforeCreateCallback<Rejection = Value> = (
   ctx: FeedbackMutationContext,
   event: FeedbackCommentBeforeCreateEvent,
-  helpers: FeedbackCallbackHelpers<Rejection>,
+  handlers: FeedbackCallbackHelpers<Rejection>,
 ) => MaybePromise<FeedbackCommentCreatePatch | undefined>;
 
-/** Persisted comment, entry, and optional parent context passed after creation. */
+/**
+ * Persisted comment, entry, and optional parent context passed after creation.
+ *
+ * All IDs and content in this event come from the successful component write;
+ * the optional `parentComment` is present only when the created comment is a
+ * reply.
+ */
 export interface FeedbackCommentAfterCreateEvent {
+  /** Actor resolved by the host for the creation request. */
   readonly actor: FeedbackActor;
+
+  /** Persisted comment created by the component. */
   readonly comment: {
+    /** Public component identifier for the created comment. */
     readonly id: string;
+
+    /** Stable identifier of the actor who created the comment. */
     readonly actorId: string;
+
+    /** ID of the entry containing the comment. */
     readonly entryId: string;
+
+    /** ID of the parent comment when this comment is a reply. */
     readonly parentCommentId?: string;
+
+    /** Normalized persisted comment body. */
     readonly body: string;
+
+    /** Nesting depth assigned by the component. */
     readonly depth: number;
   };
+
+  /** Persisted entry containing the created comment. */
   readonly entry: {
+    /** Public component identifier for the containing entry. */
     readonly id: string;
+
+    /** Stable identifier of the entry author. */
     readonly actorId: string;
+
+    /** Entry category. */
     readonly kind: EntryKind;
+
+    /** Current workflow status of the entry. */
     readonly status: EntryStatus;
+
+    /** Entry title. */
     readonly title: string;
   };
+
+  /**
+   * Minimal persisted parent-comment context, present only for replies.
+   */
   readonly parentComment?: {
+    /** Public component identifier for the parent comment. */
     readonly id: string;
+
+    /** Stable identifier of the parent comment's author. */
     readonly actorId: string;
   };
 }
@@ -400,6 +596,24 @@ export interface FeedbackCommentAfterCreateEvent {
  * Runs exactly once after successful component comment creation and is awaited
  * in the same host mutation. An uncaught error rolls back creation. Rich
  * comment/entry/parent context is requested only when this callback is set.
+ *
+ * @param ctx Host mutation context for the originating request.
+ * @param event Persisted event containing `actor`, `comment`, `entry`, and
+ * optional `parentComment` context returned by the component.
+ * @returns Nothing. The callback may be synchronous or asynchronous.
+ *
+ * @example React to a created comment
+ * ```ts
+ * const afterCreate: FeedbackCommentAfterCreateCallback = async (
+ *   ctx,
+ *   event,
+ * ) => {
+ *   await ctx.scheduler.runAfter(0, internal.notifications.commentCreated, {
+ *     commentId: event.comment.id,
+ *     entryId: event.entry.id,
+ *   });
+ * };
+ * ```
  */
 export type FeedbackCommentAfterCreateCallback = (
   ctx: FeedbackMutationContext,
@@ -407,10 +621,19 @@ export type FeedbackCommentAfterCreateCallback = (
 ) => MaybePromise<void>;
 
 interface FeedbackReactionChangeBase {
+  /** Whether the actor's reaction was added or removed. */
   transition: "added" | "removed";
+
+  /** Whether the actor's reaction is active after the transition. */
   active: boolean;
+
+  /** Reaction count immediately before the transition. */
   previousCount: number;
+
+  /** Authoritative reaction count immediately after the transition. */
   count: number;
+
+  /** Actor who requested the reaction change. */
   actor: FeedbackActor;
 }
 
@@ -419,26 +642,58 @@ interface FeedbackReactionChangeBase {
  * `added` is false→true and `removed` is true→false. `previousCount` is the
  * persisted count immediately before the change and `count` is the final one.
  * Comment-like events intentionally use comment context without reading or
- * serializing the parent entry.
+ * serializing the parent entry. The top-level target IDs are convenience
+ * aliases for the IDs in the nested target context and always match them.
  */
 export type FeedbackReactionChangeEvent =
   | (FeedbackReactionChangeBase & {
+      /** Discriminator for an entry-upvote transition. */
       type: "entry_upvote";
+      /** ID of the upvoted entry; always equal to `entry.id`. */
+      entryId: string;
+
+      /** Persisted context for the upvoted entry. */
       entry: {
+        /** Public component identifier for the upvoted entry. */
         id: string;
+
+        /** Stable identifier of the entry author. */
         actorId: string;
+
+        /** Entry category. */
         kind: EntryKind;
+
+        /** Current workflow status of the entry. */
         status: EntryStatus;
+
+        /** Entry title. */
         title: string;
       };
     })
   | (FeedbackReactionChangeBase & {
+      /** Discriminator for a comment-like transition. */
       type: "comment_like";
+      /** ID of the liked comment; always equal to `comment.id`. */
+      commentId: string;
+
+      /** ID of the entry containing the liked comment. */
+      entryId: string;
+
+      /** Persisted context for the liked comment. */
       comment: {
+        /** Public component identifier for the liked comment. */
         id: string;
+
+        /** Stable identifier of the comment author. */
         actorId: string;
+
+        /** ID of the entry containing the comment. */
         entryId: string;
+
+        /** ID of the parent comment when the target is a reply. */
         parentCommentId?: string;
+
+        /** Persisted comment body. */
         body: string;
       };
     });
@@ -447,30 +702,88 @@ export type FeedbackReactionChangeEvent =
  * Runs after a successful reaction mutation only for an actual transition and
  * is awaited in the same transaction, so uncaught errors roll back the change.
  * Extra reaction context is requested only when this callback is configured.
+ *
+ * @param ctx Host mutation context for the originating request. For feedback
+ * reads, prefer direct component references through `ctx.runQuery` or
+ * `ctx.runMutation`.
+ * @param event The authoritative event containing `type`, `transition`,
+ * `active`, `previousCount`, `count`, `actor`, and the target IDs/context.
+ * Use `event.transition` to distinguish additions from removals and the
+ * top-level target IDs for convenient lookups.
+ * @returns Nothing. The callback may be synchronous or asynchronous.
+ *
+ * @example Handle a reaction transition and query component data
+ * ```ts
+ * import { components } from "./_generated/api";
+ *
+ * const afterChange: FeedbackReactionAfterChangeCallback = async (ctx, event) => {
+ *   if (event.transition !== "added") return;
+ *
+ *   const entry = await ctx.runQuery(components.feedback.entries.get, {
+ *     entryId: event.entryId,
+ *   });
+ *   if (entry === null) return;
+ *
+ *   const targetId =
+ *     event.type === "entry_upvote" ? event.entryId : event.commentId;
+ *   // Use `targetId` and the component result for host-side work.
+ * };
+ * ```
+ *
+ * Calling the exposed host API through `api.feedback...` is also valid, but it
+ * re-enters the host wrapper and actor/auth-resolution path. Use that route
+ * only when those host-facing semantics are desired.
+ *
+ * @example No-op reaction after-change hook
+ * ```ts
+ * const afterChange: FeedbackReactionAfterChangeCallback = async (ctx, event) => {
+ *   void ctx;
+ *   void event;
+ * };
+ * ```
  */
 export type FeedbackReactionAfterChangeCallback = (
   ctx: FeedbackMutationContext,
   event: FeedbackReactionChangeEvent,
 ) => MaybePromise<void>;
 
-/** Convex validator for an explicit callback rejection returned to the client. */
+/**
+ * Convex validator for an explicit callback rejection returned to the client.
+ *
+ * Use this with `callbacks.rejection` when a before-create callback should
+ * return a typed result instead of throwing a `ConvexError`.
+ */
 export type FeedbackCallbackReturnValidator = Validator<
   Value,
   "required",
   string
 >;
 
-/** Default mode: `reject(value)` throws a `ConvexError`. */
+/**
+ * Default callback rejection mode: `handlers.reject(value)` throws a
+ * `ConvexError` and prevents the component mutation.
+ */
 export interface ThrowingFeedbackCallbackRejectionConfig {
+  /** Selects exception-based callback rejection. This is the default. */
   behavior?: "throw";
+
+  /** Return-mode validators are not accepted in throwing mode. */
   returns?: never;
 }
 
-/** Return mode: `reject(value)` short-circuits with a validated client result. */
+/**
+ * Return mode: `handlers.reject(value)` short-circuits with a validated client
+ * result.
+ *
+ * @typeParam ReturnsValidator Validator for the value passed to `reject`.
+ */
 export interface ReturningFeedbackCallbackRejectionConfig<
   ReturnsValidator extends FeedbackCallbackReturnValidator,
 > {
+  /** Selects validated return-mode callback rejection. */
   behavior: "return";
+
+  /** Validator for the value returned when a callback calls `reject`. */
   returns: ReturnsValidator;
 }
 
@@ -478,6 +791,9 @@ export interface ReturningFeedbackCallbackRejectionConfig<
  * Controls only explicit `reject()` calls from entry/comment before callbacks.
  * Runtime/programming errors are never converted. Return-mode inference is
  * added only to `createEntry` and `createComment`.
+ *
+ * @typeParam ReturnsValidator Validator for the value returned to the client
+ * in callback rejection return mode.
  */
 export type FeedbackCallbackRejectionConfig<
   ReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
@@ -492,38 +808,191 @@ type CallbackRejectionValue<
   ? Infer<ReturnsValidator>
   : Value;
 
-interface FeedbackCallbackScopes<Rejection> {
-  entries?: {
-    beforeCreate?: FeedbackEntryBeforeCreateCallback<Rejection>;
-    afterCreate?: FeedbackEntryAfterCreateCallback;
-  };
-  comments?: {
-    beforeCreate?: FeedbackCommentBeforeCreateCallback<Rejection>;
-    afterCreate?: FeedbackCommentAfterCreateCallback;
-  };
-  reactions?: {
-    afterChange?: FeedbackReactionAfterChangeCallback;
-  };
+/**
+ * Callback properties for entry creation and post-creation work.
+ *
+ * @typeParam Rejection Value accepted by `beforeCreate`'s `handlers.reject`.
+ */
+export interface FeedbackEntryCallbacks<Rejection = Value> {
+  /**
+   * Validate, reject, or transform an entry before the component creates it.
+   *
+   * The callback runs after actor resolution and rate limiting. Returned
+   * fields are still checked by the component's normal validation.
+   * It receives the host `ctx`, readonly `event` (`actor` and `input`), and
+   * `handlers` with `handlers.reject(value)`.
+   *
+   * @example
+   * ```ts
+   * beforeCreate: (ctx, event, handlers) => {},
+   * ```
+   */
+  beforeCreate?: FeedbackEntryBeforeCreateCallback<Rejection>;
+
+  /**
+   * React to an entry after the component has created it successfully.
+   *
+   * The callback is awaited in the originating host mutation; an uncaught
+   * error rolls back the entry creation.
+   * It receives the host `ctx` and persisted `event` containing the created
+   * actor and entry.
+   *
+   * @example
+   * ```ts
+   * afterCreate: async (ctx, event) => {},
+   * ```
+   */
+  afterCreate?: FeedbackEntryAfterCreateCallback;
 }
 
 /**
- * Optional host lifecycle callbacks grouped by domain. Creation order is
- * actor/auth → rate limiter → beforeCreate → component mutation → afterCreate.
- * Reaction order is actor/auth → rate limiter → component mutation →
- * afterChange for a real transition. All callbacks are awaited in the host
- * mutation; uncaught failures roll back its component writes. Component
- * callback context and any associated work are requested only for the relevant
- * configured after-callback.
+ * Callback properties for comment and reply creation.
+ *
+ * @typeParam Rejection Value accepted by `beforeCreate`'s `handlers.reject`.
+ */
+export interface FeedbackCommentCallbacks<Rejection = Value> {
+  /**
+   * Validate, reject, or transform a comment body before the component
+   * creates the comment or reply.
+   * It receives the host `ctx`, readonly `event` (`actor` and `input`), and
+   * `handlers` with `handlers.reject(value)`.
+   *
+   * @example
+   * ```ts
+   * beforeCreate: (ctx, event, handlers) => {},
+   * ```
+   */
+  beforeCreate?: FeedbackCommentBeforeCreateCallback<Rejection>;
+
+  /**
+   * React to a comment or reply after the component has created it
+   * successfully.
+   *
+   * The event includes the created comment, its containing entry, and parent
+   * comment context when the created comment is a reply.
+   * The parameters are the host `ctx` and persisted `event`.
+   *
+   * @example
+   * ```ts
+   * afterCreate: async (ctx, event) => {},
+   * ```
+   */
+  afterCreate?: FeedbackCommentAfterCreateCallback;
+}
+
+/** Callback properties for entry upvotes and comment likes. */
+export interface FeedbackReactionCallbacks {
+  /**
+   * React to a real reaction transition after the component mutation.
+   *
+   * The event contains authoritative counts and direct target IDs. It also
+   * retains the nested `entry` or `comment` context for existing consumers.
+   * The parameters are the host `ctx` and transition `event`.
+   *
+   * @example
+   * ```ts
+   * afterChange: async (ctx, event) => {},
+   * ```
+   */
+  afterChange?: FeedbackReactionAfterChangeCallback;
+}
+
+/**
+ * Type of the lifecycle callback configuration accepted by
+ * `options.callbacks`.
+ *
+ * See the `entries`, `comments`, and `reactions` properties for the callback
+ * group documentation shown directly in configuration IntelliSense.
+ *
+ * @typeParam ReturnsValidator Validator that defines the value returned by
+ * `handlers.reject` when callback rejection uses return mode.
  */
 export type FeedbackCallbacks<
   ReturnsValidator extends FeedbackCallbackReturnValidator | undefined =
     undefined,
-> = FeedbackCallbackScopes<CallbackRejectionValue<ReturnsValidator>> &
-  (ReturnsValidator extends FeedbackCallbackReturnValidator
-    ? {
-        rejection: ReturningFeedbackCallbackRejectionConfig<ReturnsValidator>;
-      }
-    : { rejection?: ThrowingFeedbackCallbackRejectionConfig });
+> = {
+  /**
+   * Lifecycle callbacks for entries.
+   *
+   * `beforeCreate` runs after actor resolution and rate limiting, and can
+   * validate, reject, or transform an entry before the component writes it.
+   * `afterCreate` runs after a successful component write and is awaited in
+   * the originating host mutation.
+   *
+   * @example
+   * ```ts
+   * entries: {
+   *   beforeCreate: (ctx, event, handlers) => {
+   *     const titleContainsProfanity = checkForProfanity(event.input.title);
+   *     const bodyContainsProfanity = checkForProfanity(event.input.body);
+   *
+   *     if (titleContainsProfanity || bodyContainsProfanity) {
+   *       handlers.reject({
+   *        kind: "profanity_detected",
+   *        reason: "Entry content contains profanity",
+   *      });
+   *    }
+   *   },
+   * }
+   * ```
+   */
+  entries?: FeedbackEntryCallbacks<CallbackRejectionValue<ReturnsValidator>>;
+
+  /**
+   * Lifecycle callbacks for comments and replies.
+   *
+   * `beforeCreate` can validate, reject, or transform the comment body.
+   * `afterCreate` receives the persisted comment, its containing entry, and
+   * parent-comment context when the created comment is a reply.
+   *
+   * @example
+   * ```ts
+   * comments: {
+   *   afterCreate: async (ctx, event) => {
+   *     await ctx.scheduler.runAfter(0, internal.notifications.commentCreated, {
+   *       commentId: event.comment.id,
+   *       entryId: event.entry.id,
+   *     });
+   *   },
+   * }
+   * ```
+   */
+  comments?: FeedbackCommentCallbacks<CallbackRejectionValue<ReturnsValidator>>;
+
+  /**
+   * Lifecycle callbacks for entry upvotes and comment likes.
+   *
+   * `afterChange` runs only for a real `added` or `removed` transition.
+   * Repeated requests for the current state remain idempotent and do not
+   * invoke it. Direct target IDs are available alongside nested context.
+   *
+   * @example
+   * ```ts
+   * reactions: {
+   *   afterChange: async (ctx, event) => {
+   *     if (event.transition !== "added") return;
+   *
+   *     const docId = event.type === "entry_upvote" ? event.entryId : event.commentId;
+   *     // Notify the target author using docId.
+   *   },
+   * }
+   * ```
+   */
+  reactions?: FeedbackReactionCallbacks;
+} & (ReturnsValidator extends FeedbackCallbackReturnValidator
+  ? {
+      /**
+       * Validated return-mode behavior for explicit `beforeCreate` rejects.
+       */
+      rejection: ReturningFeedbackCallbackRejectionConfig<ReturnsValidator>;
+    }
+  : {
+      /**
+       * Optional rejection behavior for explicit `beforeCreate` rejects.
+       * Defaults to throwing a `ConvexError`.
+       */
+      rejection?: ThrowingFeedbackCallbackRejectionConfig;
+    });
 
 type RegisteredFeedbackFunction<Function> =
   Function extends FunctionReference<
@@ -584,11 +1053,67 @@ type FeedbackCallbackOptions<
   ReturnsValidator extends FeedbackCallbackReturnValidator | undefined,
 > = ReturnsValidator extends FeedbackCallbackReturnValidator
   ? {
-      /** Host lifecycle callbacks with validated return-mode rejection. */
+      /**
+       * Host lifecycle callbacks grouped by domain with validated return-mode
+       * rejection.
+       *
+       * Creation callbacks run in the order actor/auth → rate limiting →
+       * `beforeCreate` → component mutation → `afterCreate`. Reaction
+       * callbacks run after the component mutation only for a real transition.
+       * All callbacks are awaited in the originating host mutation.
+       *
+       * For feedback data, prefer direct component references such as
+       * `ctx.runQuery(components.feedback.entries.get, ...)`. Calling an
+       * exposed host API through `api.feedback...` is also valid, but it
+       * re-enters the host wrapper and actor/auth-resolution path; use it only
+       * when those host-facing semantics are desired.
+       *
+       * @example Configure entry validation
+       * ```ts
+       * callbacks: {
+       *   entries: {
+       *     beforeCreate: (ctx, event, handlers) => {
+       *       void ctx;
+       *       if (event.input.title.trim() === "") {
+       *         handlers.reject("A title is required");
+       *       }
+       *     },
+       *   },
+       * }
+       * ```
+       */
       callbacks: FeedbackCallbacks<ReturnsValidator>;
     }
   : {
-      /** Optional host lifecycle callbacks; explicit rejection throws by default. */
+      /**
+       * Optional host lifecycle callbacks grouped by domain. Explicit
+       * rejection throws by default.
+       *
+       * Creation callbacks run in the order actor/auth → rate limiting →
+       * `beforeCreate` → component mutation → `afterCreate`. Reaction
+       * callbacks run after the component mutation only for a real transition.
+       * All callbacks are awaited in the originating host mutation.
+       *
+       * For feedback data, prefer direct component references such as
+       * `ctx.runQuery(components.feedback.entries.get, ...)`. Calling an
+       * exposed host API through `api.feedback...` is also valid, but it
+       * re-enters the host wrapper and actor/auth-resolution path; use it only
+       * when those host-facing semantics are desired.
+       *
+       * @example Configure entry validation
+       * ```ts
+       * callbacks: {
+       *   entries: {
+       *     beforeCreate: (ctx, event, handlers) => {
+       *       void ctx;
+       *       if (event.input.title.trim() === "") {
+       *         handlers.reject("A title is required");
+       *       }
+       *     },
+       *   },
+       * }
+       * ```
+       */
       callbacks?: FeedbackCallbacks;
     };
 
@@ -1291,6 +1816,7 @@ function buildFeedbackApi<
         ) {
           await afterChange(asMutationContext(ctx), {
             type: "entry_upvote",
+            entryId: result.entry.id,
             transition: result.transition,
             active: result.active,
             previousCount: result.previousCount,
@@ -1482,6 +2008,8 @@ function buildFeedbackApi<
         ) {
           await afterChange(asMutationContext(ctx), {
             type: "comment_like",
+            commentId: result.comment.id,
+            entryId: result.comment.entryId,
             transition: result.transition,
             active: result.active,
             previousCount: result.previousCount,

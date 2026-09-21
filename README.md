@@ -206,8 +206,8 @@ export const {
           // fetches the target comment/entry and sends a notification to the author
           internal.notifications.sendReactionNotificationToAuthor,
           {
-            targetId: event.targetId,
-            kind: event.type,
+            docId: event.type === "" ? event.entryId : event.commentId,
+            type: event.type,
           },
         );
       },

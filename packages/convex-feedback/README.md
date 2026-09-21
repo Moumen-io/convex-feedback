@@ -82,6 +82,17 @@ The same job repeats every 30 days for now as a temporary, low-frequency
 self-healing safeguard for missed or legacy records. It should be removed in a
 future release after supported installations have had enough time to upgrade.
 
+### Legacy comment deletion migration
+
+Older releases stored soft-deleted comments with an internal `deletedAt`
+timestamp. The upgrade migration now drains those tombstones, their descendant
+threads, comment reactions, and legacy orphan documents in bounded scheduled
+batches. New comment deletion is permanent; `deletedAt` is retained only as an
+optional internal compatibility field during this migration and is not exposed
+by public types or UI. The migration's progress markers are internal as well.
+After supported installations have migrated, a future release can remove these
+compatibility fields from the schema.
+
 ## 2. Expose the component through your host API
 
 A Convex component cannot make authorization decisions using your host application's authentication state directly. `convex-feedback` therefore exposes a host wrapper: your app resolves the current actor, and the wrapper passes the stable actor identity into the component.

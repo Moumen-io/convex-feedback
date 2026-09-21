@@ -41,6 +41,45 @@ async function scheduleCommentCleanup(
   await ctx.scheduler.runAfter(0, internal.comments.removeBatch, { commentId });
 }
 
+/**
+ * Mark a comment subtree for permanent deletion and enqueue its bounded
+ * cleanup. The helper is shared by the public delete mutation and the legacy
+ * migration so both paths use the same deletion token and retry semantics.
+ */
+export async function startCommentDeletion(
+  ctx: MutationCtx,
+  comment: Doc<"comments">,
+  deletionToken = Date.now(),
+): Promise<void> {
+  let rootId =
+    comment.deletingAt === undefined
+      ? comment._id
+      : (comment.deletionRootId ?? comment._id);
+
+  // A legacy or interrupted cleanup can leave a pending child pointing at a
+  // root that was already removed. Re-root that child so retries cannot keep
+  // scheduling a missing document forever.
+  if (
+    comment.deletingAt !== undefined &&
+    comment.deletionRootId !== undefined
+  ) {
+    const root = await ctx.db.get("comments", comment.deletionRootId);
+    if (root === null || root.deletingAt === undefined) {
+      rootId = comment._id;
+      await ctx.db.patch("comments", comment._id, {
+        deletionRootId: rootId,
+      });
+    }
+  }
+  if (comment.deletingAt === undefined) {
+    await ctx.db.patch("comments", comment._id, {
+      deletingAt: deletionToken,
+      deletionRootId: rootId,
+    });
+  }
+  await scheduleCommentCleanup(ctx, rootId);
+}
+
 function emptyCommentPaginationResult() {
   return { page: [], isDone: true, continueCursor: "" };
 }
@@ -83,7 +122,8 @@ export const list = query({
               q
                 .eq("entryId", args.entryId)
                 .eq("parentCommentId", args.parentCommentId)
-                .eq("deletingAt", undefined),
+                .eq("deletingAt", undefined)
+                .eq("deletedAt", undefined),
             )
             .order("desc")
             .paginate(args.paginationOpts)
@@ -93,7 +133,8 @@ export const list = query({
               q
                 .eq("entryId", args.entryId)
                 .eq("parentCommentId", args.parentCommentId)
-                .eq("deletingAt", undefined),
+                .eq("deletingAt", undefined)
+                .eq("deletedAt", undefined),
             )
             .order(args.sort === "newest" ? "desc" : "asc")
             .paginate(args.paginationOpts);
@@ -131,7 +172,12 @@ export const listByActor = query({
       .withIndex("by_actor", (q) => q.eq("actorId", args.actorId))
       .order("desc")
       .map(async (comment) => {
-        if (comment.deletingAt !== undefined) return null;
+        if (
+          comment.deletingAt !== undefined ||
+          comment.deletedAt !== undefined
+        ) {
+          return null;
+        }
         const entry = await ctx.db.get("entries", comment.entryId);
         if (
           entry === null ||
@@ -335,11 +381,7 @@ export const remove = mutation({
       throw new ConvexError("Not authorized to delete this comment.");
     }
 
-    await ctx.db.patch("comments", args.commentId, {
-      deletingAt: Date.now(),
-      deletionRootId: args.commentId,
-    });
-    await scheduleCommentCleanup(ctx, args.commentId);
+    await startCommentDeletion(ctx, comment);
     return null;
   },
 });

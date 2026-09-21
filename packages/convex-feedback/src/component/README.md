@@ -6,7 +6,8 @@ This directory is the isolated Convex component backend.
 - `entries.ts`: entry CRUD, full-text search, duplicate suggestions, entry voting, indexed pagination, actor activity pagination, and bounded permanent-deletion cleanup.
 - `comments.ts`: direct-child pagination, recursive write validation, bounded subtree deletion, comment likes, and actor activity pagination.
 - `reactions.ts`: actor activity pagination with live entry/comment target resolution.
-- `migrations.ts`: bounded, idempotent legacy-entry backfills.
+- `migrations.ts`: bounded, idempotent status backfills and legacy comment
+  cleanup.
 - `crons.ts`: immediate upgrade migration and temporary 30-day self-healing schedule.
 - `model.ts`: reusable validators and public model types.
 - `helpers.ts`: normalization, validation, and serializers.
@@ -33,3 +34,10 @@ batches remove entry reactions, comment reactions, and all comments before the
 entry document is hard-deleted. Comment deletion also marks its subtree and
 removes descendants and reactions in bounded scheduled batches. Activity reads
 omit pending and completed deletions.
+
+During the upgrade window, `comments.deletedAt` remains an optional internal
+schema field only so older installations can deploy safely. The legacy comment
+migration permanently removes tombstones, their descendants, and orphaned
+reactions in bounded batches. Its progress markers and `deletedAt` field are
+internal only. After supported installations have migrated, a future release
+can remove those compatibility fields from the schema.

@@ -123,7 +123,9 @@ export async function findDeletingComment(
   let current: DataModel["comments"]["document"] | null = comment;
   let remaining = Math.max(0, comment.depth) + 1;
   while (current !== null && remaining > 0) {
-    if (current.deletingAt !== undefined) return current;
+    if (current.deletingAt !== undefined || current.deletedAt !== undefined) {
+      return current;
+    }
     if (current.parentCommentId === undefined) return null;
     remaining -= 1;
     current = await ctx.db.get("comments", current.parentCommentId);

@@ -13,4 +13,14 @@ crons.interval(
   {},
 );
 
+// Legacy comment tombstones and orphaned feedback are drained in bounded
+// scheduled batches. The interval is a low-frequency retry for installations
+// that upgrade while an earlier batch is paused or interrupted.
+crons.interval(
+  "clean up legacy comment tombstones",
+  { hours: 24 * 30 },
+  internal.migrations.cleanupLegacyComments,
+  {},
+);
+
 export default crons;

@@ -113,6 +113,14 @@ const schema = defineSchema({
     likeCount: v.number(),
     replyCount: v.number(),
     updatedAt: v.optional(v.number()),
+    /**
+     * Legacy compatibility field. New comment deletion uses deletingAt and
+     * permanently removes the subtree; this field is drained by the legacy
+     * cleanup migration and is not part of any public type.
+     */
+    deletedAt: v.optional(v.number()),
+    /** Internal one-time marker used by the bounded legacy orphan sweep. */
+    legacyCleanupAt: v.optional(v.number()),
     /** Timestamp while this comment subtree is being removed. */
     deletingAt: v.optional(v.number()),
     /** Root comment owning the pending subtree cleanup. */
@@ -124,23 +132,30 @@ const schema = defineSchema({
       "entryId",
       "parentCommentId",
       "deletingAt",
+      "deletedAt",
     ])
     .index("by_entry_parent_deleting_likes", [
       "entryId",
       "parentCommentId",
       "deletingAt",
+      "deletedAt",
       "likeCount",
     ])
+    .index("by_deleted_at", ["deletedAt"])
+    .index("by_legacy_cleanup", ["legacyCleanupAt"])
     .index("by_entry_deletion_root", ["entryId", "deletionRootId"]),
 
   reactions: defineTable({
     actorId: v.string(),
     entryId: v.optional(v.id("entries")),
     commentId: v.optional(v.id("comments")),
+    /** Internal one-time marker used by the bounded legacy orphan sweep. */
+    legacyCleanupAt: v.optional(v.number()),
   })
     .index("by_actor", ["actorId"])
     .index("by_entry_actor", ["entryId", "actorId"])
-    .index("by_comment_actor", ["commentId", "actorId"]),
+    .index("by_comment_actor", ["commentId", "actorId"])
+    .index("by_legacy_cleanup", ["legacyCleanupAt"]),
 });
 
 export default schema;

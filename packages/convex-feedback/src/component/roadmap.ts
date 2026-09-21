@@ -848,6 +848,9 @@ async function attachFeedbackRecord(
     throw new ConvexError("Roadmap item is being deleted.");
   }
   if (entry === null) throw new ConvexError("Entry not found.");
+  if (entry.deletingAt !== undefined) {
+    throw new ConvexError("Entry is being deleted.");
+  }
   if (entry.roadmapId === roadmapId) return;
 
   const now = Date.now();
@@ -937,6 +940,7 @@ export const listFeedback = query({
       .query("entries")
       .withIndex("by_roadmap_id", (q) => q.eq("roadmapId", args.roadmapId))
       .order("desc")
+      .filterWith((entry) => Promise.resolve(entry.deletingAt === undefined))
       .paginate(args.paginationOpts);
     return {
       ...result,

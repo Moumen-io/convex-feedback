@@ -26,6 +26,8 @@ const schema = defineSchema({
     metadata: v.optional(feedbackMetadataValidator),
     priority: v.optional(entryPriorityValidator),
     roadmapId: v.optional(v.id("roadmap")),
+    /** Set while dependent comments and reactions are being removed. */
+    deletingAt: v.optional(v.number()),
   })
     .index("by_actor", ["actorId"])
     .index("by_kind", ["kind"])
@@ -49,7 +51,13 @@ const schema = defineSchema({
     .index("by_roadmap_id", ["roadmapId"])
     .searchIndex("search", {
       searchField: "searchText",
-      filterFields: ["kind", "status", "statusFilter", "priority"],
+      filterFields: [
+        "kind",
+        "status",
+        "statusFilter",
+        "priority",
+        "deletingAt",
+      ],
     }),
 
   roadmap: defineTable({

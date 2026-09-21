@@ -4,6 +4,7 @@ import {
   paginationResultValidator,
 } from "convex/server";
 import { ConvexError, v } from "convex/values";
+import { stream } from "convex-helpers/server/stream";
 
 import type { Doc } from "./_generated/dataModel.js";
 import { mutation, query } from "./_generated/server.js";
@@ -26,6 +27,10 @@ import {
 } from "./model.js";
 import schema from "./schema.js";
 
+function emptyCommentPaginationResult() {
+  return { page: [], isDone: true, continueCursor: "" };
+}
+
 export const list = query({
   args: {
     paginationOpts: paginationOptsValidator,
@@ -36,6 +41,13 @@ export const list = query({
   },
   returns: paginationResultValidator(publicCommentValidator),
   handler: async (ctx, args) => {
+    const entry = await ctx.db.get("entries", args.entryId);
+    if (entry === null || entry.deletingAt !== undefined) {
+      return {
+        ...emptyCommentPaginationResult(),
+      };
+    }
+
     if (args.parentCommentId !== undefined) {
       const parent = await ctx.db.get("comments", args.parentCommentId);
       if (parent === null || parent.entryId !== args.entryId) {
@@ -94,11 +106,14 @@ export const listByActor = query({
   handler: async (ctx, args) => {
     assertActorId(args.actorId);
 
-    const db = paginator(ctx.db, schema);
-    const result = await db
+    const result = await stream(ctx.db, schema)
       .query("comments")
       .withIndex("by_actor", (q) => q.eq("actorId", args.actorId))
       .order("desc")
+      .filterWith(async (comment) => {
+        const entry = await ctx.db.get("entries", comment.entryId);
+        return entry !== null && entry.deletingAt === undefined;
+      })
       .paginate(args.paginationOpts);
 
     return {
@@ -151,6 +166,9 @@ export const create = mutation({
 
     const entry = await ctx.db.get("entries", args.entryId);
     if (entry === null) throw new ConvexError("Entry not found.");
+    if (entry.deletingAt !== undefined) {
+      throw new ConvexError("Entry is being deleted.");
+    }
 
     const body = normalizeRequiredText(
       args.body,
@@ -324,6 +342,10 @@ export const setLike = mutation({
     assertActorId(args.actorId);
     const comment = await ctx.db.get("comments", args.commentId);
     if (comment === null) throw new ConvexError("Comment not found.");
+    const entry = await ctx.db.get("entries", comment.entryId);
+    if (entry?.deletingAt !== undefined) {
+      throw new ConvexError("Entry is being deleted.");
+    }
     if (comment.deletedAt !== undefined) {
       throw new ConvexError("Deleted comments cannot receive likes.");
     }

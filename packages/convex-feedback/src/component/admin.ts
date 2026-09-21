@@ -90,6 +90,7 @@ function matchesFilters(
   priority: EntryPriority | undefined,
 ): boolean {
   return (
+    entry.deletingAt === undefined &&
     (kinds === undefined || kinds.includes(entry.kind)) &&
     (status === undefined || entry.status === status) &&
     (priority === undefined || entry.priority === priority)
@@ -110,7 +111,7 @@ export const getEntry = query({
   returns: v.union(adminEntryValidator, v.null()),
   handler: async (ctx, args) => {
     const entry = await ctx.db.get("entries", args.entryId);
-    return entry === null
+    return entry === null || entry.deletingAt !== undefined
       ? null
       : await serializeAdminEntry(ctx, entry, args.viewerActorId);
   },
@@ -200,9 +201,11 @@ export const searchEntries = query({
               args.status === undefined
                 ? withKind
                 : withKind.eq("status", args.status);
-            return args.priority === undefined
-              ? withStatus
-              : withStatus.eq("priority", args.priority);
+            const withPriority =
+              args.priority === undefined
+                ? withStatus
+                : withStatus.eq("priority", args.priority);
+            return withPriority.eq("deletingAt", undefined);
           }),
           args.paginationOpts,
         )

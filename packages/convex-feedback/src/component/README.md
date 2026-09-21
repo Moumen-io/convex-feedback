@@ -3,7 +3,7 @@
 This directory is the isolated Convex component backend.
 
 - `schema.ts`: durable feedback domain tables plus internal roadmap-rebalance bookkeeping, all with query-driven indexes.
-- `entries.ts`: entry CRUD, full-text search, duplicate suggestions, entry voting, indexed pagination, and actor activity pagination.
+- `entries.ts`: entry CRUD, full-text search, duplicate suggestions, entry voting, indexed pagination, actor activity pagination, and bounded permanent-deletion cleanup.
 - `comments.ts`: direct-child pagination, recursive write validation, soft deletion, comment likes, and actor activity pagination.
 - `reactions.ts`: actor activity pagination with best-effort entry/comment target resolution.
 - `migrations.ts`: bounded, idempotent legacy-entry backfills.
@@ -26,3 +26,10 @@ Actor activity component queries accept a trusted `actorId` and use the
 `includeAdminContext: true` for server-side consumers that need retained
 metadata, priority, or roadmap context. The host `listUser*` wrappers resolve
 the actor from the host callback and expose only their public activity shapes.
+
+Entry deletion is an asynchronous permanent cleanup. The entry is marked as
+deleting and hidden immediately, its roadmap link is detached, and scheduled
+batches remove entry reactions, comment reactions, and all comments before the
+entry document is hard-deleted. Comment deletion remains a soft tombstone so
+replies keep their parent references; only permanent entry deletion cascades
+through the comment tree.

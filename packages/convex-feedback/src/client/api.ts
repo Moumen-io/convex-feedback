@@ -177,7 +177,12 @@ export type UpdateEntryArgs = {
   body: string;
 };
 
-/** Arguments for permanently deleting an entry as an administrator. */
+/**
+ * Arguments for permanently deleting an entry as an administrator.
+ *
+ * Deletion hides the entry immediately and finishes dependent-document
+ * cleanup in bounded scheduled batches before the entry is hard-deleted.
+ */
 export type DeleteEntryArgs = {
   /** Entry to delete. */
   entryId: string;
@@ -484,7 +489,7 @@ export interface FeedbackPublicApi<
     Name
   >;
 
-  /** Permanently deletes an entry, or returns a configured rate-limit rejection. */
+  /** Starts permanent entry deletion; cleanup runs in bounded background batches. */
   deleteEntry: FunctionReference<
     "mutation",
     "public",

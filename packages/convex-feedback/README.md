@@ -625,7 +625,7 @@ export const getMyActivity = query({
 
 These wrappers do not accept an `actorId`; they always use the actor returned by the configured host callback. Entries include their own content, status, timestamps, and counts. Comments include the retained body (including a soft-deleted body when it remains stored), `parentCommentId`, and the parent entry title without loading a parent-comment body.
 
-Reaction results are discriminated by `type` (`"entry_upvote"` or `"comment_like"`) and include reaction creation time plus resolved target context. Deleted or orphaned targets are represented with `null` context so a page remains readable.
+Reaction results are discriminated by `type` (`"entry_upvote"` or `"comment_like"`) and include reaction creation time plus resolved target context. Permanent entry deletion removes its reactions and comments in scheduled cleanup batches, so completed component deletions do not leave activity records behind. Legacy orphan targets are still represented with `null` context so a page remains readable.
 
 Trusted server consumers can call the component-level actor query directly with a known `actorId`. `entries.listByActor` additionally accepts `includeAdminContext: true` when an export or other server-side workflow needs retained metadata, priority, or roadmap context; the normal `listUserEntries` wrapper always strips those private fields.
 
@@ -690,7 +690,7 @@ actor: async (ctx) => {
 
 Set the claim and Convex Clerk provider using Clerk's current integration instructions, then export the complete wrapper API shown above as `convex/feedback.ts`. Both reference apps use `anyApi.feedback` by default and reactively check `isAdmin` at their root, offering retry when the access check fails; every admin query and mutation still rechecks the actor on the server.
 
-Admin entries may have an optional `low`, `medium`, or `high` priority and one roadmap relation. Deleting a roadmap item detaches all related feedback. Public entry queries and the existing public UI do not expose priority, while roadmap reads are public.
+Admin entries may have an optional `low`, `medium`, or `high` priority and one roadmap relation. Deleting a roadmap item detaches all related feedback. Permanent entry deletion first hides the entry, detaches its roadmap relation, and schedules bounded cleanup of reactions and comments before hard deletion. Public entry queries and the existing public UI do not expose priority, while roadmap reads are public.
 
 ## Entry kinds and statuses
 

@@ -14,10 +14,12 @@ import {
   adminEntryValidator,
   entryKindValidator,
   entryPriorityValidator,
+  entryStatusFilterValidator,
   entryStatusValidator,
   type EntryKind,
   type EntryPriority,
   type EntryStatus,
+  type EntryStatusFilter,
 } from "./model.js";
 import schema from "./schema.js";
 
@@ -87,12 +89,14 @@ function matchesFilters(
   entry: Doc<"entries">,
   kinds: EntryKind[] | undefined,
   status: EntryStatus | undefined,
+  statusFilter: EntryStatusFilter | undefined,
   priority: EntryPriority | undefined,
 ): boolean {
   return (
     entry.deletingAt === undefined &&
     (kinds === undefined || kinds.includes(entry.kind)) &&
     (status === undefined || entry.status === status) &&
+    (statusFilter === undefined || entry.statusFilter === statusFilter) &&
     (priority === undefined || entry.priority === priority)
   );
 }
@@ -121,6 +125,7 @@ export const listEntries = query({
   args: {
     kinds: v.optional(v.array(entryKindValidator)),
     status: v.optional(entryStatusValidator),
+    statusFilter: v.optional(entryStatusFilterValidator),
     priority: v.optional(entryPriorityValidator),
     paginationOpts: paginationOptsValidator,
     viewerActorId: v.string(),
@@ -132,27 +137,50 @@ export const listEntries = query({
     if (kinds?.length === 0) {
       throw new ConvexError("`kinds` must contain at least one kind.");
     }
+    if (args.status !== undefined && args.statusFilter !== undefined) {
+      throw new ConvexError(
+        "`status` and `statusFilter` cannot be used together.",
+      );
+    }
 
     const entriesStream =
-      args.priority !== undefined
-        ? stream(ctx.db, schema)
-            .query("entries")
-            .withIndex("by_priority", (q) => q.eq("priority", args.priority))
-        : args.status !== undefined
+      args.statusFilter !== undefined
+        ? kinds?.length === 1
           ? stream(ctx.db, schema)
               .query("entries")
-              .withIndex("by_status", (q) => q.eq("status", args.status!))
-          : kinds?.length === 1
+              .withIndex("by_kind_status_filter", (q) =>
+                q.eq("kind", kinds[0]!).eq("statusFilter", args.statusFilter!),
+              )
+          : stream(ctx.db, schema)
+              .query("entries")
+              .withIndex("by_status_filter", (q) =>
+                q.eq("statusFilter", args.statusFilter!),
+              )
+        : args.priority !== undefined
+          ? stream(ctx.db, schema)
+              .query("entries")
+              .withIndex("by_priority", (q) => q.eq("priority", args.priority))
+          : args.status !== undefined
             ? stream(ctx.db, schema)
                 .query("entries")
-                .withIndex("by_kind", (q) => q.eq("kind", kinds[0]!))
-            : stream(ctx.db, schema).query("entries");
+                .withIndex("by_status", (q) => q.eq("status", args.status!))
+            : kinds?.length === 1
+              ? stream(ctx.db, schema)
+                  .query("entries")
+                  .withIndex("by_kind", (q) => q.eq("kind", kinds[0]!))
+              : stream(ctx.db, schema).query("entries");
 
     const result = await entriesStream
       .order("desc")
       .filterWith((entry) =>
         Promise.resolve(
-          matchesFilters(entry, kinds, args.status, args.priority),
+          matchesFilters(
+            entry,
+            kinds,
+            args.status,
+            args.statusFilter,
+            args.priority,
+          ),
         ),
       )
       .paginate(args.paginationOpts);
@@ -173,12 +201,18 @@ export const searchEntries = query({
     searchQuery: v.string(),
     kinds: v.optional(v.array(entryKindValidator)),
     status: v.optional(entryStatusValidator),
+    statusFilter: v.optional(entryStatusFilterValidator),
     priority: v.optional(entryPriorityValidator),
     paginationOpts: paginationOptsValidator,
     viewerActorId: v.string(),
   },
   returns: paginationResultValidator(adminEntryValidator),
   handler: async (ctx, args) => {
+    if (args.status !== undefined && args.statusFilter !== undefined) {
+      throw new ConvexError(
+        "`status` and `statusFilter` cannot be used together.",
+      );
+    }
     const searchQuery = args.searchQuery.trim();
     if (searchQuery.length === 0) {
       return { page: [], isDone: true, continueCursor: "" };
@@ -198,9 +232,11 @@ export const searchEntries = query({
             const withKind =
               kinds?.length === 1 ? searched.eq("kind", kinds[0]!) : searched;
             const withStatus =
-              args.status === undefined
-                ? withKind
-                : withKind.eq("status", args.status);
+              args.statusFilter === undefined
+                ? args.status === undefined
+                  ? withKind
+                  : withKind.eq("status", args.status)
+                : withKind.eq("statusFilter", args.statusFilter);
             const withPriority =
               args.priority === undefined
                 ? withStatus
@@ -210,27 +246,46 @@ export const searchEntries = query({
           args.paginationOpts,
         )
       : await (
-          args.priority !== undefined
-            ? stream(ctx.db, schema)
-                .query("entries")
-                .withIndex("by_priority", (q) =>
-                  q.eq("priority", args.priority),
-                )
-            : args.status !== undefined
+          args.statusFilter !== undefined
+            ? kinds?.length === 1
               ? stream(ctx.db, schema)
                   .query("entries")
-                  .withIndex("by_status", (q) => q.eq("status", args.status!))
-              : kinds?.length === 1
+                  .withIndex("by_kind_status_filter", (q) =>
+                    q
+                      .eq("kind", kinds[0]!)
+                      .eq("statusFilter", args.statusFilter!),
+                  )
+              : stream(ctx.db, schema)
+                  .query("entries")
+                  .withIndex("by_status_filter", (q) =>
+                    q.eq("statusFilter", args.statusFilter!),
+                  )
+            : args.priority !== undefined
+              ? stream(ctx.db, schema)
+                  .query("entries")
+                  .withIndex("by_priority", (q) =>
+                    q.eq("priority", args.priority),
+                  )
+              : args.status !== undefined
                 ? stream(ctx.db, schema)
                     .query("entries")
-                    .withIndex("by_kind", (q) => q.eq("kind", kinds[0]!))
-                : stream(ctx.db, schema).query("entries")
+                    .withIndex("by_status", (q) => q.eq("status", args.status!))
+                : kinds?.length === 1
+                  ? stream(ctx.db, schema)
+                      .query("entries")
+                      .withIndex("by_kind", (q) => q.eq("kind", kinds[0]!))
+                  : stream(ctx.db, schema).query("entries")
         )
           .order("desc")
           .filterWith((entry) =>
             Promise.resolve(
-              matchesFilters(entry, kinds, args.status, args.priority) &&
-                matchesSearch(entry, searchQuery),
+              matchesFilters(
+                entry,
+                kinds,
+                args.status,
+                args.statusFilter,
+                args.priority,
+              ) && matchesSearch(entry, searchQuery),
             ),
           )
           .paginate(args.paginationOpts);

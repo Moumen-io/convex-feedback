@@ -1181,6 +1181,7 @@ function buildFeedbackApi<
         paginationOpts: paginationOptsValidator,
         kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
+        statusFilter: v.optional(entryStatusFilterValidator),
         priority: v.optional(entryPriorityValidator),
       },
       returns: paginationResultValidator(adminEntryValidator),
@@ -1189,6 +1190,9 @@ function buildFeedbackApi<
         return await ctx.runQuery(component.admin.listEntries, {
           ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
           ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.statusFilter === undefined
+            ? {}
+            : { statusFilter: args.statusFilter }),
           ...(args.priority === undefined ? {} : { priority: args.priority }),
           paginationOpts: clampPagination(
             args.paginationOpts,
@@ -1217,6 +1221,7 @@ function buildFeedbackApi<
         searchQuery: v.string(),
         kinds: v.optional(v.array(entryKindValidator)),
         status: v.optional(entryStatusValidator),
+        statusFilter: v.optional(entryStatusFilterValidator),
         priority: v.optional(entryPriorityValidator),
       },
       returns: paginationResultValidator(adminEntryValidator),
@@ -1226,6 +1231,9 @@ function buildFeedbackApi<
           searchQuery: args.searchQuery,
           ...(args.kinds === undefined ? {} : { kinds: args.kinds }),
           ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.statusFilter === undefined
+            ? {}
+            : { statusFilter: args.statusFilter }),
           ...(args.priority === undefined ? {} : { priority: args.priority }),
           paginationOpts: clampPagination(
             args.paginationOpts,

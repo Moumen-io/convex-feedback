@@ -204,6 +204,7 @@ export type AdminListEntriesArgs = {
   paginationOpts: PaginationOptions;
   kinds?: EntryKind[];
   status?: EntryStatus;
+  statusFilter?: EntryStatusFilter;
   priority?: EntryPriority;
 };
 

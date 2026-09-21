@@ -20,6 +20,11 @@ const component = {
     setStatus: "entries:setStatus",
     setUpvote: "entries:setUpvote",
   },
+  admin: {
+    listEntries: "admin:listEntries",
+    getEntry: "admin:getEntry",
+    searchEntries: "admin:searchEntries",
+  },
   comments: {
     list: "comments:list",
     listByActor: "comments:listByActor",
@@ -105,6 +110,46 @@ describe("metadata API authorization", () => {
     expect(memberRunQuery).toHaveBeenCalledWith("entries:get", {
       entryId: "entry-1",
       viewerActorId: "member-1",
+    });
+  });
+
+  test("admin wrappers preserve exact, bucket, and omitted status filters", async () => {
+    const runQuery = vi.fn(() =>
+      Promise.resolve({ page: [], isDone: true, continueCursor: "" }),
+    );
+    const adminApi = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve({ id: "admin-1", isAdmin: true }),
+    });
+    const context = { runQuery } as unknown as GenericQueryCtx<never>;
+    const paginationOpts = { cursor: null, numItems: 10 };
+
+    await invokeQuery(adminApi.adminListEntries, context, {
+      status: "open",
+      paginationOpts,
+    });
+    await invokeQuery(adminApi.adminListEntries, context, {
+      statusFilter: "open",
+      paginationOpts,
+    });
+    await invokeQuery(adminApi.adminSearchEntries, context, {
+      searchQuery: "feedback",
+      paginationOpts,
+    });
+
+    expect(runQuery).toHaveBeenNthCalledWith(1, "admin:listEntries", {
+      status: "open",
+      paginationOpts,
+      viewerActorId: "admin-1",
+    });
+    expect(runQuery).toHaveBeenNthCalledWith(2, "admin:listEntries", {
+      statusFilter: "open",
+      paginationOpts,
+      viewerActorId: "admin-1",
+    });
+    expect(runQuery).toHaveBeenNthCalledWith(3, "admin:searchEntries", {
+      searchQuery: "feedback",
+      paginationOpts,
+      viewerActorId: "admin-1",
     });
   });
 

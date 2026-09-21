@@ -162,6 +162,7 @@ export interface SearchEntriesArgs {
 export interface UseAdminEntriesArgs {
   kinds?: readonly EntryKind[];
   status?: EntryStatus;
+  statusFilter?: EntryStatusFilter;
   priority?: EntryPriority;
 }
 
@@ -320,6 +321,9 @@ function createFeedbackHooksImplementation<RateLimitResult>(
         {
           ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
           ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.statusFilter === undefined
+            ? {}
+            : { statusFilter: args.statusFilter }),
           ...(args.priority === undefined ? {} : { priority: args.priority }),
         },
         { initialNumItems: entryPageSize },
@@ -345,6 +349,9 @@ function createFeedbackHooksImplementation<RateLimitResult>(
               searchQuery,
               ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
               ...(args.status === undefined ? {} : { status: args.status }),
+              ...(args.statusFilter === undefined
+                ? {}
+                : { statusFilter: args.statusFilter }),
               ...(args.priority === undefined
                 ? {}
                 : { priority: args.priority }),

@@ -592,6 +592,55 @@ describe("feedback lifecycle callbacks", () => {
     expect(runMutation).toHaveBeenCalledTimes(4);
   });
 
+  test("skips beforeCreate snapshots and metadata cloning when callbacks are absent", async () => {
+    let actorOwnKeys = 0;
+    let metadataRecordOwnKeys = 0;
+    const actor = new Proxy(
+      { id: "actor-1" },
+      {
+        ownKeys: (target) => {
+          actorOwnKeys += 1;
+          return Reflect.ownKeys(target);
+        },
+      },
+    );
+    const standard = new Proxy(
+      { source: "original" },
+      {
+        ownKeys: (target) => {
+          metadataRecordOwnKeys += 1;
+          return Reflect.ownKeys(target);
+        },
+      },
+    );
+    const metadata = { standard };
+    const runMutation = vi.fn(
+      (reference: string, args: { metadata?: unknown }) => {
+        if (reference === "entries:create") {
+          expect(args.metadata).toBe(metadata);
+          return Promise.resolve({ id: "entry-1" });
+        }
+        return Promise.resolve({ id: "comment-1" });
+      },
+    );
+    const ctx = context(runMutation);
+    const api = exposeFeedbackApi(component, {
+      actor: () => Promise.resolve(actor),
+    });
+
+    await invokeMutation(api.createEntry, ctx, {
+      ...createEntryArgs,
+      metadata,
+    });
+    await invokeMutation(api.createComment, ctx, {
+      entryId: "entry-1",
+      body: "Comment",
+    });
+
+    expect(actorOwnKeys).toBe(0);
+    expect(metadataRecordOwnKeys).toBe(0);
+  });
+
   test("composes rate-limit and callback rejection unions only for create mutations", () => {
     const rateValidator = v.object({ kind: v.literal("rate_limited") });
     const callbackValidator = v.object({

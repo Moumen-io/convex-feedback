@@ -1055,24 +1055,28 @@ function buildFeedbackApi<
         );
         if (limited !== undefined) return limited;
 
-        const callbackInput: FeedbackEntryBeforeCreateEvent["input"] = {
-          kind: args.kind,
-          title: args.title,
-          body: args.body,
-          ...(args.metadata === undefined
-            ? {}
-            : { metadata: cloneFeedbackMetadata(args.metadata) }),
-        };
-        const before = await runBeforeCreate(
-          asMutationContext(ctx),
-          { actor: { ...actor }, input: callbackInput },
-          options.callbacks?.entries?.beforeCreate,
-          callbackRejectionConfig,
-        );
-        if (before.rejected) {
-          return before.value as CallbackResult<CallbackReturnsValidator>;
+        const beforeCreate = options.callbacks?.entries?.beforeCreate;
+        let patch: FeedbackEntryCreatePatch | undefined;
+        if (beforeCreate !== undefined) {
+          const callbackInput: FeedbackEntryBeforeCreateEvent["input"] = {
+            kind: args.kind,
+            title: args.title,
+            body: args.body,
+            ...(args.metadata === undefined
+              ? {}
+              : { metadata: cloneFeedbackMetadata(args.metadata) }),
+          };
+          const before = await runBeforeCreate(
+            asMutationContext(ctx),
+            { actor: { ...actor }, input: callbackInput },
+            beforeCreate,
+            callbackRejectionConfig,
+          );
+          if (before.rejected) {
+            return before.value as CallbackResult<CallbackReturnsValidator>;
+          }
+          patch = before.patch;
         }
-        const patch = before.patch;
         const metadata =
           patch !== undefined &&
           Object.prototype.hasOwnProperty.call(patch, "metadata")
@@ -1352,21 +1356,26 @@ function buildFeedbackApi<
         );
         if (limited !== undefined) return limited;
 
-        const callbackInput: FeedbackCommentBeforeCreateEvent["input"] = {
-          entryId: args.entryId,
-          ...(args.parentCommentId === undefined
-            ? {}
-            : { parentCommentId: args.parentCommentId }),
-          body: args.body,
-        };
-        const before = await runBeforeCreate(
-          asMutationContext(ctx),
-          { actor: { ...actor }, input: callbackInput },
-          options.callbacks?.comments?.beforeCreate,
-          callbackRejectionConfig,
-        );
-        if (before.rejected) {
-          return before.value as CallbackResult<CallbackReturnsValidator>;
+        const beforeCreate = options.callbacks?.comments?.beforeCreate;
+        let patch: FeedbackCommentCreatePatch | undefined;
+        if (beforeCreate !== undefined) {
+          const callbackInput: FeedbackCommentBeforeCreateEvent["input"] = {
+            entryId: args.entryId,
+            ...(args.parentCommentId === undefined
+              ? {}
+              : { parentCommentId: args.parentCommentId }),
+            body: args.body,
+          };
+          const before = await runBeforeCreate(
+            asMutationContext(ctx),
+            { actor: { ...actor }, input: callbackInput },
+            beforeCreate,
+            callbackRejectionConfig,
+          );
+          if (before.rejected) {
+            return before.value as CallbackResult<CallbackReturnsValidator>;
+          }
+          patch = before.patch;
         }
         const afterCreate = options.callbacks?.comments?.afterCreate;
         const result = await ctx.runMutation(component.comments.create, {
@@ -1375,7 +1384,7 @@ function buildFeedbackApi<
           ...(args.parentCommentId === undefined
             ? {}
             : { parentCommentId: args.parentCommentId }),
-          body: before.patch?.body ?? args.body,
+          body: patch?.body ?? args.body,
           maxDepth: config.comments.maxDepth,
           maxCommentLength: config.limits.commentLength,
           includeCallbackContext: afterCreate !== undefined,

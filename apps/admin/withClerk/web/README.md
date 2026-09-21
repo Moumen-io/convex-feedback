@@ -4,7 +4,7 @@ A forkable Vite admin panel for `convex-feedback`, built with Tailwind CSS, shad
 
 ## Set up
 
-1. Expose the complete `exposeFeedbackApi(...)` result as `convex/feedback.ts` in your host Convex app. Its actor resolver must return `isAdmin: true` only for administrators. See the [component integration guide](../../../../packages/convex-feedback/README.md#admin-panel) for a Clerk example.
+1. Expose the complete `exposeFeedbackApi(...)` result as `convex/feedback.ts` in your host Convex app. Its actor resolver must return `isAdmin: true` only for administrators. See the [host wrapper integration guide](../../../../packages/convex-feedback/README.md#2-expose-the-component-through-your-host-api) and [admin notes](../../../../packages/convex-feedback/README.md#admin-panel) for the current API and Clerk mapping.
 2. In Clerk, enable the Convex integration and make the admin value available to your host actor resolver. Authorization remains server-side; hiding this UI is not the security boundary.
 3. Copy `.env.example` to `.env.local` and set your deployed Convex URL and Clerk publishable key.
 4. Install and run:

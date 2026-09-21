@@ -26,6 +26,11 @@ optional Expo Router integration
 
 Use the prebuilt screen for a complete feedback board, compose primitives for custom layouts, or ignore this package entirely and use the headless `convex-feedback` hooks directly.
 
+Authentication, host business rules, and lifecycle callbacks stay in the
+headless host wrapper. The UI package receives the generated hooks; see the
+[`convex-feedback` lifecycle callback reference](../convex-feedback/README.md#lifecycle-callbacks)
+for callback configuration and transaction behavior.
+
 ## React DOM
 
 ```tsx

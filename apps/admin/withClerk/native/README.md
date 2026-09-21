@@ -4,7 +4,7 @@ A forkable Expo admin app for `convex-feedback`, using Expo Router native tabs, 
 
 ## Set up
 
-1. Expose the complete `exposeFeedbackApi(...)` result as `convex/feedback.ts` in your host Convex app. Its actor resolver must return `isAdmin: true` only for administrators. See the [component integration guide](../../../../packages/convex-feedback/README.md#admin-panel) for a Clerk example.
+1. Expose the complete `exposeFeedbackApi(...)` result as `convex/feedback.ts` in your host Convex app. Its actor resolver must return `isAdmin: true` only for administrators. See the [host wrapper integration guide](../../../../packages/convex-feedback/README.md#2-expose-the-component-through-your-host-api) and [admin notes](../../../../packages/convex-feedback/README.md#admin-panel) for the current API and Clerk mapping.
 2. Enable Clerk's Convex integration and Native API. Clerk's prebuilt native views require a development build; they do not run in Expo Go.
 3. Copy `.env.example` to `.env.local` and set the `EXPO_PUBLIC_*` values.
 4. Install and launch a development build:

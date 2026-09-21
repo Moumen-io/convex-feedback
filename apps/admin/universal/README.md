@@ -123,7 +123,10 @@ In the host Convex app:
 2. Export the complete `exposeFeedbackApi(...)` result from a public module such
    as `convex/feedback.ts`, including `isAdmin`. The actor resolver should
    return `isAdmin: true` only for administrators and the query should return
-   `false` for an unauthenticated caller.
+   `false` for an unauthenticated caller. Use the [host wrapper integration
+   guide](../../../packages/convex-feedback/README.md#2-expose-the-component-through-your-host-api)
+   for the current API surface; optional lifecycle callbacks are documented in
+   the [canonical callback reference](../../../packages/convex-feedback/README.md#lifecycle-callbacks).
 3. Allow the exact native redirect in the host's Convex Auth
    `callbacks.redirect` policy. Keep the existing trusted relative/site URLs
    needed by the host, and add only this exact native URL:

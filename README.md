@@ -36,6 +36,9 @@ Then expose the feedback API from your host Convex app so you can resolve authen
 
 See **[convex-feedback](./packages/convex-feedback/README.md)** for the complete integration guide, configuration, API, hooks, authentication, search, comments, and testing.
 
+For host-side lifecycle callbacks, rejection modes, transaction behavior, and
+notification scheduling, see the [lifecycle callback reference](./packages/convex-feedback/README.md#lifecycle-callbacks).
+
 ### React or React Native UI
 
 | Expo                                                                                                | React Native                                                                                                  |

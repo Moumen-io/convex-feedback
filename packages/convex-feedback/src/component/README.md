@@ -2,7 +2,7 @@
 
 This directory is the isolated Convex component backend.
 
-- `schema.ts`: four tables and query-driven indexes.
+- `schema.ts`: durable feedback domain tables plus internal roadmap-rebalance bookkeeping, all with query-driven indexes.
 - `entries.ts`: entry CRUD, full-text search, duplicate suggestions, entry voting, indexed pagination, and actor activity pagination.
 - `comments.ts`: direct-child pagination, recursive write validation, soft deletion, comment likes, and actor activity pagination.
 - `reactions.ts`: actor activity pagination with best-effort entry/comment target resolution.
@@ -14,6 +14,12 @@ This directory is the isolated Convex component backend.
 - `_generated/`: generated component API/server/data-model types. Regenerate after backend changes.
 
 Important: component public functions become internal references when installed by a host app. The host must wrap them before exposing them to clients. Component IDs become strings at that boundary.
+
+Lifecycle callbacks belong to the host wrapper, not this component. The wrapper
+may transform or reject creation input before calling a component mutation and
+may run after callbacks with the mutation's returned context. Keep authentication,
+host business rules, and notification providers outside the component; component
+validation remains authoritative.
 
 Actor activity component queries accept a trusted `actorId` and use the
 `by_actor` indexes. `entries.listByActor` can additionally receive

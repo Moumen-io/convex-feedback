@@ -149,12 +149,12 @@ export const listEntries = query({
           ? stream(ctx.db, schema)
               .query("entries")
               .withIndex("by_kind_status_filter", (q) =>
-                q.eq("kind", kinds[0]!).eq("statusFilter", args.statusFilter!),
+                q.eq("kind", kinds[0]!).eq("statusFilter", args.statusFilter),
               )
           : stream(ctx.db, schema)
               .query("entries")
               .withIndex("by_status_filter", (q) =>
-                q.eq("statusFilter", args.statusFilter!),
+                q.eq("statusFilter", args.statusFilter),
               )
         : args.priority !== undefined
           ? stream(ctx.db, schema)
@@ -253,12 +253,12 @@ export const searchEntries = query({
                   .withIndex("by_kind_status_filter", (q) =>
                     q
                       .eq("kind", kinds[0]!)
-                      .eq("statusFilter", args.statusFilter!),
+                      .eq("statusFilter", args.statusFilter),
                   )
               : stream(ctx.db, schema)
                   .query("entries")
                   .withIndex("by_status_filter", (q) =>
-                    q.eq("statusFilter", args.statusFilter!),
+                    q.eq("statusFilter", args.statusFilter),
                   )
             : args.priority !== undefined
               ? stream(ctx.db, schema)

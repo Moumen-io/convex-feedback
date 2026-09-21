@@ -20,6 +20,7 @@ import { useToolbarIcon } from "../lib/toolbar-icon.js";
 const kinds = ["all", "feedback", "feature_request", "bug_report"] as const;
 const statuses = [
   "all",
+  "all_open",
   "open",
   "under_review",
   "planned",
@@ -59,7 +60,11 @@ export function InboxScreen({ onOpenEntry, onNewFeedback }: InboxScreenProps) {
   const filters = useMemo(
     () => ({
       ...(kind === "all" ? {} : { kinds: [kind] }),
-      ...(status === "all" ? {} : { status }),
+      ...(status === "all"
+        ? {}
+        : status === "all_open"
+          ? { statusFilter: "open" as const }
+          : { status }),
       ...(priority === "all" ? {} : { priority }),
     }),
     [kind, priority, status],
@@ -223,21 +228,11 @@ function InboxToolbar(toolbar: InboxToolbarProps) {
             tintColor={theme.text}
             title="Status"
           >
-            {[
-              "all",
-              "open",
-              "under_review",
-              "planned",
-              "in_progress",
-              "completed",
-              "closed",
-            ].map((value) => (
+            {statuses.map((value) => (
               <Stack.Toolbar.MenuAction
                 isOn={toolbar.status === value}
                 key={`status-${value}`}
-                onPress={() =>
-                  toolbar.onStatusChange(value as InboxToolbarProps["status"])
-                }
+                onPress={() => toolbar.onStatusChange(value)}
               >
                 {formatFilterValue(value)}
               </Stack.Toolbar.MenuAction>
@@ -269,7 +264,9 @@ function InboxToolbar(toolbar: InboxToolbarProps) {
 }
 
 function formatFilterValue(value: string): string {
-  return value === "all" ? "All" : value.replaceAll("_", " ");
+  if (value === "all") return "All";
+  if (value === "all_open") return "All open";
+  return value.replaceAll("_", " ");
 }
 
 function searchText(event: unknown): string {

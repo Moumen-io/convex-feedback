@@ -62,6 +62,7 @@ const kindItems = [
 ];
 const statusItems = [
   { label: "All statuses", value: "all" },
+  { label: "All open", value: "all_open" },
   { label: "Open", value: "open" },
   { label: "Under review", value: "under_review" },
   { label: "Planned", value: "planned" },
@@ -260,7 +261,11 @@ export function InboxView({
   const filters = useMemo(
     () => ({
       ...(kind === "all" ? {} : { kinds: [kind as EntryKind] }),
-      ...(status === "all" ? {} : { status: status as EntryStatus }),
+      ...(status === "all"
+        ? {}
+        : status === "all_open"
+          ? { statusFilter: "open" as const }
+          : { status: status as EntryStatus }),
       ...(priority === "all" ? {} : { priority: priority as EntryPriority }),
     }),
     [kind, priority, status],

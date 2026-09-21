@@ -99,7 +99,6 @@ export const englishFeedbackMessages: FeedbackMessages = {
     viewReplies: (count) =>
       `View ${count} ${count === 1 ? "reply" : "replies"}`,
     hideReplies: "Hide replies",
-    deleted: "Comment deleted",
     noComments: "No comments yet.",
     loadMore: "Load more comments",
   },

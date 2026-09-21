@@ -13,6 +13,17 @@ function setup() {
   return convexTest(schema, modules);
 }
 
+async function finishScheduled(
+  testInstance: ReturnType<typeof setup>,
+): Promise<void> {
+  vi.useFakeTimers();
+  try {
+    await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 async function createEntry(
   testInstance: ReturnType<typeof setup>,
   title = "Dark mode",
@@ -640,37 +651,46 @@ describe("convex-feedback component", () => {
         actorId: activityActor,
         entryId: entryForComments,
         parentCommentId,
-        body: "Retained actor comment",
+        body: "Actor comment",
         maxDepth: 5,
         maxCommentLength: 5_000,
       },
     );
+
+    const liveComments = await testInstance.query(api.comments.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(liveComments.page).toMatchObject([
+      {
+        id: ownCommentId,
+        body: "Actor comment",
+        entryId: entryForComments,
+        entryTitle: "Comment context entry",
+        parentCommentId,
+      },
+    ]);
+
     await testInstance.mutation(api.comments.remove, {
       actor: { id: activityActor },
       commentId: ownCommentId,
       deletableByAuthor: true,
     });
+    await finishScheduled(testInstance);
 
     const comments = await testInstance.query(api.comments.listByActor, {
       actorId: activityActor,
       paginationOpts: { cursor: null, numItems: 10 },
     });
-    expect(comments.page).toHaveLength(1);
-    expect(comments.page[0]).toMatchObject({
-      id: ownCommentId,
-      body: "Retained actor comment",
-      entryId: entryForComments,
-      entryTitle: "Comment context entry",
-      parentCommentId,
-    });
-    expect(comments.page[0]).not.toHaveProperty("parentCommentBody");
+    expect(comments.page).toHaveLength(0);
+    expect(comments.isDone).toBe(true);
   });
 
-  test("actor reaction activity resolves mixed and orphaned targets safely", async () => {
+  test("actor reaction activity keeps valid output and removes deleted targets", async () => {
     const testInstance = setup();
     const activityActor = "reaction-author";
 
-    const { id: ownEntryId } = await testInstance.mutation(api.entries.create, {
+    await testInstance.mutation(api.entries.create, {
       actorId: activityActor,
       kind: "feature_request",
       title: "Own entry",
@@ -711,68 +731,36 @@ describe("convex-feedback component", () => {
       commentId,
       desiredState: true,
     });
-    await testInstance.mutation(api.comments.remove, {
-      actor: { id: "other-author" },
-      commentId,
-      deletableByAuthor: true,
-    });
-
-    const { id: orphanEntryId } = await testInstance.mutation(
-      api.entries.create,
-      {
-        actorId: "other-author",
-        kind: "feedback",
-        title: "Deleted entry",
-        body: "This target will be removed",
-        defaultStatus: "open",
-        enabledKinds: ["feedback", "feature_request", "bug_report"],
-        maxTitleLength: 160,
-        maxBodyLength: 10_000,
-      },
-    );
-    await testInstance.mutation(api.entries.setUpvote, {
-      actorId: activityActor,
-      entryId: orphanEntryId,
-      desiredState: true,
-    });
-    await testInstance.run((ctx) => ctx.db.delete("entries", orphanEntryId));
 
     const firstPage = await testInstance.query(api.reactions.listByActor, {
       actorId: activityActor,
-      paginationOpts: { cursor: null, numItems: 2 },
+      paginationOpts: { cursor: null, numItems: 1 },
     });
     const secondPage = await testInstance.query(api.reactions.listByActor, {
       actorId: activityActor,
       paginationOpts: {
         cursor: firstPage.continueCursor,
-        numItems: 2,
-      },
-    });
-    const finalPage = await testInstance.query(api.reactions.listByActor, {
-      actorId: activityActor,
-      paginationOpts: {
-        cursor: secondPage.continueCursor,
-        numItems: 2,
+        numItems: 1,
       },
     });
     const reactions = [...firstPage.page, ...secondPage.page];
 
-    expect(reactions).toHaveLength(4);
+    expect(reactions).toHaveLength(2);
     expect(reactions.map((reaction) => reaction.type)).toEqual(
       expect.arrayContaining(["entry_upvote", "comment_like"]),
     );
 
     const ownEntryReaction = reactions.find(
       (reaction) =>
-        reaction.type === "entry_upvote" && reaction.entry?.id === ownEntryId,
+        reaction.type === "entry_upvote" && reaction.entry.id === otherEntryId,
     );
     expect(ownEntryReaction).toMatchObject({
       type: "entry_upvote",
       entry: {
-        id: ownEntryId,
-        title: "Own entry",
-        kind: "feature_request",
-        status: "open",
+        id: otherEntryId,
+        title: "Other entry",
+        kind: "bug_report",
+        status: "under_review",
       },
     });
     if (ownEntryReaction?.type === "entry_upvote") {
@@ -787,21 +775,54 @@ describe("convex-feedback component", () => {
       type: "comment_like",
       comment: {
         id: commentId,
-        body: null,
+        body: "Comment to like",
         entryId: otherEntryId,
         entryTitle: "Other entry",
       },
     });
 
-    const orphanReaction = reactions.find(
-      (reaction) => reaction.type === "entry_upvote" && reaction.entry === null,
-    );
-    expect(orphanReaction).toMatchObject({
-      type: "entry_upvote",
-      entry: null,
+    await testInstance.mutation(api.comments.remove, {
+      actor: { id: "other-author" },
+      commentId,
+      deletableByAuthor: true,
     });
-    expect(finalPage.page).toHaveLength(0);
-    expect(finalPage.isDone).toBe(true);
+    await finishScheduled(testInstance);
+    await expect(
+      testInstance.query(api.reactions.listByActor, {
+        actorId: activityActor,
+        paginationOpts: { cursor: null, numItems: 10 },
+      }),
+    ).resolves.toMatchObject({
+      page: [
+        {
+          type: "entry_upvote",
+          entry: { id: otherEntryId },
+        },
+        {
+          type: "entry_upvote",
+          entry: { title: "Own entry" },
+        },
+      ],
+    });
+
+    await testInstance.mutation(api.entries.remove, {
+      actor: { id: "admin-1", isAdmin: true },
+      entryId: otherEntryId,
+    });
+    await finishScheduled(testInstance);
+    await expect(
+      testInstance.query(api.reactions.listByActor, {
+        actorId: activityActor,
+        paginationOpts: { cursor: null, numItems: 10 },
+      }),
+    ).resolves.toMatchObject({
+      page: [
+        {
+          type: "entry_upvote",
+          entry: { title: "Own entry" },
+        },
+      ],
+    });
   });
 
   test("open and closed status filters are materialized and queried on Convex", async () => {
@@ -1050,7 +1071,7 @@ describe("convex-feedback component", () => {
     expect(children.page[0]?.replyCount).toBe(1);
   });
 
-  test("comment likes do not require the parent entry", async () => {
+  test("comment likes require a live parent entry", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);
     const creation = await testInstance.mutation(api.comments.create, {
@@ -1070,22 +1091,7 @@ describe("convex-feedback component", () => {
         commentId,
         desiredState: true,
       }),
-    ).resolves.toEqual({ active: true, likeCount: 1 });
-
-    const callbackResult = await testInstance.mutation(api.comments.setLike, {
-      actorId: "user-b",
-      commentId,
-      desiredState: true,
-      includeCallbackContext: true,
-    });
-    expect(callbackResult).toMatchObject({
-      changed: true,
-      transition: "added",
-      previousCount: 1,
-      count: 2,
-      comment: { id: commentId, entryId },
-    });
-    expect(callbackResult).not.toHaveProperty("entry");
+    ).rejects.toThrow("Entry not found.");
   });
 
   test("reply creation reuses its single parent-comment read", async () => {

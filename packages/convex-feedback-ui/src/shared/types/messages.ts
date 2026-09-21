@@ -210,9 +210,6 @@ export interface FeedbackMessages {
     /** Collapses an expanded reply branch. */
     hideReplies: string;
 
-    /** Placeholder copy for a soft-deleted comment. */
-    deleted: string;
-
     /** Empty-state copy when no comments exist. */
     noComments: string;
 

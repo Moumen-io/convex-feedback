@@ -409,13 +409,13 @@ function CommentRoot({ comment, className, ...props }: CommentRootProps) {
 
 function CommentBody(props: HTMLAttributes<HTMLParagraphElement>) {
   const comment = useCommentContext();
-  const { messages, unstyled } = useFeedbackUi();
+  const { unstyled } = useFeedbackUi();
   return (
     <p
       {...props}
       className={classes(unstyled, "cf-comment__body", props.className)}
     >
-      {props.children ?? comment.body ?? messages.comments.deleted}
+      {props.children ?? comment.body}
     </p>
   );
 }

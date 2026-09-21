@@ -592,9 +592,7 @@ function AdminCommentBranch({
   return (
     <View style={styles.comment}>
       <Text style={styles.label}>{comment.actorId}</Text>
-      <Text style={styles.commentBody}>
-        {comment.body ?? "Comment deleted"}
-      </Text>
+      <Text style={styles.commentBody}>{comment.body}</Text>
       <View style={styles.commentActions}>
         <Pressable
           accessibilityRole="button"
@@ -623,20 +621,18 @@ function AdminCommentBranch({
             {comment.viewerHasLiked ? "♥" : "♡"} {comment.likeCount}
           </Text>
         </Pressable>
-        {comment.body !== null && (
-          <Pressable
-            accessibilityRole="button"
-            disabled={disabled || replyAction.pending}
-            style={({ pressed }) => [
-              styles.commentAction,
-              pressed && styles.pressed,
-              (disabled || replyAction.pending) && styles.disabled,
-            ]}
-            onPress={() => setReplying((value) => !value)}
-          >
-            <Text style={styles.commentActionText}>Reply</Text>
-          </Pressable>
-        )}
+        <Pressable
+          accessibilityRole="button"
+          disabled={disabled || replyAction.pending}
+          style={({ pressed }) => [
+            styles.commentAction,
+            pressed && styles.pressed,
+            (disabled || replyAction.pending) && styles.disabled,
+          ]}
+          onPress={() => setReplying((value) => !value)}
+        >
+          <Text style={styles.commentActionText}>Reply</Text>
+        </Pressable>
       </View>
       {replying && (
         <View style={styles.replyComposer}>

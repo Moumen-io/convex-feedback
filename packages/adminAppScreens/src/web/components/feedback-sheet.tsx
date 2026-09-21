@@ -745,7 +745,7 @@ function AdminCommentBranch({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [editBody, setEditBody] = useState(comment.body ?? "");
+  const [editBody, setEditBody] = useState(comment.body);
   const [replying, setReplying] = useState(false);
   const [replyBody, setReplyBody] = useState("");
   const updateComment = feedbackHooks.useUpdateComment();
@@ -791,29 +791,27 @@ function AdminCommentBranch({
             {comment.actorId} ·{" "}
             {new Date(comment.creationTime).toLocaleString()}
           </p>
-          {comment.body !== null && (
-            <div className="flex shrink-0 items-center gap-2">
-              <Button
-                variant="link"
-                size="xs"
-                className="h-auto px-0"
-                onClick={() => {
-                  setEditBody(comment.body ?? "");
-                  setEditing((value) => !value);
-                }}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="link"
-                size="xs"
-                className="h-auto px-0"
-                onClick={() => setReplying((value) => !value)}
-              >
-                Reply
-              </Button>
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              variant="link"
+              size="xs"
+              className="h-auto px-0"
+              onClick={() => {
+                setEditBody(comment.body);
+                setEditing((value) => !value);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="link"
+              size="xs"
+              className="h-auto px-0"
+              onClick={() => setReplying((value) => !value)}
+            >
+              Reply
+            </Button>
+          </div>
         </div>
         {editing ? (
           <form
@@ -855,11 +853,9 @@ function AdminCommentBranch({
             </div>
           </form>
         ) : (
-          <p className="mt-1 whitespace-pre-wrap">
-            {comment.body ?? "Comment deleted"}
-          </p>
+          <p className="mt-1 whitespace-pre-wrap">{comment.body}</p>
         )}
-        {replying && comment.body !== null && (
+        {replying && (
           <form
             className="mt-3 flex flex-col gap-2 border-l pl-3"
             onSubmit={(event) => void submitReply(event)}

@@ -857,7 +857,7 @@ function CommentBranch({ comment, entryId }: FeedbackScreenCommentBranchProps) {
           disabled={isAuthenticated === undefined || likeAction.pending}
           onToggle={toggleLike}
         />
-        {comment.body !== null && comment.depth < maxCommentDepth && (
+        {comment.depth < maxCommentDepth && (
           <Comment.Reply
             disabled={isAuthenticated === undefined || replyAction.pending}
             onActivate={() => {

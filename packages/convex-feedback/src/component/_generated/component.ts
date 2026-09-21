@@ -265,9 +265,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           isDone: boolean;
           page: Array<{
             actorId: string;
-            body: string | null;
+            body: string;
             creationTime: number;
-            deletedAt?: number;
             depth: number;
             entryId: string;
             id: string;
@@ -301,12 +300,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           isDone: boolean;
           page: Array<{
             actorId: string;
-            body: string | null;
+            body: string;
             creationTime: number;
-            deletedAt?: number;
             depth: number;
             entryId: string;
-            entryTitle: string | null;
+            entryTitle: string;
             id: string;
             likeCount: number;
             parentCommentId?: string;
@@ -801,17 +799,17 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "completed"
                     | "closed";
                   title: string;
-                } | null;
+                };
                 id: string;
                 type: "entry_upvote";
               }
             | {
                 comment: {
-                  body: string | null;
+                  body: string;
                   entryId: string;
-                  entryTitle: string | null;
+                  entryTitle: string;
                   id: string;
-                } | null;
+                };
                 creationTime: number;
                 id: string;
                 type: "comment_like";

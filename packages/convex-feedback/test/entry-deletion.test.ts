@@ -303,47 +303,240 @@ describe("permanent entry deletion", () => {
     await finishScheduled(testInstance);
   });
 
-  test("soft-deleting a comment keeps its replies and reactions", async () => {
+  test("permanently removes a comment subtree, reactions, and counters", async () => {
     const testInstance = setup();
-    const entryId = await createEntry(testInstance, "Soft comment deletion");
+    const entryId = await createEntry(testInstance, "Comment deletion");
     const parent = await testInstance.mutation(api.comments.create, {
       actorId: "comment-author",
       entryId,
-      body: "Parent",
+      body: "Parent that stays",
       maxDepth: 5,
       maxCommentLength: 5_000,
     });
-    const reply = await testInstance.mutation(api.comments.create, {
+    const target = await testInstance.mutation(api.comments.create, {
       actorId: "reply-author",
       entryId,
       parentCommentId: parent.id,
-      body: "Reply",
+      body: "Target",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    const grandchild = await testInstance.mutation(api.comments.create, {
+      actorId: "grandchild-author",
+      entryId,
+      parentCommentId: target.id,
+      body: "Grandchild",
       maxDepth: 5,
       maxCommentLength: 5_000,
     });
     await testInstance.mutation(api.comments.setLike, {
       actorId: "liker",
-      commentId: parent.id,
+      commentId: target.id,
+      desiredState: true,
+    });
+    await testInstance.mutation(api.comments.setLike, {
+      actorId: "grandchild-liker",
+      commentId: grandchild.id,
       desiredState: true,
     });
     await testInstance.mutation(api.comments.remove, {
-      actor: { id: "comment-author" },
-      commentId: parent.id,
+      actor: { id: "reply-author" },
+      commentId: target.id,
+      deletableByAuthor: true,
+    });
+    await testInstance.mutation(api.comments.remove, {
+      actor: { id: "reply-author" },
+      commentId: target.id,
       deletableByAuthor: true,
     });
 
+    const pending = await testInstance.run(async (ctx) => ({
+      target: await ctx.db.get("comments", target.id),
+      grandchild: await ctx.db.get("comments", grandchild.id),
+      entry: await ctx.db.get("entries", entryId),
+    }));
+    expect(pending.target?.deletingAt).toEqual(expect.any(Number));
+    expect(pending.grandchild?._id).toBe(grandchild.id);
+    expect(pending.entry?.commentCount).toBe(3);
+
+    await expect(
+      testInstance.mutation(api.comments.create, {
+        actorId: "late-replier",
+        entryId,
+        parentCommentId: target.id,
+        body: "Late reply",
+        maxDepth: 5,
+        maxCommentLength: 5_000,
+      }),
+    ).rejects.toThrow("Comment is being deleted.");
+    await expect(
+      testInstance.mutation(api.comments.setLike, {
+        actorId: "late-liker",
+        commentId: grandchild.id,
+        desiredState: true,
+      }),
+    ).rejects.toThrow("Comment is being deleted.");
+    await expect(
+      testInstance.query(api.comments.list, {
+        entryId,
+        parentCommentId: target.id,
+        paginationOpts: { cursor: null, numItems: 10 },
+        sort: "oldest",
+      }),
+    ).resolves.toMatchObject({ page: [] });
+
+    await testInstance.mutation(internal.comments.removeBatch, {
+      commentId: target.id,
+    });
+    await testInstance.mutation(internal.comments.removeBatch, {
+      commentId: target.id,
+    });
+    await finishScheduled(testInstance);
+
     const stored = await testInstance.run(async (ctx) => ({
       parent: await ctx.db.get("comments", parent.id),
-      reply: await ctx.db.get("comments", reply.id),
+      target: await ctx.db.get("comments", target.id),
+      grandchild: await ctx.db.get("comments", grandchild.id),
+      entry: await ctx.db.get("entries", entryId),
+      targetReactions: await ctx.db
+        .query("reactions")
+        .withIndex("by_comment_actor", (q) => q.eq("commentId", target.id))
+        .take(1),
+      grandchildReactions: await ctx.db
+        .query("reactions")
+        .withIndex("by_comment_actor", (q) => q.eq("commentId", grandchild.id))
+        .take(1),
+    }));
+    expect(stored.parent?._id).toBe(parent.id);
+    expect(stored.parent?.replyCount).toBe(0);
+    expect(stored.target).toBeNull();
+    expect(stored.grandchild).toBeNull();
+    expect(stored.entry?.commentCount).toBe(1);
+    expect(stored.targetReactions).toEqual([]);
+    expect(stored.grandchildReactions).toEqual([]);
+
+    await testInstance.mutation(internal.comments.removeBatch, {
+      commentId: target.id,
+    });
+    await expect(
+      testInstance.mutation(api.comments.remove, {
+        actor: admin,
+        commentId: target.id,
+        deletableByAuthor: false,
+      }),
+    ).resolves.toBeNull();
+  });
+
+  test("keeps simultaneous comment deletion batches scoped to their roots", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance, "Scoped comment deletion");
+    const first = await testInstance.mutation(api.comments.create, {
+      actorId: "first-author",
+      entryId,
+      body: "First",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    await testInstance.mutation(api.comments.create, {
+      actorId: "first-reply-author",
+      entryId,
+      parentCommentId: first.id,
+      body: "First reply",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    const second = await testInstance.mutation(api.comments.create, {
+      actorId: "second-author",
+      entryId,
+      body: "Second",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    await testInstance.mutation(api.comments.create, {
+      actorId: "second-reply-author",
+      entryId,
+      parentCommentId: second.id,
+      body: "Second reply",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+
+    await testInstance.mutation(api.comments.remove, {
+      actor: admin,
+      commentId: first.id,
+      deletableByAuthor: false,
+    });
+    await testInstance.mutation(api.comments.remove, {
+      actor: admin,
+      commentId: second.id,
+      deletableByAuthor: false,
+    });
+    await finishScheduled(testInstance);
+
+    const remaining = await testInstance.run(async (ctx) => ({
+      comments: await ctx.db
+        .query("comments")
+        .withIndex("by_entry_parent", (q) => q.eq("entryId", entryId))
+        .take(1),
+      entry: await ctx.db.get("entries", entryId),
+    }));
+    expect(remaining.comments).toEqual([]);
+    expect(remaining.entry?.commentCount).toBe(0);
+  });
+
+  test("comment cleanup spans child and reaction batches without orphans", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance, "Large comment deletion");
+    const root = await testInstance.mutation(api.comments.create, {
+      actorId: "root-author",
+      entryId,
+      body: "Root",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    const children = [];
+    for (let index = 0; index < 30; index += 1) {
+      children.push(
+        await testInstance.mutation(api.comments.create, {
+          actorId: `child-${index}`,
+          entryId,
+          parentCommentId: root.id,
+          body: `Child ${index}`,
+          maxDepth: 5,
+          maxCommentLength: 5_000,
+        }),
+      );
+    }
+    for (let index = 0; index < 101; index += 1) {
+      await testInstance.mutation(api.comments.setLike, {
+        actorId: `liker-${index}`,
+        commentId: root.id,
+        desiredState: true,
+      });
+    }
+
+    await testInstance.mutation(api.comments.remove, {
+      actor: admin,
+      commentId: root.id,
+      deletableByAuthor: false,
+    });
+    await finishScheduled(testInstance);
+
+    const leftovers = await testInstance.run(async (ctx) => ({
+      comments: await ctx.db
+        .query("comments")
+        .withIndex("by_entry_parent", (q) => q.eq("entryId", entryId))
+        .take(1),
       reactions: await ctx.db
         .query("reactions")
-        .withIndex("by_comment_actor", (q) => q.eq("commentId", parent.id))
-        .take(10),
+        .withIndex("by_comment_actor", (q) => q.eq("commentId", root.id))
+        .take(1),
+      entry: await ctx.db.get("entries", entryId),
     }));
-    expect(stored.parent?.deletedAt).toEqual(expect.any(Number));
-    expect(stored.parent?.likeCount).toBe(1);
-    expect(stored.reply?._id).toBe(reply.id);
-    expect(stored.reactions).toHaveLength(1);
+    expect(leftovers.comments).toEqual([]);
+    expect(leftovers.reactions).toEqual([]);
+    expect(leftovers.entry?.commentCount).toBe(0);
+    expect(children).toHaveLength(30);
 
     await expect(
       testInstance.query(api.comments.list, {
@@ -351,14 +544,6 @@ describe("permanent entry deletion", () => {
         paginationOpts: { cursor: null, numItems: 10 },
         sort: "oldest",
       }),
-    ).resolves.toMatchObject({ page: [{ id: parent.id, body: null }] });
-    await expect(
-      testInstance.query(api.comments.list, {
-        entryId,
-        parentCommentId: parent.id,
-        paginationOpts: { cursor: null, numItems: 10 },
-        sort: "oldest",
-      }),
-    ).resolves.toMatchObject({ page: [{ id: reply.id, body: "Reply" }] });
+    ).resolves.toMatchObject({ page: [] });
   });
 });

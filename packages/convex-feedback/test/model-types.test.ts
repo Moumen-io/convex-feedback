@@ -123,11 +123,10 @@ type ExpectedFeedbackComment = {
   parentCommentId?: string;
   actorId: string;
   depth: number;
-  body: string | null;
+  body: string;
   likeCount: number;
   replyCount: number;
   updatedAt?: number;
-  deletedAt?: number;
   viewerHasLiked: boolean;
 };
 
@@ -159,15 +158,14 @@ type ExpectedActivityComment = {
   id: string;
   creationTime: number;
   entryId: string;
-  entryTitle: string | null;
+  entryTitle: string;
   parentCommentId?: string;
   actorId: string;
   depth: number;
-  body: string | null;
+  body: string;
   likeCount: number;
   replyCount: number;
   updatedAt?: number;
-  deletedAt?: number;
 };
 
 type ExpectedFeedbackReaction =
@@ -175,13 +173,13 @@ type ExpectedFeedbackReaction =
       type: "entry_upvote";
       id: string;
       creationTime: number;
-      entry: FeedbackEntryReactionTarget | null;
+      entry: FeedbackEntryReactionTarget;
     }
   | {
       type: "comment_like";
       id: string;
       creationTime: number;
-      comment: FeedbackCommentReactionTarget | null;
+      comment: FeedbackCommentReactionTarget;
     };
 
 test("characterizes the public model types against their validators", () => {
@@ -334,18 +332,15 @@ test("characterizes the public model types against their validators", () => {
   >();
   expectTypeOf<FeedbackComment["actorId"]>().toEqualTypeOf<string>();
   expectTypeOf<FeedbackComment["depth"]>().toEqualTypeOf<number>();
-  expectTypeOf<FeedbackComment["body"]>().toEqualTypeOf<string | null>();
+  expectTypeOf<FeedbackComment["body"]>().toEqualTypeOf<string>();
   expectTypeOf<FeedbackComment["likeCount"]>().toEqualTypeOf<number>();
   expectTypeOf<FeedbackComment["replyCount"]>().toEqualTypeOf<number>();
   expectTypeOf<FeedbackComment["updatedAt"]>().toEqualTypeOf<
     number | undefined
   >();
-  expectTypeOf<FeedbackComment["deletedAt"]>().toEqualTypeOf<
-    number | undefined
-  >();
   expectTypeOf<FeedbackComment["viewerHasLiked"]>().toEqualTypeOf<boolean>();
   expectTypeOf<OptionalKeys<FeedbackComment>>().toEqualTypeOf<
-    "parentCommentId" | "updatedAt" | "deletedAt"
+    "parentCommentId" | "updatedAt"
   >();
 
   expectTypeOf<FeedbackActivityEntry>().toEqualTypeOf<ExpectedActivityEntry>();

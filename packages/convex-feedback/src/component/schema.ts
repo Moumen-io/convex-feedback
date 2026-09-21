@@ -113,15 +113,25 @@ const schema = defineSchema({
     likeCount: v.number(),
     replyCount: v.number(),
     updatedAt: v.optional(v.number()),
-    deletedAt: v.optional(v.number()),
+    /** Timestamp while this comment subtree is being removed. */
+    deletingAt: v.optional(v.number()),
+    /** Root comment owning the pending subtree cleanup. */
+    deletionRootId: v.optional(v.id("comments")),
   })
     .index("by_actor", ["actorId"])
     .index("by_entry_parent", ["entryId", "parentCommentId"])
-    .index("by_entry_parent_likes", [
+    .index("by_entry_parent_deleting", [
       "entryId",
       "parentCommentId",
+      "deletingAt",
+    ])
+    .index("by_entry_parent_deleting_likes", [
+      "entryId",
+      "parentCommentId",
+      "deletingAt",
       "likeCount",
-    ]),
+    ])
+    .index("by_entry_deletion_root", ["entryId", "deletionRootId"]),
 
   reactions: defineTable({
     actorId: v.string(),

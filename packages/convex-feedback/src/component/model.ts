@@ -116,11 +116,10 @@ export const publicCommentValidator = v.object({
   parentCommentId: v.optional(v.string()),
   actorId: v.string(),
   depth: v.number(),
-  body: v.union(v.string(), v.null()),
+  body: v.string(),
   likeCount: v.number(),
   replyCount: v.number(),
   updatedAt: v.optional(v.number()),
-  deletedAt: v.optional(v.number()),
   viewerHasLiked: v.boolean(),
 });
 
@@ -160,16 +159,14 @@ export const activityCommentValidator = v.object({
   id: v.string(),
   creationTime: v.number(),
   entryId: v.string(),
-  entryTitle: v.union(v.string(), v.null()),
+  entryTitle: v.string(),
   parentCommentId: v.optional(v.string()),
   actorId: v.string(),
   depth: v.number(),
-  /** Retained body text is returned even after a soft delete when available. */
-  body: v.union(v.string(), v.null()),
+  body: v.string(),
   likeCount: v.number(),
   replyCount: v.number(),
   updatedAt: v.optional(v.number()),
-  deletedAt: v.optional(v.number()),
 });
 
 /** Resolved target context for an entry-upvote activity record. */
@@ -183,27 +180,24 @@ export const entryReactionTargetValidator = v.object({
 /** Resolved target context for a comment-like activity record. */
 export const commentReactionTargetValidator = v.object({
   id: v.string(),
-  body: v.union(v.string(), v.null()),
+  body: v.string(),
   entryId: v.string(),
-  entryTitle: v.union(v.string(), v.null()),
+  entryTitle: v.string(),
 });
 
-/**
- * A reaction activity record. Missing targets are represented by `null`
- * context so one deleted/orphaned target cannot invalidate a whole page.
- */
+/** A reaction activity record with a live, resolved target. */
 export const feedbackReactionValidator = v.union(
   v.object({
     type: v.literal("entry_upvote"),
     id: v.string(),
     creationTime: v.number(),
-    entry: v.union(entryReactionTargetValidator, v.null()),
+    entry: entryReactionTargetValidator,
   }),
   v.object({
     type: v.literal("comment_like"),
     id: v.string(),
     creationTime: v.number(),
-    comment: v.union(commentReactionTargetValidator, v.null()),
+    comment: commentReactionTargetValidator,
   }),
 );
 
@@ -476,7 +470,7 @@ export interface FeedbackComment {
   /** Zero-based nesting depth. Top-level comments have depth `0`. */
   depth: InferredFeedbackComment["depth"];
 
-  /** User-provided comment text. `null` when the comment was soft-deleted so nested replies can retain their place in the conversation. */
+  /** User-provided comment text. */
   body: InferredFeedbackComment["body"];
 
   /** Denormalized number of actors currently liking this comment. */
@@ -487,9 +481,6 @@ export interface FeedbackComment {
 
   /** Millisecond timestamp of the latest edit, when the comment has been edited. */
   updatedAt?: InferredFeedbackComment["updatedAt"];
-
-  /** Millisecond timestamp at which the comment was soft-deleted. */
-  deletedAt?: InferredFeedbackComment["deletedAt"];
 
   /** Whether the actor associated with the current query likes this comment. `false` when no viewer actor is available. */
   viewerHasLiked: InferredFeedbackComment["viewerHasLiked"];
@@ -550,7 +541,7 @@ export interface FeedbackActivityComment {
   /** Entry this comment belongs to. */
   entryId: InferredActivityComment["entryId"];
 
-  /** Current entry title, or `null` if the parent entry is no longer stored. */
+  /** Current entry title. Activity rows with missing entries are removed. */
   entryTitle: InferredActivityComment["entryTitle"];
 
   /** Direct parent comment. Absent for top-level comments. */
@@ -562,7 +553,7 @@ export interface FeedbackActivityComment {
   /** Zero-based nesting depth. */
   depth: InferredActivityComment["depth"];
 
-  /** Retained body text, including soft-deleted text when it remains stored. */
+  /** User-provided comment text. */
   body: InferredActivityComment["body"];
 
   /** Denormalized number of actors currently liking this comment. */
@@ -573,9 +564,6 @@ export interface FeedbackActivityComment {
 
   /** Millisecond timestamp of the latest edit, when edited. */
   updatedAt?: InferredActivityComment["updatedAt"];
-
-  /** Millisecond timestamp at which the comment was soft-deleted. */
-  deletedAt?: InferredActivityComment["deletedAt"];
 }
 
 /** Resolved entry context for an entry-upvote activity record. */
@@ -589,9 +577,9 @@ export interface FeedbackEntryReactionTarget {
 /** Resolved comment context for a comment-like activity record. */
 export interface FeedbackCommentReactionTarget {
   id: InferredActivityComment["id"];
-  body: string | null;
+  body: string;
   entryId: InferredActivityComment["entryId"];
-  entryTitle: string | null;
+  entryTitle: string;
 }
 
 /** A reaction created by the actor used for an actor-scoped activity query. */

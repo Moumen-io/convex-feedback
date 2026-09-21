@@ -623,9 +623,9 @@ export const getMyActivity = query({
 });
 ```
 
-These wrappers do not accept an `actorId`; they always use the actor returned by the configured host callback. Entries include their own content, status, timestamps, and counts. Comments include the retained body (including a soft-deleted body when it remains stored), `parentCommentId`, and the parent entry title without loading a parent-comment body.
+These wrappers do not accept an `actorId`; they always use the actor returned by the configured host callback. Entries include their own content, status, timestamps, and counts. Comments include their body, `parentCommentId`, and the parent entry title without loading a parent-comment body. Pending deletions are hidden immediately.
 
-Reaction results are discriminated by `type` (`"entry_upvote"` or `"comment_like"`) and include reaction creation time plus resolved target context. Permanent entry deletion removes its reactions and comments in scheduled cleanup batches, so completed component deletions do not leave activity records behind. Legacy orphan targets are still represented with `null` context so a page remains readable.
+Reaction results are discriminated by `type` (`"entry_upvote"` or `"comment_like"`) and include reaction creation time plus resolved live target context. Permanent entry and comment deletion remove dependent reactions in scheduled cleanup batches, so completed deletions do not leave activity records or orphan targets behind.
 
 Trusted server consumers can call the component-level actor query directly with a known `actorId`. `entries.listByActor` additionally accepts `includeAdminContext: true` when an export or other server-side workflow needs retained metadata, priority, or roadmap context; the normal `listUserEntries` wrapper always strips those private fields.
 
@@ -785,7 +785,7 @@ A comment query returns exactly one direct-child level. Opening a reply branch s
 
 `replyCount` is the number of **direct children**. `entry.commentCount` is the total number of comments/replies belonging to the entry.
 
-Soft-deleted comments remain as tombstones so descendants keep their position in the thread.
+Deleting a comment permanently removes it, all descendants, and their reactions in bounded scheduled batches. The comment and its descendants are hidden as soon as deletion starts; `replyCount` and `entry.commentCount` are updated as documents are removed.
 
 ## Upvotes and likes
 
@@ -829,7 +829,7 @@ The wrapper exposes:
 | `listUserReactions`     | query    | Entry upvotes and comment likes by the actor         |
 | `createComment`         | mutation | Create comment or reply                              |
 | `updateComment`         | mutation | Edit a comment                                       |
-| `deleteComment`         | mutation | Soft-delete a comment                                |
+| `deleteComment`         | mutation | Permanently delete a comment subtree                 |
 | `setCommentLike`        | mutation | Idempotently set comment like state                  |
 | `createRoadmapForEntry` | mutation | Create a roadmap item and attach an entry atomically |
 

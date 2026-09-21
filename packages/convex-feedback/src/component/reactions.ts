@@ -5,16 +5,19 @@ import {
 } from "convex/server";
 import { v } from "convex/values";
 
-import { assertActorId, serializeActivityReaction } from "./helpers.js";
+import {
+  assertActorId,
+  commentIsLive,
+  serializeActivityReaction,
+} from "./helpers.js";
 import { feedbackReactionValidator } from "./model.js";
 import { query } from "./_generated/server.js";
 import schema from "./schema.js";
 
 /**
- * List reactions created by a known actor. Target documents are resolved on a
- * best-effort basis. Entries that are in the middle of permanent cleanup are
- * hidden immediately; legacy records whose targets were removed outside the
- * component remain representable without aborting the whole page.
+ * List reactions created by a known actor. Target documents are loaded once
+ * by the stream mapper and reused by serialization. Reactions whose target or
+ * owning entry is missing or pending deletion are omitted.
  */
 export const listByActor = query({
   args: {
@@ -29,26 +32,29 @@ export const listByActor = query({
       .query("reactions")
       .withIndex("by_actor", (q) => q.eq("actorId", args.actorId))
       .order("desc")
-      .filterWith(async (reaction) => {
+      .map(async (reaction) => {
         if (reaction.entryId !== undefined) {
           const entry = await ctx.db.get("entries", reaction.entryId);
-          return entry === null || entry.deletingAt === undefined;
+          if (entry === null || entry.deletingAt !== undefined) return null;
+          return serializeActivityReaction(reaction, { type: "entry", entry });
         }
         if (reaction.commentId !== undefined) {
           const comment = await ctx.db.get("comments", reaction.commentId);
-          if (comment === null) return true;
+          if (comment === null || !(await commentIsLive(ctx, comment))) {
+            return null;
+          }
           const entry = await ctx.db.get("entries", comment.entryId);
-          return entry === null || entry.deletingAt === undefined;
+          if (entry === null || entry.deletingAt !== undefined) return null;
+          return serializeActivityReaction(reaction, {
+            type: "comment",
+            comment,
+            entry,
+          });
         }
-        return true;
+        return null;
       })
       .paginate(args.paginationOpts);
 
-    return {
-      ...result,
-      page: await Promise.all(
-        result.page.map((reaction) => serializeActivityReaction(ctx, reaction)),
-      ),
-    };
+    return result;
   },
 });

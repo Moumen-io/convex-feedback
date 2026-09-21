@@ -354,11 +354,9 @@ export type UpdateCommentArgs = {
   body: string;
 };
 
-/**
- * Arguments for soft-deleting a comment.
- */
+/** Arguments for permanently deleting a comment and its descendants. */
 export type DeleteCommentArgs = {
-  /** Comment to soft-delete. */
+  /** Comment subtree to delete. */
   commentId: string;
 };
 
@@ -669,7 +667,7 @@ export interface FeedbackPublicApi<
     Name
   >;
 
-  /** Soft-deletes a comment, or returns a configured rate-limit rejection. */
+  /** Permanently deletes a comment subtree, or returns a configured rate-limit rejection. */
   deleteComment: FunctionReference<
     "mutation",
     "public",

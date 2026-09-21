@@ -86,9 +86,7 @@ export interface FeedbackCommentsConfig {
   editableByAuthor: boolean;
 
   /**
-   * Whether comment authors may soft-delete their own comments.
-   *
-   * Deletion preserves the document so nested replies retain their structure.
+   * Whether comment authors may permanently delete their own comments.
    *
    * @default true
    */

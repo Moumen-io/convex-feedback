@@ -7,7 +7,7 @@ This package is the headless persistence and client integration layer.
 - Distinguish durable domain data from internal bookkeeping/state, and do not expose bookkeeping through public models.
 - Keep `entries.ts`, `comments.ts`, `reactions.ts`, and roadmap query paths index-backed, bounded, and paginated.
 - Never return `searchText` or `normalizedTitle` in the public entry model.
-- Never expose deleted comment body text; serializer returns `null` for tombstones.
+- Comment deletion is permanent and cascades through descendants and reactions in bounded batches; serializers only receive live comments.
 - Entry upvote/comment like mutations must remain idempotent (`desiredState: boolean`) so retries do not corrupt counts.
 - Reaction count and reaction record changes must occur in the same Convex mutation.
 - New replies increment the parent direct `replyCount` and the entry's total `commentCount` in the same transaction.

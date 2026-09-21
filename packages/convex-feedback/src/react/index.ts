@@ -544,7 +544,7 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return useMutation(api.updateComment);
     },
 
-    /** Returns the soft-delete-comment mutation. */
+    /** Returns the permanent comment-subtree deletion mutation. */
     useDeleteComment() {
       return useMutation(api.deleteComment);
     },

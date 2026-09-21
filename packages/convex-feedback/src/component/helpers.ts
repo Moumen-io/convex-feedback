@@ -111,6 +111,33 @@ export function assertActorId(actorId: string): void {
   }
 }
 
+/**
+ * Find the nearest pending deletion in a comment's ancestor chain. The
+ * parent chain is bounded by the comment depth configured by the host, and is
+ * walked one document at a time so deletion reads stay indexed and bounded.
+ */
+export async function findDeletingComment(
+  ctx: QueryCtx,
+  comment: DataModel["comments"]["document"],
+): Promise<DataModel["comments"]["document"] | null> {
+  let current: DataModel["comments"]["document"] | null = comment;
+  let remaining = Math.max(0, comment.depth) + 1;
+  while (current !== null && remaining > 0) {
+    if (current.deletingAt !== undefined) return current;
+    if (current.parentCommentId === undefined) return null;
+    remaining -= 1;
+    current = await ctx.db.get("comments", current.parentCommentId);
+  }
+  return null;
+}
+
+export async function commentIsLive(
+  ctx: QueryCtx,
+  comment: DataModel["comments"]["document"],
+): Promise<boolean> {
+  return (await findDeletingComment(ctx, comment)) === null;
+}
+
 export async function serializeEntry(
   ctx: QueryCtx,
   entry: DataModel["entries"]["document"],
@@ -209,15 +236,12 @@ export async function serializeComment(
       : { parentCommentId: comment.parentCommentId }),
     actorId: comment.actorId,
     depth: comment.depth,
-    body: comment.deletedAt === undefined ? comment.body : null,
+    body: comment.body,
     likeCount: comment.likeCount,
     replyCount: comment.replyCount,
     ...(comment.updatedAt === undefined
       ? {}
       : { updatedAt: comment.updatedAt }),
-    ...(comment.deletedAt === undefined
-      ? {}
-      : { deletedAt: comment.deletedAt }),
     viewerHasLiked: reaction !== null,
   };
 }
@@ -281,94 +305,73 @@ export function stripActivityEntryContext(
   };
 }
 
-/** Serialize an actor-scoped comment without loading its parent comment. */
-export async function serializeActivityComment(
-  ctx: QueryCtx,
+/** Serialize an actor-scoped comment using its already-loaded entry. */
+export function serializeActivityComment(
   comment: DataModel["comments"]["document"],
-): Promise<FeedbackActivityComment> {
-  const entry = await ctx.db.get("entries", comment.entryId);
-
+  entry: DataModel["entries"]["document"],
+): FeedbackActivityComment {
   return {
     id: comment._id,
     creationTime: comment._creationTime,
     entryId: comment.entryId,
-    entryTitle: entry?.title ?? null,
+    entryTitle: entry.title,
     ...(comment.parentCommentId === undefined
       ? {}
       : { parentCommentId: comment.parentCommentId }),
     actorId: comment.actorId,
     depth: comment.depth,
-    body: comment.body ?? null,
+    body: comment.body,
     likeCount: comment.likeCount,
     replyCount: comment.replyCount,
     ...(comment.updatedAt === undefined
       ? {}
       : { updatedAt: comment.updatedAt }),
-    ...(comment.deletedAt === undefined
-      ? {}
-      : { deletedAt: comment.deletedAt }),
   };
 }
 
 /**
- * Serialize a reaction and resolve only the target context needed by an
- * activity consumer. Target authors are intentionally not included.
+ * A reaction target loaded by the activity stream before serialization.
+ * Loading the target in the stream mapper and passing it here prevents a
+ * second read of the same entry or comment.
  */
-export async function serializeActivityReaction(
-  ctx: QueryCtx,
-  reaction: DataModel["reactions"]["document"],
-): Promise<FeedbackReaction> {
-  if (reaction.entryId !== undefined) {
-    const entry = await ctx.db.get("entries", reaction.entryId);
+export type ActivityReactionTarget =
+  | { type: "entry"; entry: DataModel["entries"]["document"] }
+  | {
+      type: "comment";
+      comment: DataModel["comments"]["document"];
+      entry: DataModel["entries"]["document"];
+    };
 
+/** Serialize a reaction using its already-loaded target context. */
+export function serializeActivityReaction(
+  reaction: DataModel["reactions"]["document"],
+  target: ActivityReactionTarget,
+): FeedbackReaction {
+  if (target.type === "entry") {
+    const { entry } = target;
     return {
       type: "entry_upvote",
       id: reaction._id,
       creationTime: reaction._creationTime,
-      entry:
-        entry === null
-          ? null
-          : {
-              id: entry._id,
-              title: entry.title,
-              kind: entry.kind,
-              status: entry.status,
-            },
-    };
-  }
-
-  if (reaction.commentId !== undefined) {
-    const comment = await ctx.db.get("comments", reaction.commentId);
-
-    if (comment === null) {
-      return {
-        type: "comment_like",
-        id: reaction._id,
-        creationTime: reaction._creationTime,
-        comment: null,
-      };
-    }
-
-    const entry = await ctx.db.get("entries", comment.entryId);
-    return {
-      type: "comment_like",
-      id: reaction._id,
-      creationTime: reaction._creationTime,
-      comment: {
-        id: comment._id,
-        body: comment.deletedAt === undefined ? comment.body : null,
-        entryId: comment.entryId,
-        entryTitle: entry?.title ?? null,
+      entry: {
+        id: entry._id,
+        title: entry.title,
+        kind: entry.kind,
+        status: entry.status,
       },
     };
   }
 
-  // Mutations always write exactly one target, but represent malformed legacy
-  // records as an orphaned entry reaction instead of failing the page.
+  const { comment, entry } = target;
   return {
-    type: "entry_upvote",
+    type: "comment_like",
     id: reaction._id,
     creationTime: reaction._creationTime,
-    entry: null,
+    comment: {
+      id: comment._id,
+      body: comment.body,
+      entryId: comment.entryId,
+      entryTitle: entry.title,
+    },
   };
 }

@@ -7,10 +7,13 @@ import { ConvexError, v } from "convex/values";
 import { stream } from "convex-helpers/server/stream";
 
 import type { Doc } from "./_generated/dataModel.js";
-import { mutation, query } from "./_generated/server.js";
+import { internal } from "./_generated/api.js";
+import { internalMutation, mutation, query } from "./_generated/server.js";
 import {
   assertActorId,
   assertPositiveInteger,
+  commentIsLive,
+  findDeletingComment,
   normalizeRequiredText,
   serializeActivityComment,
   serializeComment,
@@ -26,6 +29,17 @@ import {
   publicCommentValidator,
 } from "./model.js";
 import schema from "./schema.js";
+import type { MutationCtx } from "./types.js";
+
+const commentDeletionBatchSize = 25;
+const reactionDeletionBatchSize = 100;
+
+async function scheduleCommentCleanup(
+  ctx: MutationCtx,
+  commentId: Doc<"comments">["_id"],
+): Promise<void> {
+  await ctx.scheduler.runAfter(0, internal.comments.removeBatch, { commentId });
+}
 
 function emptyCommentPaginationResult() {
   return { page: [], isDone: true, continueCursor: "" };
@@ -53,6 +67,11 @@ export const list = query({
       if (parent === null || parent.entryId !== args.entryId) {
         throw new ConvexError("Parent comment not found on this entry.");
       }
+      if (!(await commentIsLive(ctx, parent))) {
+        return {
+          ...emptyCommentPaginationResult(),
+        };
+      }
     }
 
     const db = paginator(ctx.db, schema);
@@ -60,19 +79,21 @@ export const list = query({
       args.sort === "top"
         ? await db
             .query("comments")
-            .withIndex("by_entry_parent_likes", (q) =>
+            .withIndex("by_entry_parent_deleting_likes", (q) =>
               q
                 .eq("entryId", args.entryId)
-                .eq("parentCommentId", args.parentCommentId),
+                .eq("parentCommentId", args.parentCommentId)
+                .eq("deletingAt", undefined),
             )
             .order("desc")
             .paginate(args.paginationOpts)
         : await db
             .query("comments")
-            .withIndex("by_entry_parent", (q) =>
+            .withIndex("by_entry_parent_deleting", (q) =>
               q
                 .eq("entryId", args.entryId)
-                .eq("parentCommentId", args.parentCommentId),
+                .eq("parentCommentId", args.parentCommentId)
+                .eq("deletingAt", undefined),
             )
             .order(args.sort === "newest" ? "desc" : "asc")
             .paginate(args.paginationOpts);
@@ -93,9 +114,8 @@ export const list = query({
  * component/server callers; the host-facing wrapper resolves it from the
  * current request instead of accepting it from clients.
  *
- * Unlike the ordinary conversation query, this activity query retains the
- * stored body of soft-deleted comments and resolves only the parent entry
- * title. It does not load a parent comment body.
+ * This activity query resolves the current parent entry title and excludes
+ * comments whose entry or ancestor is pending deletion.
  */
 export const listByActor = query({
   args: {
@@ -110,18 +130,21 @@ export const listByActor = query({
       .query("comments")
       .withIndex("by_actor", (q) => q.eq("actorId", args.actorId))
       .order("desc")
-      .filterWith(async (comment) => {
+      .map(async (comment) => {
+        if (comment.deletingAt !== undefined) return null;
         const entry = await ctx.db.get("entries", comment.entryId);
-        return entry !== null && entry.deletingAt === undefined;
+        if (
+          entry === null ||
+          entry.deletingAt !== undefined ||
+          !(await commentIsLive(ctx, comment))
+        ) {
+          return null;
+        }
+        return serializeActivityComment(comment, entry);
       })
       .paginate(args.paginationOpts);
 
-    return {
-      ...result,
-      page: await Promise.all(
-        result.page.map((comment) => serializeActivityComment(ctx, comment)),
-      ),
-    };
+    return result;
   },
 });
 
@@ -182,6 +205,9 @@ export const create = mutation({
       parent = await ctx.db.get("comments", args.parentCommentId);
       if (parent === null || parent.entryId !== args.entryId) {
         throw new ConvexError("Parent comment not found on this entry.");
+      }
+      if (!(await commentIsLive(ctx, parent))) {
+        throw new ConvexError("Comment is being deleted.");
       }
       depth = parent.depth + 1;
       if (depth > args.maxDepth) {
@@ -257,8 +283,13 @@ export const update = mutation({
     assertActorId(args.actor.id);
     const comment = await ctx.db.get("comments", args.commentId);
     if (comment === null) throw new ConvexError("Comment not found.");
-    if (comment.deletedAt !== undefined) {
-      throw new ConvexError("Deleted comments cannot be edited.");
+    if (!(await commentIsLive(ctx, comment))) {
+      throw new ConvexError("Comment is being deleted.");
+    }
+    const entry = await ctx.db.get("entries", comment.entryId);
+    if (entry === null) throw new ConvexError("Entry not found.");
+    if (entry.deletingAt !== undefined) {
+      throw new ConvexError("Entry is being deleted.");
     }
 
     const canEdit =
@@ -289,8 +320,13 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     assertActorId(args.actor.id);
     const comment = await ctx.db.get("comments", args.commentId);
-    if (comment === null) throw new ConvexError("Comment not found.");
-    if (comment.deletedAt !== undefined) return null;
+    if (comment === null) return null;
+
+    const pending = await findDeletingComment(ctx, comment);
+    if (pending !== null) {
+      await scheduleCommentCleanup(ctx, pending._id);
+      return null;
+    }
 
     const canDelete =
       actorIsAdmin(args.actor) ||
@@ -299,8 +335,127 @@ export const remove = mutation({
       throw new ConvexError("Not authorized to delete this comment.");
     }
 
-    await ctx.db.patch("comments", args.commentId, { deletedAt: Date.now() });
+    await ctx.db.patch("comments", args.commentId, {
+      deletingAt: Date.now(),
+      deletionRootId: args.commentId,
+    });
+    await scheduleCommentCleanup(ctx, args.commentId);
     return null;
+  },
+});
+
+/**
+ * Remove one bounded slice of a pending comment subtree. Children are marked
+ * with the root's deletion token before leaves are removed, which keeps the
+ * whole subtree hidden immediately and lets retries resume from indexed
+ * state. Reactions are drained before each comment is deleted.
+ */
+export const removeBatch = internalMutation({
+  args: { commentId: v.id("comments") },
+  returns: v.object({ processed: v.number(), hasMore: v.boolean() }),
+  handler: async (ctx, args) => {
+    const root = await ctx.db.get("comments", args.commentId);
+    if (root === null || root.deletingAt === undefined) {
+      return { processed: 0, hasMore: false };
+    }
+
+    const deletionToken = root.deletingAt;
+    const deletionRootId = root.deletionRootId ?? root._id;
+    if (root.deletionRootId === undefined) {
+      await ctx.db.patch("comments", root._id, { deletionRootId });
+    }
+    const entry = await ctx.db.get("entries", root.entryId);
+    const pendingComments = await ctx.db
+      .query("comments")
+      .withIndex("by_entry_deletion_root", (q) =>
+        q.eq("entryId", root.entryId).eq("deletionRootId", deletionRootId),
+      )
+      .take(commentDeletionBatchSize + 1);
+
+    let processed = 0;
+    let deletedComments = 0;
+
+    for (const comment of pendingComments.slice(0, commentDeletionBatchSize)) {
+      const unmarkedChildren = await ctx.db
+        .query("comments")
+        .withIndex("by_entry_parent_deleting", (q) =>
+          q
+            .eq("entryId", root.entryId)
+            .eq("parentCommentId", comment._id)
+            .eq("deletingAt", undefined),
+        )
+        .take(commentDeletionBatchSize + 1);
+
+      if (unmarkedChildren.length > 0) {
+        for (const child of unmarkedChildren.slice(
+          0,
+          commentDeletionBatchSize,
+        )) {
+          await ctx.db.patch("comments", child._id, {
+            deletingAt: deletionToken,
+            deletionRootId,
+          });
+          processed += 1;
+        }
+        continue;
+      }
+
+      const remainingChild = await ctx.db
+        .query("comments")
+        .withIndex("by_entry_parent", (q) =>
+          q.eq("entryId", root.entryId).eq("parentCommentId", comment._id),
+        )
+        .first();
+      if (remainingChild !== null) continue;
+
+      const commentReactions = await ctx.db
+        .query("reactions")
+        .withIndex("by_comment_actor", (q) => q.eq("commentId", comment._id))
+        .take(reactionDeletionBatchSize + 1);
+      for (const reaction of commentReactions.slice(
+        0,
+        reactionDeletionBatchSize,
+      )) {
+        await ctx.db.delete("reactions", reaction._id);
+        processed += 1;
+      }
+      if (commentReactions.length > reactionDeletionBatchSize) {
+        await scheduleCommentCleanup(ctx, root._id);
+        return { processed, hasMore: true };
+      }
+
+      await ctx.db.delete("comments", comment._id);
+      processed += 1;
+      deletedComments += 1;
+
+      if (comment.parentCommentId !== undefined) {
+        const parent = await ctx.db.get("comments", comment.parentCommentId);
+        if (parent !== null) {
+          await ctx.db.patch("comments", parent._id, {
+            replyCount: Math.max(0, parent.replyCount - 1),
+          });
+        }
+      }
+    }
+
+    if (entry !== null && deletedComments > 0) {
+      await ctx.db.patch("entries", entry._id, {
+        commentCount: Math.max(0, entry.commentCount - deletedComments),
+      });
+    }
+
+    const remainingPending = await ctx.db
+      .query("comments")
+      .withIndex("by_entry_deletion_root", (q) =>
+        q.eq("entryId", root.entryId).eq("deletionRootId", deletionRootId),
+      )
+      .first();
+    if (remainingPending !== null) {
+      await scheduleCommentCleanup(ctx, root._id);
+      return { processed, hasMore: true };
+    }
+
+    return { processed, hasMore: false };
   },
 });
 
@@ -343,11 +498,12 @@ export const setLike = mutation({
     const comment = await ctx.db.get("comments", args.commentId);
     if (comment === null) throw new ConvexError("Comment not found.");
     const entry = await ctx.db.get("entries", comment.entryId);
-    if (entry?.deletingAt !== undefined) {
+    if (entry === null) throw new ConvexError("Entry not found.");
+    if (entry.deletingAt !== undefined) {
       throw new ConvexError("Entry is being deleted.");
     }
-    if (comment.deletedAt !== undefined) {
-      throw new ConvexError("Deleted comments cannot receive likes.");
+    if (!(await commentIsLive(ctx, comment))) {
+      throw new ConvexError("Comment is being deleted.");
     }
 
     const existing = await ctx.db

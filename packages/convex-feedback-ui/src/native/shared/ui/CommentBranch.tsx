@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider.js";
@@ -57,7 +57,7 @@ export function CommentBranch({
     isAuthenticated,
     onUnauthenticated,
   } = useFeedbackBody();
-  const { messages, theme } = useFeedbackUi();
+  const { messages } = useFeedbackUi();
   const [expanded, setExpanded] = useState(false);
   const [replying, setReplying] = useState(false);
   const [replyBody, setReplyBody] = useState("");
@@ -97,7 +97,7 @@ export function CommentBranch({
           disabled={isAuthenticated === undefined || likeAction.pending}
           onToggle={toggleLike}
         />
-        {comment.body !== null && comment.depth < maxCommentDepth ? (
+        {comment.depth < maxCommentDepth ? (
           <Comment.Reply
             disabled={isAuthenticated === undefined || replyAction.pending}
             onActivate={() => {
@@ -154,11 +154,6 @@ export function CommentBranch({
       ) : null}
       {expanded ? (
         <ReplyList entryId={entryId} parentCommentId={comment.id} />
-      ) : null}
-      {comment.deletedAt !== undefined ? (
-        <Text style={{ color: theme.colors.mutedText, fontSize: 11 }}>
-          {messages.comments.deleted}
-        </Text>
       ) : null}
     </Comment.Root>
   );

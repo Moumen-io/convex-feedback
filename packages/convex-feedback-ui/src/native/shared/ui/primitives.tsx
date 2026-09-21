@@ -535,21 +535,20 @@ function CommentRoot({ comment, style, ...props }: CommentRootProps) {
 }
 function CommentBody({ style, children, ...props }: TextProps) {
   const comment = useCommentContext();
-  const { messages, theme, unstyled } = useFeedbackUi();
+  const { theme, unstyled } = useFeedbackUi();
   return (
     <Text
       {...props}
       style={combineStyle<TextStyle>(
         !unstyled,
         {
-          color:
-            comment.body === null ? theme.colors.mutedText : theme.colors.text,
+          color: theme.colors.text,
           lineHeight: 20,
         },
         style,
       )}
     >
-      {children ?? comment.body ?? messages.comments.deleted}
+      {children ?? comment.body}
     </Text>
   );
 }

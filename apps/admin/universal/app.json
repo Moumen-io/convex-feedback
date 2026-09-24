@@ -1,14 +1,15 @@
 {
   "expo": {
-    "name": "Convex Feedback Universal Admin",
+    "name": "Feedback",
     "slug": "convex-feedback-universal-admin",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
     "scheme": "convex-feedback-admin",
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.moumentos.convex-feedback-universal-admin",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

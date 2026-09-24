@@ -36,6 +36,11 @@ export function FeedbackProvider({
 
 export function useFeedbackUi(): FeedbackUiContextValue {
   const value = useContext(FeedbackNativeContext);
+
+  // UI primitives can be composed without a provider, so theme and message
+  // context intentionally falls back to the package defaults. Data/state
+  // context is different and is enforced by useFeedbackBody below its own
+  // provider.
   return (
     value ?? {
       messages: mergeFeedbackMessages(),

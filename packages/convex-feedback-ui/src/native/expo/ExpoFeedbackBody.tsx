@@ -40,12 +40,14 @@ export function ExpoFeedbackBody({
   return (
     <FeedbackStack
       stackOptions={StackOptions}
+      colors={props}
       searchRef={searchRef}
       androidToolbarIcons={androidToolbarIcons}
       BottomToolbarWrapper={BottomToolbarWrapper}
     >
       <FeedbackScreenContent
         hideBackButton
+        hideEditButton
         showHeader={false}
         onEntryOpen={onEntryOpen}
         {...props}

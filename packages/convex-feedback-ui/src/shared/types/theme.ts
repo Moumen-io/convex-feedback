@@ -16,6 +16,9 @@ export interface FeedbackColors {
   /** Default card and control surface color. */
   surface: string;
 
+  /** Input field background color. */
+  input: string;
+
   /** Secondary or muted surface color. */
   surfaceMuted: string;
 

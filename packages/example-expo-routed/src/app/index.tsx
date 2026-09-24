@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, type Href } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function Index() {
@@ -11,6 +11,9 @@ export default function Index() {
       </Text>
       <Link href="/feedback" style={styles.link}>
         Open routed feedback
+      </Link>
+      <Link href={"/roadmap" as Href} style={styles.link}>
+        Open public roadmap
       </Link>
     </View>
   );

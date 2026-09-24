@@ -8,18 +8,15 @@ import { useCallback, useMemo } from "react";
 import { useFeedbackBody } from "../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../shared/context/FeedbackProvider.js";
 import { RoutedFeedbackModalProvider } from "./RoutedFeedbackModalContext.js";
-import { useRoutedFeedback } from "./RoutedFeedbackContext.js";
 import type { FeedbackCreateStackLayoutProps } from "./types.js";
 
 export function FeedbackCreateStackLayout({
   screenOptions,
   createOptions,
-  entryOptions,
 }: FeedbackCreateStackLayoutProps) {
   const parentNavigation = useNavigation();
   const { enabledKinds } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
-  const { routes } = useRoutedFeedback();
   const dismiss = useCallback(
     () => parentNavigation.goBack(),
     [parentNavigation],
@@ -46,15 +43,6 @@ export function FeedbackCreateStackLayout({
             headerTitle: createTitle,
             ...screenOptions,
             ...createOptions,
-          }}
-        />
-        <Stack.Screen
-          name={routes.entry}
-          options={{
-            ...defaults,
-            headerTitle: messages.board.title,
-            ...screenOptions,
-            ...entryOptions,
           }}
         />
       </Stack>

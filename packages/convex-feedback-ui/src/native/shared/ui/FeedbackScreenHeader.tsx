@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider";
 import { createEntryLabel, entryStatusChoices } from "../../../shared/helpers";
+import { allowAuthenticatedAction } from "../../../shared/helpers";
 import { ChoiceChips, FeedbackBoard } from "./primitives";
 
 export function FeedbackScreenHeader() {
@@ -14,6 +15,8 @@ export function FeedbackScreenHeader() {
     enabledKinds,
     statusFilter,
     setStatusFilter,
+    isAuthenticated,
+    onUnauthenticated,
   } = useFeedbackBody();
   const { messages, theme } = useFeedbackUi();
   const { top } = useSafeAreaInsets();
@@ -36,7 +39,12 @@ export function FeedbackScreenHeader() {
         onValueChange={setStatusFilter}
       />
       <Pressable
-        onPress={() => setShowForm(true)}
+        disabled={isAuthenticated === undefined}
+        onPress={() => {
+          if (allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) {
+            setShowForm(true);
+          }
+        }}
         style={{
           alignSelf: "flex-start",
           paddingVertical: 9,

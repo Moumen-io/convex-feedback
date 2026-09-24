@@ -42,7 +42,7 @@ export interface FeedbackEntriesConfig {
   /**
    * Whether entry authors may edit their own title and body.
    *
-   * Moderators are governed separately by the resolved actor permissions.
+   * Admins are governed separately by the resolved actor permissions.
    *
    * @default true
    */
@@ -86,9 +86,7 @@ export interface FeedbackCommentsConfig {
   editableByAuthor: boolean;
 
   /**
-   * Whether comment authors may soft-delete their own comments.
-   *
-   * Deletion preserves the document so nested replies retain their structure.
+   * Whether comment authors may permanently delete their own comments.
    *
    * @default true
    */

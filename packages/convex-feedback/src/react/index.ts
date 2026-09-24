@@ -2,16 +2,31 @@
 
 import { usePaginatedQuery } from "convex-helpers/react";
 import { useMutation, useQuery } from "convex/react";
+import { anyApi } from "convex/server";
 
 import type { FeedbackPublicApi } from "../client/api.js";
 import type {
   CommentSort,
   EntryKind,
+  EntryPriority,
   EntrySort,
   EntryStatus,
   EntryStatusFilter,
+  RoadmapItem,
+  RoadmapStatus,
   SimilarEntriesResult,
 } from "../component/model.js";
+
+function compareRoadmapItemsByPosition(
+  left: RoadmapItem,
+  right: RoadmapItem,
+): number {
+  if (left.position !== right.position) return left.position - right.position;
+  if (left.creationTime !== right.creationTime) {
+    return left.creationTime - right.creationTime;
+  }
+  return left.id.localeCompare(right.id);
+}
 
 /**
  * Client-side pagination defaults used by hooks created with
@@ -23,7 +38,8 @@ import type {
  */
 export interface FeedbackHooksOptions {
   /**
-   * Number of entries initially requested by `useEntries`.
+   * Number of entries initially requested by entry-list hooks, including the
+   * public board, admin inbox, admin search, and roadmap attachments.
    *
    * @default 20
    */
@@ -43,6 +59,13 @@ export interface FeedbackHooksOptions {
    * @default 10
    */
   replyPageSize?: number;
+
+  /**
+   * Number of roadmap items initially requested by `useRoadmap`.
+   *
+   * @default 30
+   */
+  roadmapPageSize?: number;
 }
 
 /**
@@ -136,6 +159,17 @@ export interface SearchEntriesArgs {
   limit?: number;
 }
 
+export interface UseAdminEntriesArgs {
+  kinds?: readonly EntryKind[];
+  status?: EntryStatus;
+  statusFilter?: EntryStatusFilter;
+  priority?: EntryPriority;
+}
+
+export interface UseAdminSearchEntriesArgs extends UseAdminEntriesArgs {
+  searchQuery: string;
+}
+
 /**
  * Arguments accepted by `useSimilarEntries`.
  */
@@ -200,6 +234,7 @@ function createFeedbackHooksImplementation<RateLimitResult>(
   const entryPageSize = positivePageSize(options.entryPageSize, 20);
   const commentPageSize = positivePageSize(options.commentPageSize, 20);
   const replyPageSize = positivePageSize(options.replyPageSize, 10);
+  const roadmapPageSize = positivePageSize(options.roadmapPageSize, 30);
 
   return {
     /**
@@ -210,6 +245,7 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       entries: entryPageSize,
       comments: commentPageSize,
       replies: replyPageSize,
+      roadmap: roadmapPageSize,
     } as const,
 
     /**
@@ -268,6 +304,150 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return searchQuery.length === 0 ? [] : result;
     },
 
+    /** Returns whether the authenticated host actor is an admin. */
+    useIsAdmin() {
+      return useQuery(api.isAdmin, {});
+    },
+
+    /** Returns whether the current request has an authenticated actor. */
+    useIsAuthenticated() {
+      return useQuery(api.isAuthenticated, {});
+    },
+
+    /** Returns a cursor-paginated admin inbox with private triage relationships. */
+    useAdminEntries(args: UseAdminEntriesArgs = {}) {
+      return usePaginatedQuery(
+        api.adminListEntries,
+        {
+          ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
+          ...(args.status === undefined ? {} : { status: args.status }),
+          ...(args.statusFilter === undefined
+            ? {}
+            : { statusFilter: args.statusFilter }),
+          ...(args.priority === undefined ? {} : { priority: args.priority }),
+        },
+        { initialNumItems: entryPageSize },
+      );
+    },
+
+    /** Returns one admin-enriched feedback entry. */
+    useAdminEntry(entryId: string | null | undefined) {
+      return useQuery(
+        api.adminGetEntry,
+        entryId === null || entryId === undefined ? "skip" : { entryId },
+      );
+    },
+
+    /** Searches the admin inbox with triage filters. */
+    useAdminSearchEntries(args: UseAdminSearchEntriesArgs) {
+      const searchQuery = args.searchQuery.trim();
+      return usePaginatedQuery(
+        api.adminSearchEntries,
+        searchQuery.length === 0
+          ? "skip"
+          : {
+              searchQuery,
+              ...(args.kinds === undefined ? {} : { kinds: [...args.kinds] }),
+              ...(args.status === undefined ? {} : { status: args.status }),
+              ...(args.statusFilter === undefined
+                ? {}
+                : { statusFilter: args.statusFilter }),
+              ...(args.priority === undefined
+                ? {}
+                : { priority: args.priority }),
+            },
+        { initialNumItems: entryPageSize },
+      );
+    },
+
+    /**
+     * An unfiltered roadmap is composed from one stream per status so a
+     * rebalance cannot mix live and replacement positions in the UI.
+     */
+    useRoadmap(status?: RoadmapStatus) {
+      const planned = usePaginatedQuery(
+        api.listRoadmap,
+        status === undefined || status === "planned"
+          ? { status: "planned" }
+          : "skip",
+        { initialNumItems: roadmapPageSize },
+      );
+      const inProgress = usePaginatedQuery(
+        api.listRoadmap,
+        status === undefined || status === "in_progress"
+          ? { status: "in_progress" }
+          : "skip",
+        { initialNumItems: roadmapPageSize },
+      );
+      const shipped = usePaginatedQuery(
+        api.listRoadmap,
+        status === undefined || status === "shipped"
+          ? { status: "shipped" }
+          : "skip",
+        { initialNumItems: roadmapPageSize },
+      );
+
+      if (status === "planned") return planned;
+      if (status === "in_progress") return inProgress;
+      if (status === "shipped") return shipped;
+
+      const roadmaps = [planned, inProgress, shipped];
+      const loadingFirstPage = roadmaps.some(
+        (roadmap) => roadmap.status === "LoadingFirstPage",
+      );
+      const loadingMore = roadmaps.some(
+        (roadmap) => roadmap.status === "LoadingMore",
+      );
+      const canLoadMore = roadmaps.some(
+        (roadmap) => roadmap.status === "CanLoadMore",
+      );
+
+      return {
+        results: roadmaps
+          .flatMap((roadmap) => roadmap.results)
+          .sort(compareRoadmapItemsByPosition),
+        status: loadingFirstPage
+          ? ("LoadingFirstPage" as const)
+          : loadingMore
+            ? ("LoadingMore" as const)
+            : canLoadMore
+              ? ("CanLoadMore" as const)
+              : ("Exhausted" as const),
+        isLoading: loadingFirstPage || loadingMore,
+        loadMore: (numItems: number) => {
+          for (const roadmap of roadmaps) {
+            if (roadmap.status === "CanLoadMore") {
+              roadmap.loadMore(numItems);
+            }
+          }
+        },
+      };
+    },
+
+    /** Reactively retrieves one roadmap item independently of the list page. */
+    useRoadmapItem(roadmapId: string | null | undefined) {
+      return useQuery(
+        api.getRoadmapItem,
+        roadmapId === null || roadmapId === undefined ? "skip" : { roadmapId },
+      );
+    },
+
+    useSearchRoadmap(searchQuery: string, limit = 10) {
+      const normalized = searchQuery.trim();
+      return useQuery(
+        api.searchRoadmap,
+        normalized.length === 0 ? "skip" : { searchQuery: normalized, limit },
+      );
+    },
+
+    useRoadmapFeedback(roadmapId: string | null | undefined) {
+      return usePaginatedQuery(
+        api.listRoadmapFeedback,
+        roadmapId === null || roadmapId === undefined ? "skip" : { roadmapId },
+        { initialNumItems: entryPageSize },
+      );
+    },
+
     /**
      * Reactively finds exact and similar entries for a proposed draft.
      *
@@ -315,9 +495,45 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return useMutation(api.updateEntry);
     },
 
+    useDeleteEntry() {
+      return useMutation(api.deleteEntry);
+    },
+
     /** Returns the bound status mutation. */
     useSetEntryStatus() {
       return useMutation(api.setEntryStatus);
+    },
+
+    useSetEntryPriority() {
+      return useMutation(api.setEntryPriority);
+    },
+
+    useCreateRoadmap() {
+      return useMutation(api.createRoadmap);
+    },
+
+    useCreateRoadmapForEntry() {
+      return useMutation(api.createRoadmapForEntry);
+    },
+
+    useUpdateRoadmap() {
+      return useMutation(api.updateRoadmap);
+    },
+
+    useDeleteRoadmap() {
+      return useMutation(api.deleteRoadmap);
+    },
+
+    useMoveRoadmapItem() {
+      return useMutation(api.moveRoadmapItem);
+    },
+
+    useAttachFeedbackToRoadmap() {
+      return useMutation(api.attachFeedbackToRoadmap);
+    },
+
+    useDetachFeedbackFromRoadmap() {
+      return useMutation(api.detachFeedbackFromRoadmap);
     },
 
     /** Returns the idempotent entry-upvote state mutation. */
@@ -335,7 +551,7 @@ function createFeedbackHooksImplementation<RateLimitResult>(
       return useMutation(api.updateComment);
     },
 
-    /** Returns the soft-delete-comment mutation. */
+    /** Returns the permanent comment-subtree deletion mutation. */
     useDeleteComment() {
       return useMutation(api.deleteComment);
     },
@@ -353,18 +569,24 @@ type CreatedFeedbackHooks<RateLimitResult> = ReturnType<
 
 /** Creates hooks for a feedback API whose rate limiters reject by throwing. */
 export function createFeedbackHooks(
-  api: FeedbackPublicApi<string | undefined, never>,
+  api?: FeedbackPublicApi<string | undefined, never>,
   options?: FeedbackHooksOptions,
 ): CreatedFeedbackHooks<never>;
 
 /** Creates hooks carrying a validated non-throwing rate-limit result. */
 export function createFeedbackHooks<RateLimitResult>(
-  api: FeedbackPublicApi<string | undefined, RateLimitResult>,
+  api?: FeedbackPublicApi<string | undefined, RateLimitResult>,
   options?: FeedbackHooksOptions,
 ): CreatedFeedbackHooks<RateLimitResult>;
 
 export function createFeedbackHooks<RateLimitResult>(
-  api: FeedbackPublicApi<string | undefined, RateLimitResult>,
+  api: FeedbackPublicApi<
+    string | undefined,
+    RateLimitResult
+  > = anyApi.feedback as unknown as FeedbackPublicApi<
+    string | undefined,
+    RateLimitResult
+  >,
   options: FeedbackHooksOptions = {},
 ): CreatedFeedbackHooks<RateLimitResult> {
   return createFeedbackHooksImplementation(api, options);

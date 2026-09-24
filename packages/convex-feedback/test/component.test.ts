@@ -4,6 +4,7 @@ import { describe, expect, expectTypeOf, test, vi } from "vitest";
 
 import { api, internal } from "../src/component/_generated/api.js";
 import type { Id } from "../src/component/_generated/dataModel.js";
+import { create as createCommentMutation } from "../src/component/comments.js";
 import schema from "../src/component/schema.js";
 
 const modules = import.meta.glob("../src/component/**/*.ts");
@@ -12,11 +13,22 @@ function setup() {
   return convexTest(schema, modules);
 }
 
+async function finishScheduled(
+  testInstance: ReturnType<typeof setup>,
+): Promise<void> {
+  vi.useFakeTimers();
+  try {
+    await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 async function createEntry(
   testInstance: ReturnType<typeof setup>,
   title = "Dark mode",
 ): Promise<Id<"entries">> {
-  return await testInstance.mutation(api.entries.create, {
+  const result = await testInstance.mutation(api.entries.create, {
     actorId: "author-1",
     kind: "feature_request",
     title,
@@ -26,15 +38,16 @@ async function createEntry(
     maxTitleLength: 160,
     maxBodyLength: 10_000,
   });
+  return result.id;
 }
 
 describe("convex-feedback component", () => {
   test("component functions preserve generated document ID types", () => {
-    expectTypeOf<FunctionReturnType<typeof api.entries.create>>().toEqualTypeOf<
-      Id<"entries">
-    >();
     expectTypeOf<
-      FunctionReturnType<typeof api.comments.create>
+      FunctionReturnType<typeof api.entries.create>["id"]
+    >().toEqualTypeOf<Id<"entries">>();
+    expectTypeOf<
+      FunctionReturnType<typeof api.comments.create>["id"]
     >().toEqualTypeOf<Id<"comments">>();
 
     expectTypeOf<
@@ -42,6 +55,9 @@ describe("convex-feedback component", () => {
     >().toEqualTypeOf<Id<"entries">>();
     expectTypeOf<
       FunctionArgs<typeof api.entries.update>["entryId"]
+    >().toEqualTypeOf<Id<"entries">>();
+    expectTypeOf<
+      FunctionArgs<typeof api.entries.remove>["entryId"]
     >().toEqualTypeOf<Id<"entries">>();
     expectTypeOf<
       FunctionArgs<typeof api.entries.setStatus>["entryId"]
@@ -94,6 +110,719 @@ describe("convex-feedback component", () => {
 
     expect(entry?.upvoteCount).toBe(1);
     expect(entry?.viewerHasUpvoted).toBe(true);
+    expect(entry?.viewerIsAuthor).toBe(true);
+  });
+
+  test("only the entry author or an admin can edit entry content", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance);
+    const updateArgs = {
+      entryId,
+      title: "Updated title",
+      body: "Updated body.",
+      editableByAuthor: true,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    };
+
+    await expect(
+      testInstance.mutation(api.entries.update, {
+        ...updateArgs,
+        actor: { id: "different-author" },
+      }),
+    ).rejects.toThrow("Not authorized to edit this entry.");
+
+    await expect(
+      testInstance.query(api.entries.get, {
+        entryId,
+        viewerActorId: "different-author",
+      }),
+    ).resolves.toMatchObject({ viewerIsAuthor: false });
+
+    await testInstance.mutation(api.entries.update, {
+      ...updateArgs,
+      actor: { id: "author-1" },
+    });
+
+    await expect(
+      testInstance.query(api.entries.get, {
+        entryId,
+        viewerActorId: "author-1",
+      }),
+    ).resolves.toMatchObject({
+      title: "Updated title",
+      body: "Updated body.",
+      viewerIsAuthor: true,
+    });
+  });
+
+  test("only admins can change an entry kind", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance);
+    const updateArgs = {
+      entryId,
+      title: "Updated title",
+      body: "Updated body.",
+      editableByAuthor: true,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    };
+
+    await expect(
+      testInstance.mutation(api.entries.update, {
+        ...updateArgs,
+        actor: { id: "author-1" },
+        kind: "bug_report",
+      }),
+    ).rejects.toThrow("Admin access is required to change entry kind.");
+
+    await testInstance.mutation(api.entries.update, {
+      ...updateArgs,
+      actor: { id: "admin-1", isAdmin: true },
+      kind: "bug_report",
+    });
+
+    const updated = await testInstance.query(api.entries.get, { entryId });
+    expect(updated).toMatchObject({
+      kind: "bug_report",
+      title: "Updated title",
+      body: "Updated body.",
+    });
+  });
+
+  test("only admins can delete entries and attached roadmap counts stay accurate", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance, "Delete me");
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor: { id: "admin-1", isAdmin: true },
+      title: "Deletion roadmap",
+      status: "planned",
+    });
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor: { id: "admin-1", isAdmin: true },
+      roadmapId,
+      entryId,
+    });
+
+    await expect(
+      testInstance.mutation(api.entries.remove, {
+        actor: { id: "author-1" },
+        entryId,
+      }),
+    ).rejects.toThrow("Admin access is required to delete an entry.");
+
+    await testInstance.mutation(api.entries.remove, {
+      actor: { id: "admin-1", isAdmin: true },
+      entryId,
+    });
+
+    await expect(
+      testInstance.query(api.entries.get, { entryId }),
+    ).resolves.toBeNull();
+    await expect(
+      testInstance.query(api.roadmap.get, { roadmapId }),
+    ).resolves.toMatchObject({ feedbackCount: 0 });
+  });
+
+  test("admin priority stays private from public entries", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance, "Admin triage target");
+    const actor = { id: "admin-1", isAdmin: true } as const;
+
+    await testInstance.mutation(api.entries.setPriority, {
+      actor,
+      entryId,
+      priority: "high",
+    });
+
+    const publicEntry = await testInstance.query(api.entries.get, { entryId });
+    expect(publicEntry).not.toHaveProperty("priority");
+
+    const adminEntry = await testInstance.query(api.admin.getEntry, {
+      entryId,
+      viewerActorId: actor.id,
+    });
+    expect(adminEntry?.priority).toBe("high");
+
+    const filtered = await testInstance.query(api.admin.listEntries, {
+      priority: "high",
+      paginationOpts: { cursor: null, numItems: 10 },
+      viewerActorId: actor.id,
+    });
+    expect(filtered.page.map((entry) => entry.id)).toEqual([entryId]);
+  });
+
+  test("roadmap uses fractional positions and deletion detaches feedback", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const entryId = await createEntry(testInstance, "Roadmap target");
+    const firstId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "First item",
+      status: "planned",
+    });
+    const secondId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Second item",
+      status: "planned",
+    });
+    const movedPosition = await testInstance.mutation(api.roadmap.move, {
+      actor,
+      roadmapId: secondId,
+      status: "planned",
+      nextItemId: firstId,
+    });
+    expect(movedPosition).toBe(0);
+
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor,
+      roadmapId: firstId,
+      entryId,
+    });
+    const attachedItem = await testInstance.run((ctx) =>
+      ctx.db.get("roadmap", firstId),
+    );
+    expect(attachedItem?.feedbackCount).toBe(1);
+
+    await testInstance.mutation(api.roadmap.remove, {
+      actor,
+      roadmapId: firstId,
+    });
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+    const storedEntry = await testInstance.run((ctx) =>
+      ctx.db.get("entries", entryId),
+    );
+    expect(storedEntry?.roadmapId).toBeUndefined();
+  });
+
+  test("hides roadmap items from list and search while deletion is pending", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Pending deletion roadmap",
+      status: "planned",
+    });
+
+    await testInstance.mutation(api.roadmap.remove, { actor, roadmapId });
+
+    const [listed, searched] = await Promise.all([
+      testInstance.query(api.roadmap.list, {
+        paginationOpts: { cursor: null, numItems: 10 },
+        status: "planned",
+      }),
+      testInstance.query(api.roadmap.search, {
+        searchQuery: "pending deletion",
+        limit: 10,
+      }),
+    ]);
+
+    expect(listed.page.map((item) => item.id)).not.toContain(roadmapId);
+    expect(searched.map((item) => item.id)).not.toContain(roadmapId);
+  });
+
+  test("gets one live roadmap item by id independently of list pagination", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Directly linked roadmap",
+      description: "Loaded from its detail route.",
+      status: "in_progress",
+    });
+
+    await expect(
+      testInstance.query(api.roadmap.get, { roadmapId }),
+    ).resolves.toMatchObject({
+      id: roadmapId,
+      title: "Directly linked roadmap",
+      description: "Loaded from its detail route.",
+      status: "in_progress",
+    });
+
+    await testInstance.mutation(api.roadmap.remove, { actor, roadmapId });
+    await expect(
+      testInstance.query(api.roadmap.get, { roadmapId }),
+    ).resolves.toBeNull();
+  });
+
+  test("creates and attaches a roadmap item atomically", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const entryId = await createEntry(testInstance, "Roadmap attachment");
+    const previousRoadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Previous roadmap",
+      status: "planned",
+    });
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor,
+      roadmapId: previousRoadmapId,
+      entryId,
+    });
+
+    const roadmapId = await testInstance.mutation(api.roadmap.createForEntry, {
+      actor,
+      title: "Replacement roadmap",
+      description: "Created with its feedback attachment.",
+      status: "in_progress",
+      entryId,
+    });
+
+    const stored = await testInstance.run(async (ctx) => ({
+      entry: await ctx.db.get("entries", entryId),
+      previous: await ctx.db.get("roadmap", previousRoadmapId),
+      current: await ctx.db.get("roadmap", roadmapId),
+    }));
+    expect(stored.entry?.roadmapId).toBe(roadmapId);
+    expect(stored.previous?.feedbackCount).toBe(0);
+    expect(stored.current?.feedbackCount).toBe(1);
+
+    const missingEntryId = await createEntry(testInstance, "Missing entry");
+    await testInstance.run((ctx) => ctx.db.delete("entries", missingEntryId));
+    await expect(
+      testInstance.mutation(api.roadmap.createForEntry, {
+        actor,
+        title: "Should roll back",
+        status: "planned",
+        entryId: missingEntryId,
+      }),
+    ).rejects.toThrow("Entry not found.");
+
+    const roadmapTitles = await testInstance.run((ctx) =>
+      ctx.db
+        .query("roadmap")
+        .collect()
+        .then((items) => items.map((item) => item.title)),
+    );
+    expect(roadmapTitles).not.toContain("Should roll back");
+  });
+
+  test("lists attached roadmap entries through the public entry shape", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const entryId = await createEntry(testInstance, "Public roadmap entry");
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Public roadmap",
+      status: "planned",
+    });
+    await testInstance.mutation(api.roadmap.attachFeedback, {
+      actor,
+      roadmapId,
+      entryId,
+    });
+
+    const result = await testInstance.query(api.roadmap.listFeedback, {
+      roadmapId,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0]).toMatchObject({
+      id: entryId,
+      title: "Public roadmap entry",
+    });
+    expect(result.page[0]).not.toHaveProperty("priority");
+  });
+
+  test("roadmap deletion self-schedules beyond 100 entries", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    const roadmapId = await testInstance.mutation(api.roadmap.create, {
+      actor,
+      title: "Bulk cleanup roadmap",
+      status: "planned",
+    });
+
+    const entryIds = await testInstance.run(async (ctx) => {
+      const ids: Id<"entries">[] = [];
+      for (let index = 0; index < 101; index += 1) {
+        ids.push(
+          await ctx.db.insert("entries", {
+            actorId: "bulk-author-" + index,
+            kind: "feedback",
+            status: "open",
+            statusFilter: "open",
+            title: "Bulk entry " + index,
+            body: "Bulk cleanup body",
+            normalizedTitle: "bulk entry " + index,
+            searchText: "Bulk entry " + index + "\nBulk cleanup body",
+            upvoteCount: 0,
+            commentCount: 0,
+            roadmapId,
+          }),
+        );
+      }
+      await ctx.db.patch("roadmap", roadmapId, { feedbackCount: ids.length });
+      return ids;
+    });
+
+    await testInstance.mutation(api.roadmap.remove, { actor, roadmapId });
+
+    const pending = await testInstance.run(async (ctx) => ({
+      roadmap: await ctx.db.get("roadmap", roadmapId),
+    }));
+    expect(pending.roadmap?.deletingAt).toEqual(expect.any(Number));
+
+    vi.useFakeTimers();
+    try {
+      await testInstance.finishAllScheduledFunctions(vi.runAllTimers);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const cleaned = await testInstance.run(async (ctx) => ({
+      roadmap: await ctx.db.get("roadmap", roadmapId),
+      entries: await Promise.all(
+        entryIds.map((entryId) => ctx.db.get("entries", entryId)),
+      ),
+    }));
+    expect(cleaned.roadmap).toBeNull();
+    expect(
+      cleaned.entries.every(
+        (entry) => entry !== null && entry.roadmapId === undefined,
+      ),
+    ).toBe(true);
+  });
+
+  test("admin inbox and roadmap lists use cursor pagination", async () => {
+    const testInstance = setup();
+    const actor = { id: "admin-1", isAdmin: true } as const;
+    for (const title of [
+      "Paged feedback one",
+      "Paged feedback two",
+      "Paged feedback three",
+    ]) {
+      await createEntry(testInstance, title);
+    }
+
+    const firstEntries = await testInstance.query(api.admin.listEntries, {
+      paginationOpts: { cursor: null, numItems: 2 },
+      viewerActorId: actor.id,
+    });
+    const remainingEntries = await testInstance.query(api.admin.listEntries, {
+      paginationOpts: { cursor: firstEntries.continueCursor, numItems: 2 },
+      viewerActorId: actor.id,
+    });
+    expect(firstEntries.page).toHaveLength(2);
+    expect(remainingEntries.page).toHaveLength(1);
+    expect(remainingEntries.isDone).toBe(true);
+
+    for (const title of ["Roadmap one", "Roadmap two", "Roadmap three"]) {
+      await testInstance.mutation(api.roadmap.create, {
+        actor,
+        title,
+        status: "planned",
+      });
+    }
+    const firstRoadmap = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: null, numItems: 2 },
+      status: "planned",
+    });
+    const remainingRoadmap = await testInstance.query(api.roadmap.list, {
+      paginationOpts: { cursor: firstRoadmap.continueCursor, numItems: 2 },
+      status: "planned",
+    });
+    expect(firstRoadmap.page).toHaveLength(2);
+    expect(remainingRoadmap.page).toHaveLength(1);
+    expect(remainingRoadmap.isDone).toBe(true);
+  });
+
+  test("actor activity queries are isolated and cursor-paginated", async () => {
+    const testInstance = setup();
+    const activityActor = "activity-author";
+
+    const createActivityEntry = async (
+      title: string,
+      actorId = activityActor,
+    ) =>
+      (
+        await testInstance.mutation(api.entries.create, {
+          actorId,
+          kind: "feature_request",
+          title,
+          body: `${title} body`,
+          defaultStatus: "open",
+          enabledKinds: ["feedback", "feature_request", "bug_report"],
+          maxTitleLength: 160,
+          maxBodyLength: 10_000,
+        })
+      ).id;
+
+    const firstEntryId = await createActivityEntry("Actor entry one");
+    await createActivityEntry("Other actor entry", "other-author");
+    const secondEntryId = await createActivityEntry("Actor entry two");
+
+    const firstPage = await testInstance.query(api.entries.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 1 },
+    });
+    const secondPage = await testInstance.query(api.entries.listByActor, {
+      actorId: activityActor,
+      paginationOpts: {
+        cursor: firstPage.continueCursor,
+        numItems: 1,
+      },
+    });
+
+    expect(firstPage.page).toHaveLength(1);
+    expect(secondPage.page).toHaveLength(1);
+    expect(
+      [...firstPage.page, ...secondPage.page].map((entry) => entry.id).sort(),
+    ).toEqual([firstEntryId, secondEntryId].sort());
+    expect(
+      [...firstPage.page, ...secondPage.page].every(
+        (entry) => entry.actorId === activityActor,
+      ),
+    ).toBe(true);
+    expect(firstPage.page[0]).not.toHaveProperty("metadata");
+
+    await testInstance.mutation(api.entries.setPriority, {
+      actor: { id: "admin-author", isAdmin: true },
+      entryId: firstEntryId,
+      priority: "high",
+    });
+    await testInstance.mutation(api.entries.update, {
+      actor: { id: activityActor },
+      entryId: firstEntryId,
+      title: "Actor entry one updated",
+      body: "Updated actor entry body",
+      editableByAuthor: true,
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+
+    const { id: contextEntryId } = await testInstance.mutation(
+      api.entries.create,
+      {
+        actorId: activityActor,
+        kind: "bug_report",
+        title: "Context entry",
+        body: "Context body",
+        defaultStatus: "open",
+        enabledKinds: ["feedback", "feature_request", "bug_report"],
+        maxTitleLength: 160,
+        maxBodyLength: 10_000,
+        metadata: { standard: { platform: "web" } },
+      },
+    );
+    await testInstance.mutation(api.entries.setPriority, {
+      actor: { id: "admin-author", isAdmin: true },
+      entryId: contextEntryId,
+      priority: "medium",
+    });
+
+    const contextPage = await testInstance.query(api.entries.listByActor, {
+      actorId: activityActor,
+      includeAdminContext: true,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    const contextEntry = contextPage.page.find(
+      (entry) => entry.id === contextEntryId,
+    );
+    expect(contextEntry).toMatchObject({
+      metadata: { standard: { platform: "web" } },
+      priority: "medium",
+    });
+
+    const entryForComments = await createActivityEntry(
+      "Comment context entry",
+      "other-author",
+    );
+    const { id: parentCommentId } = await testInstance.mutation(
+      api.comments.create,
+      {
+        actorId: "other-author",
+        entryId: entryForComments,
+        body: "Other actor parent",
+        maxDepth: 5,
+        maxCommentLength: 5_000,
+      },
+    );
+    const { id: ownCommentId } = await testInstance.mutation(
+      api.comments.create,
+      {
+        actorId: activityActor,
+        entryId: entryForComments,
+        parentCommentId,
+        body: "Actor comment",
+        maxDepth: 5,
+        maxCommentLength: 5_000,
+      },
+    );
+
+    const liveComments = await testInstance.query(api.comments.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(liveComments.page).toMatchObject([
+      {
+        id: ownCommentId,
+        body: "Actor comment",
+        entryId: entryForComments,
+        entryTitle: "Comment context entry",
+        parentCommentId,
+      },
+    ]);
+
+    await testInstance.mutation(api.comments.remove, {
+      actor: { id: activityActor },
+      commentId: ownCommentId,
+      deletableByAuthor: true,
+    });
+    await finishScheduled(testInstance);
+
+    const comments = await testInstance.query(api.comments.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(comments.page).toHaveLength(0);
+    expect(comments.isDone).toBe(true);
+  });
+
+  test("actor reaction activity keeps valid output and removes deleted targets", async () => {
+    const testInstance = setup();
+    const activityActor = "reaction-author";
+
+    await testInstance.mutation(api.entries.create, {
+      actorId: activityActor,
+      kind: "feature_request",
+      title: "Own entry",
+      body: "Own entry body",
+      defaultStatus: "open",
+      enabledKinds: ["feedback", "feature_request", "bug_report"],
+      maxTitleLength: 160,
+      maxBodyLength: 10_000,
+    });
+    const { id: otherEntryId } = await testInstance.mutation(
+      api.entries.create,
+      {
+        actorId: "other-author",
+        kind: "bug_report",
+        title: "Other entry",
+        body: "Other entry body",
+        defaultStatus: "under_review",
+        enabledKinds: ["feedback", "feature_request", "bug_report"],
+        maxTitleLength: 160,
+        maxBodyLength: 10_000,
+      },
+    );
+    await testInstance.mutation(api.entries.setUpvote, {
+      actorId: activityActor,
+      entryId: otherEntryId,
+      desiredState: true,
+    });
+
+    const { id: commentId } = await testInstance.mutation(api.comments.create, {
+      actorId: "other-author",
+      entryId: otherEntryId,
+      body: "Comment to like",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    await testInstance.mutation(api.comments.setLike, {
+      actorId: activityActor,
+      commentId,
+      desiredState: true,
+    });
+
+    const firstPage = await testInstance.query(api.reactions.listByActor, {
+      actorId: activityActor,
+      paginationOpts: { cursor: null, numItems: 1 },
+    });
+    const secondPage = await testInstance.query(api.reactions.listByActor, {
+      actorId: activityActor,
+      paginationOpts: {
+        cursor: firstPage.continueCursor,
+        numItems: 1,
+      },
+    });
+    const reactions = [...firstPage.page, ...secondPage.page];
+
+    expect(reactions).toHaveLength(2);
+    expect(reactions.map((reaction) => reaction.type)).toEqual(
+      expect.arrayContaining(["entry_upvote", "comment_like"]),
+    );
+
+    const ownEntryReaction = reactions.find(
+      (reaction) =>
+        reaction.type === "entry_upvote" && reaction.entry.id === otherEntryId,
+    );
+    expect(ownEntryReaction).toMatchObject({
+      type: "entry_upvote",
+      entry: {
+        id: otherEntryId,
+        title: "Other entry",
+        kind: "bug_report",
+        status: "under_review",
+      },
+    });
+    if (ownEntryReaction?.type === "entry_upvote") {
+      expect(ownEntryReaction.entry).not.toHaveProperty("actorId");
+    }
+
+    const deletedCommentReaction = reactions.find(
+      (reaction) =>
+        reaction.type === "comment_like" && reaction.comment?.id === commentId,
+    );
+    expect(deletedCommentReaction).toMatchObject({
+      type: "comment_like",
+      comment: {
+        id: commentId,
+        body: "Comment to like",
+        entryId: otherEntryId,
+        entryTitle: "Other entry",
+      },
+    });
+
+    await testInstance.mutation(api.comments.remove, {
+      actor: { id: "other-author" },
+      commentId,
+      deletableByAuthor: true,
+    });
+    await finishScheduled(testInstance);
+    await expect(
+      testInstance.query(api.reactions.listByActor, {
+        actorId: activityActor,
+        paginationOpts: { cursor: null, numItems: 10 },
+      }),
+    ).resolves.toMatchObject({
+      page: [
+        {
+          type: "entry_upvote",
+          entry: { id: otherEntryId },
+        },
+        {
+          type: "entry_upvote",
+          entry: { title: "Own entry" },
+        },
+      ],
+    });
+
+    await testInstance.mutation(api.entries.remove, {
+      actor: { id: "admin-1", isAdmin: true },
+      entryId: otherEntryId,
+    });
+    await finishScheduled(testInstance);
+    await expect(
+      testInstance.query(api.reactions.listByActor, {
+        actorId: activityActor,
+        paginationOpts: { cursor: null, numItems: 10 },
+      }),
+    ).resolves.toMatchObject({
+      page: [
+        {
+          type: "entry_upvote",
+          entry: { title: "Own entry" },
+        },
+      ],
+    });
   });
 
   test("open and closed status filters are materialized and queried on Convex", async () => {
@@ -103,12 +832,12 @@ describe("convex-feedback component", () => {
     const closedId = await createEntry(testInstance, "Closed filter target");
 
     await testInstance.mutation(api.entries.setStatus, {
-      actor: { id: "moderator-1", isModerator: true },
+      actor: { id: "admin-1", isAdmin: true },
       entryId: plannedId,
       status: "planned",
     });
     await testInstance.mutation(api.entries.setStatus, {
-      actor: { id: "moderator-1", isModerator: true },
+      actor: { id: "admin-1", isAdmin: true },
       entryId: closedId,
       status: "closed",
     });
@@ -191,13 +920,13 @@ describe("convex-feedback component", () => {
     ).resolves.toEqual({ updated: 0, hasMore: false });
   });
 
-  test("entry metadata is returned only by moderator get queries", async () => {
+  test("entry metadata is returned only by admin get queries", async () => {
     const testInstance = setup();
     const metadata = {
       standard: { platform: "web", screenWidth: 1440 },
       additional: { releaseChannel: "production", diagnosticsMode: true },
     };
-    const entryId = await testInstance.mutation(api.entries.create, {
+    const { id: entryId } = await testInstance.mutation(api.entries.create, {
       actorId: "author-1",
       kind: "bug_report",
       title: "Unexpected error",
@@ -214,20 +943,20 @@ describe("convex-feedback component", () => {
       entryId,
       viewerActorId: "member-1",
     });
-    const moderator = await testInstance.query(api.entries.get, {
+    const admin = await testInstance.query(api.entries.get, {
       entryId,
-      viewerActorId: "moderator-1",
-      viewerIsModerator: true,
+      viewerActorId: "admin-1",
+      viewerIsAdmin: true,
     });
     const list = await testInstance.query(api.entries.list, {
       paginationOpts: { numItems: 10, cursor: null },
       sort: "newest",
-      viewerActorId: "moderator-1",
+      viewerActorId: "admin-1",
     });
 
     expect(anonymous).not.toHaveProperty("metadata");
     expect(member).not.toHaveProperty("metadata");
-    expect(moderator?.metadata).toEqual(metadata);
+    expect(admin?.metadata).toEqual(metadata);
     expect(list.page[0]).not.toHaveProperty("metadata");
   });
 
@@ -300,14 +1029,14 @@ describe("convex-feedback component", () => {
   test("comments load one direct-child level at a time", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);
-    const rootId = await testInstance.mutation(api.comments.create, {
+    const { id: rootId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-1",
       entryId,
       body: "Root",
       maxDepth: 5,
       maxCommentLength: 5_000,
     });
-    const childId = await testInstance.mutation(api.comments.create, {
+    const { id: childId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-2",
       entryId,
       parentCommentId: rootId,
@@ -342,17 +1071,112 @@ describe("convex-feedback component", () => {
     expect(children.page[0]?.replyCount).toBe(1);
   });
 
+  test("comment likes require a live parent entry", async () => {
+    const testInstance = setup();
+    const entryId = await createEntry(testInstance);
+    const creation = await testInstance.mutation(api.comments.create, {
+      actorId: "author-1",
+      entryId,
+      body: "Orphaned comment",
+      maxDepth: 5,
+      maxCommentLength: 5_000,
+    });
+    expect(creation).toEqual({ id: creation.id });
+    const commentId = creation.id;
+    await testInstance.run((ctx) => ctx.db.delete("entries", entryId));
+
+    await expect(
+      testInstance.mutation(api.comments.setLike, {
+        actorId: "user-a",
+        commentId,
+        desiredState: true,
+      }),
+    ).rejects.toThrow("Entry not found.");
+  });
+
+  test("reply creation reuses its single parent-comment read", async () => {
+    const entryId = "entry-1" as Id<"entries">;
+    const parentId = "parent-1" as Id<"comments">;
+    const parent = {
+      _id: parentId,
+      _creationTime: 1,
+      entryId,
+      actorId: "parent-author",
+      depth: 0,
+      body: "Parent",
+      likeCount: 0,
+      replyCount: 2,
+    };
+    const get = vi.fn((table: string) =>
+      Promise.resolve(
+        table === "entries"
+          ? {
+              _id: entryId,
+              actorId: "entry-author",
+              kind: "feedback",
+              status: "open",
+              title: "Entry",
+              commentCount: 1,
+            }
+          : parent,
+      ),
+    );
+    const patch = vi.fn(() => Promise.resolve());
+    const handler = (
+      createCommentMutation as unknown as {
+        _handler: (
+          ctx: unknown,
+          args: {
+            actorId: string;
+            entryId: Id<"entries">;
+            parentCommentId: Id<"comments">;
+            body: string;
+            maxDepth: number;
+            maxCommentLength: number;
+            includeCallbackContext: boolean;
+          },
+        ) => Promise<unknown>;
+      }
+    )._handler;
+
+    await handler(
+      {
+        db: {
+          get,
+          insert: vi.fn((table: string) =>
+            Promise.resolve(table === "comments" ? "comment-1" : "reaction-1"),
+          ),
+          patch,
+        },
+      },
+      {
+        actorId: "reply-author",
+        entryId,
+        parentCommentId: parentId,
+        body: "Reply",
+        maxDepth: 5,
+        maxCommentLength: 5_000,
+        includeCallbackContext: true,
+      },
+    );
+
+    expect(get.mock.calls.filter(([table]) => table === "comments")).toEqual([
+      ["comments", parentId],
+    ]);
+    expect(patch).toHaveBeenCalledWith("comments", parentId, { replyCount: 3 });
+  });
+
   test("maximum comment depth is enforced on writes", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);
-    const rootId = await testInstance.mutation(api.comments.create, {
+    const { id: rootId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-1",
       entryId,
       body: "Root",
       maxDepth: 1,
       maxCommentLength: 5_000,
     });
-    const childId = await testInstance.mutation(api.comments.create, {
+    const { id: childId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-2",
       entryId,
       parentCommentId: rootId,
@@ -376,14 +1200,14 @@ describe("convex-feedback component", () => {
   test("top comments are ordered by likes and comment likes are idempotent", async () => {
     const testInstance = setup();
     const entryId = await createEntry(testInstance);
-    const firstId = await testInstance.mutation(api.comments.create, {
+    const { id: firstId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-1",
       entryId,
       body: "First",
       maxDepth: 5,
       maxCommentLength: 5_000,
     });
-    const secondId = await testInstance.mutation(api.comments.create, {
+    const { id: secondId } = await testInstance.mutation(api.comments.create, {
       actorId: "author-2",
       entryId,
       body: "Second",

@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider.js";
 import { useFeedbackUi } from "../../../shared/context/FeedbackProvider.js";
+import { allowAuthenticatedAction } from "../../../shared/helpers.js";
 import type { FeedbackScreenCommentBranchProps } from "../../../shared/types";
 import { Button } from "./Button";
 import { Comment, FeedbackForm } from "./primitives.js";
+import { useNativeAction } from "../helpers.js";
 
 import type { FeedbackScreenReplyListProps } from "../../../shared/types";
 
@@ -32,9 +34,11 @@ export function ReplyList({
       {visible.map((reply) => (
         <CommentBranch key={reply.id} comment={reply} entryId={entryId} />
       ))}
-      {replies.status === "CanLoadMore" && (
+      {(replies.status === "CanLoadMore" ||
+        replies.status === "LoadingMore") && (
         <Button
           label={messages.comments.loadMore}
+          disabled={replies.status === "LoadingMore"}
           onPress={() => replies.loadMore(hooks.pageSizes.replies)}
         />
       )}
@@ -46,13 +50,34 @@ export function CommentBranch({
   comment,
   entryId,
 }: FeedbackScreenCommentBranchProps) {
-  const { hooks, maxCommentDepth, renderActor } = useFeedbackBody();
-  const { messages, theme } = useFeedbackUi();
+  const {
+    hooks,
+    maxCommentDepth,
+    renderActor,
+    isAuthenticated,
+    onUnauthenticated,
+  } = useFeedbackBody();
+  const { messages } = useFeedbackUi();
   const [expanded, setExpanded] = useState(false);
   const [replying, setReplying] = useState(false);
   const [replyBody, setReplyBody] = useState("");
   const setLike = hooks.useSetCommentLike();
   const createComment = hooks.useCreateComment();
+  const likeAction = useNativeAction();
+  const replyAction = useNativeAction();
+
+  const toggleLike = (desiredState: boolean) => {
+    if (
+      !allowAuthenticatedAction(isAuthenticated, onUnauthenticated) ||
+      likeAction.pending
+    ) {
+      return;
+    }
+    void likeAction.run(
+      () => setLike({ commentId: comment.id, desiredState }),
+      "Could not update like",
+    );
+  };
 
   return (
     <Comment.Root comment={comment}>
@@ -69,12 +94,20 @@ export function CommentBranch({
         }}
       >
         <Comment.Like
-          onToggle={(active) =>
-            void setLike({ commentId: comment.id, desiredState: active })
-          }
+          disabled={isAuthenticated === undefined || likeAction.pending}
+          onToggle={toggleLike}
         />
-        {comment.body !== null && comment.depth < maxCommentDepth ? (
-          <Comment.Reply onActivate={() => setReplying((value) => !value)} />
+        {comment.depth < maxCommentDepth ? (
+          <Comment.Reply
+            disabled={isAuthenticated === undefined || replyAction.pending}
+            onActivate={() => {
+              if (
+                allowAuthenticatedAction(isAuthenticated, onUnauthenticated)
+              ) {
+                setReplying((value) => !value);
+              }
+            }}
+          />
         ) : null}
         <Comment.RepliesButton
           expanded={expanded}
@@ -89,16 +122,26 @@ export function CommentBranch({
             placeholder={messages.comments.placeholder}
           />
           <FeedbackForm.Submit
-            onPress={async () => {
+            disabled={isAuthenticated === undefined || replyAction.pending}
+            submitting={replyAction.pending}
+            onPress={() => {
               if (replyBody.trim().length === 0) return;
-              await createComment({
-                entryId,
-                parentCommentId: comment.id,
-                body: replyBody,
-              });
-              setReplyBody("");
-              setReplying(false);
-              setExpanded(true);
+              if (
+                !allowAuthenticatedAction(isAuthenticated, onUnauthenticated) ||
+                replyAction.pending
+              ) {
+                return;
+              }
+              void replyAction.run(async () => {
+                await createComment({
+                  entryId,
+                  parentCommentId: comment.id,
+                  body: replyBody,
+                });
+                setReplyBody("");
+                setReplying(false);
+                setExpanded(true);
+              }, "Could not add reply");
             }}
           >
             {messages.comments.reply}
@@ -111,11 +154,6 @@ export function CommentBranch({
       ) : null}
       {expanded ? (
         <ReplyList entryId={entryId} parentCommentId={comment.id} />
-      ) : null}
-      {comment.deletedAt !== undefined ? (
-        <Text style={{ color: theme.colors.mutedText, fontSize: 11 }}>
-          {messages.comments.deleted}
-        </Text>
       ) : null}
     </Comment.Root>
   );

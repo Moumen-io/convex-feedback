@@ -55,6 +55,7 @@ function BoardRoot({
   primaryColor,
   backgroundColor,
   surfaceColor,
+  inputColor,
   textColor,
   mutedColor,
   borderColor,
@@ -70,6 +71,7 @@ function BoardRoot({
     ...(primaryColor === undefined ? {} : { primaryColor }),
     ...(backgroundColor === undefined ? {} : { backgroundColor }),
     ...(surfaceColor === undefined ? {} : { surfaceColor }),
+    ...(inputColor === undefined ? {} : { inputColor }),
     ...(textColor === undefined ? {} : { textColor }),
     ...(mutedColor === undefined ? {} : { mutedColor }),
     ...(borderColor === undefined ? {} : { borderColor }),
@@ -407,13 +409,13 @@ function CommentRoot({ comment, className, ...props }: CommentRootProps) {
 
 function CommentBody(props: HTMLAttributes<HTMLParagraphElement>) {
   const comment = useCommentContext();
-  const { messages, unstyled } = useFeedbackUi();
+  const { unstyled } = useFeedbackUi();
   return (
     <p
       {...props}
       className={classes(unstyled, "cf-comment__body", props.className)}
     >
-      {props.children ?? comment.body ?? messages.comments.deleted}
+      {props.children ?? comment.body}
     </p>
   );
 }

@@ -7,5 +7,6 @@ export type * from "./form.js";
 export type * from "./messages.js";
 export type * from "./metadata.js";
 export type * from "./render.js";
+export type * from "./roadmap.js";
 export type * from "./screen.js";
 export type * from "./theme.js";

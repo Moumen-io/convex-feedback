@@ -1,7 +1,11 @@
 "use client";
 
-import type { EntryKind, FeedbackMetadata } from "convex-feedback";
-import { useMemo, useState, type SyntheticEvent } from "react";
+import type {
+  EntryKind,
+  FeedbackEntry as FeedbackEntryData,
+  FeedbackMetadata,
+} from "convex-feedback";
+import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
 
 import {
   FeedbackBodyProvider,
@@ -11,7 +15,11 @@ import {
   FeedbackProvider,
   useFeedbackUi,
 } from "../shared/context/FeedbackProvider";
-import { createEntryLabel, entryStatusChoices } from "../shared/helpers.js";
+import {
+  allowAuthenticatedAction,
+  createEntryLabel,
+  entryStatusChoices,
+} from "../shared/helpers.js";
 import type {
   FeedbackScreenCommentBranchProps,
   FeedbackScreenContentProps,
@@ -28,6 +36,7 @@ import {
   FeedbackEntry,
   FeedbackForm,
 } from "./primitives.js";
+import { FeedbackActionError, useFeedbackAction } from "./action.js";
 import { collectWebMetadata } from "./metadata.js";
 import { collectEntryMetadata, formatMetadataKey } from "../shared/metadata.js";
 
@@ -52,6 +61,7 @@ export function FeedbackScreen({
   maxCommentDepth = 5,
   transformComments,
   renderActor,
+  onUnauthenticated,
   debounceDuration = 300,
   collectMetadata,
   emptyState,
@@ -73,6 +83,7 @@ export function FeedbackScreen({
         collectStandardMetadata={collectWebMetadata}
         transformComments={transformComments}
         renderActor={renderActor}
+        onUnauthenticated={onUnauthenticated}
       >
         <FeedbackScreenInner {...props} />
       </FeedbackBodyProvider>
@@ -103,6 +114,8 @@ function FeedbackScreenInner({
     debouncedQuery,
     emptyState,
     loading: loadingIndicator,
+    isAuthenticated,
+    onUnauthenticated,
   } = useFeedbackBody();
   const { messages } = useFeedbackUi();
 
@@ -128,10 +141,13 @@ function FeedbackScreenInner({
     );
   }
 
-  const searching = query.trim().length > 0;
+  const normalizedQuery = query.trim();
+  const normalizedDebouncedQuery = debouncedQuery.trim();
+  const searching = normalizedQuery.length > 0;
   const entries = searching ? searchResults : list.results;
   const isLoading = searching
-    ? searchResults === undefined
+    ? normalizedQuery !== normalizedDebouncedQuery ||
+      searchResults === undefined
     : list.status === "LoadingFirstPage";
 
   return (
@@ -150,7 +166,13 @@ function FeedbackScreenInner({
         <button
           type="button"
           className="cf-button cf-button--primary"
-          onClick={() => setShowForm((current) => !current)}
+          disabled={isAuthenticated === undefined}
+          onClick={() => {
+            if (!allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) {
+              return;
+            }
+            setShowForm((current) => !current);
+          }}
         >
           {showForm
             ? messages.form.cancel
@@ -186,7 +208,14 @@ function FeedbackScreenInner({
           <button
             type="button"
             className="cf-button cf-button--primary"
-            onClick={() => setShowForm(true)}
+            disabled={isAuthenticated === undefined}
+            onClick={() => {
+              if (
+                allowAuthenticatedAction(isAuthenticated, onUnauthenticated)
+              ) {
+                setShowForm(true);
+              }
+            }}
           >
             {createEntryLabel(enabledKinds, messages)}
           </button>
@@ -204,60 +233,83 @@ function FeedbackScreenInner({
         </FeedbackBoard.List>
       )}
 
-      {!searching && list.status === "CanLoadMore" && (
-        <button
-          type="button"
-          className="cf-button"
-          onClick={() => list.loadMore(hooks.pageSizes.entries)}
-        >
-          {messages.board.loadMore}
-        </button>
-      )}
+      {!searching &&
+        (list.status === "CanLoadMore" || list.status === "LoadingMore") && (
+          <button
+            type="button"
+            className="cf-button"
+            disabled={list.status === "LoadingMore"}
+            onClick={() => list.loadMore(hooks.pageSizes.entries)}
+          >
+            {messages.board.loadMore}
+          </button>
+        )}
     </FeedbackBoard.Root>
   );
 }
 
 function EntryCard({ entry, hooks, onOpen }: FeedbackScreenEntryCardProps) {
+  const { isAuthenticated, onUnauthenticated } = useFeedbackBody();
   const setUpvote = hooks.useSetEntryUpvote();
+  const action = useFeedbackAction();
+
+  const toggleUpvote = (desiredState: boolean) => {
+    if (
+      !allowAuthenticatedAction(isAuthenticated, onUnauthenticated) ||
+      action.pending
+    ) {
+      return;
+    }
+    void action.run(() => setUpvote({ entryId: entry.id, desiredState }));
+  };
+
   return (
-    <FeedbackEntry.Root entry={entry}>
-      <FeedbackEntry.Upvote
-        onToggle={(active) =>
-          void setUpvote({ entryId: entry.id, desiredState: active })
-        }
-      />
-      <FeedbackEntry.Content
-        onClick={onOpen}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onOpen();
-          }
-        }}
-        role="button"
-        tabIndex={0}
-      >
-        <div className="cf-entry__meta">
-          <FeedbackEntry.Kind />
-          <FeedbackEntry.Status />
-          <FeedbackEntry.CommentCount />
-        </div>
-        <FeedbackEntry.Title />
-        <FeedbackEntry.Body />
-      </FeedbackEntry.Content>
-    </FeedbackEntry.Root>
+    <>
+      <FeedbackEntry.Root entry={entry}>
+        <FeedbackEntry.Upvote
+          disabled={isAuthenticated === undefined || action.pending}
+          onToggle={toggleUpvote}
+        />
+        <FeedbackEntry.Content
+          onClick={onOpen}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpen();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="cf-entry__meta">
+            <FeedbackEntry.Kind />
+            <FeedbackEntry.Status />
+            <FeedbackEntry.CommentCount />
+          </div>
+          <FeedbackEntry.Title />
+          <FeedbackEntry.Body />
+        </FeedbackEntry.Content>
+      </FeedbackEntry.Root>
+      <FeedbackActionError failure={action.failure} />
+    </>
   );
 }
 
 function CreateEntryForm({ onCreated }: FeedbackScreenEntryModalProps) {
-  const { hooks, enabledKinds, collectMetadata, collectStandardMetadata } =
-    useFeedbackBody();
+  const {
+    hooks,
+    enabledKinds,
+    collectMetadata,
+    collectStandardMetadata,
+    isAuthenticated,
+    onUnauthenticated,
+  } = useFeedbackBody();
   const { messages } = useFeedbackUi();
   const [kind, setKind] = useState<EntryKind>(enabledKinds[0] ?? "feedback");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const createEntry = hooks.useCreateEntry();
+  const action = useFeedbackAction();
   const similar = hooks.useSimilarEntries({ title, body, kind });
   const [confirmingDuplicate, setConfirmingDuplicate] = useState(false);
 
@@ -281,11 +333,11 @@ function CreateEntryForm({ onCreated }: FeedbackScreenEntryModalProps) {
   };
 
   const create = async () => {
-    if (submitting) return;
+    if (action.pending) return;
 
-    setSubmitting(true);
+    if (!allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) return;
 
-    try {
+    await action.run(async () => {
       const metadata = await collectEntryMetadata(
         collectMetadata,
         kind,
@@ -299,9 +351,7 @@ function CreateEntryForm({ onCreated }: FeedbackScreenEntryModalProps) {
       });
 
       onCreated(entryId);
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   const suggestions = useMemo(() => {
@@ -379,9 +429,12 @@ function CreateEntryForm({ onCreated }: FeedbackScreenEntryModalProps) {
         </aside>
       )}
       <FeedbackForm.Submit
-        submitting={submitting}
-        disabled={confirmingDuplicate || submitting}
+        submitting={action.pending}
+        disabled={
+          confirmingDuplicate || action.pending || isAuthenticated === undefined
+        }
       />
+      <FeedbackActionError failure={action.failure} />
       {confirmingDuplicate && (
         <div className="cf-confirm-backdrop">
           <div
@@ -426,7 +479,13 @@ function CreateEntryForm({ onCreated }: FeedbackScreenEntryModalProps) {
 }
 
 function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
-  const { hooks, commentSort, transformComments } = useFeedbackBody();
+  const {
+    hooks,
+    commentSort,
+    transformComments,
+    isAuthenticated,
+    onUnauthenticated,
+  } = useFeedbackBody();
   const { messages } = useFeedbackUi();
   const entry = hooks.useEntry(entryId);
   const setUpvote = hooks.useSetEntryUpvote();
@@ -434,6 +493,19 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
   const createComment = hooks.useCreateComment();
   const [body, setBody] = useState("");
   const [showMetadata, setShowMetadata] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const upvoteAction = useFeedbackAction();
+  const commentAction = useFeedbackAction();
+
+  const toggleUpvote = (desiredState: boolean) => {
+    if (
+      !allowAuthenticatedAction(isAuthenticated, onUnauthenticated) ||
+      upvoteAction.pending
+    ) {
+      return;
+    }
+    void upvoteAction.run(() => setUpvote({ entryId, desiredState }));
+  };
 
   const visibleComments = useMemo(
     () => transformComments?.(comments.results) ?? comments.results,
@@ -460,19 +532,33 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
       </button>
       <FeedbackEntry.Root entry={entry}>
         <FeedbackEntry.Upvote
-          onToggle={(active) =>
-            void setUpvote({ entryId, desiredState: active })
-          }
+          disabled={isAuthenticated === undefined || upvoteAction.pending}
+          onToggle={toggleUpvote}
         />
         <FeedbackEntry.Content>
-          <div className="cf-entry__meta">
-            <FeedbackEntry.Status />
-            <FeedbackEntry.CommentCount />
+          <div className="cf-entry__detail-header">
+            <div className="cf-entry__meta">
+              <FeedbackEntry.Status />
+              <FeedbackEntry.CommentCount />
+            </div>
+            {entry.viewerIsAuthor === true && (
+              <button
+                type="button"
+                className="cf-button"
+                aria-label={messages.entry.edit}
+                onClick={() => setEditOpen(true)}
+              >
+                {messages.entry.edit}
+              </button>
+            )}
           </div>
           <FeedbackEntry.Title />
           <FeedbackEntry.Body />
         </FeedbackEntry.Content>
       </FeedbackEntry.Root>
+      <FeedbackActionError failure={upvoteAction.failure} />
+
+      {editOpen && <EditEntryDialog entry={entry} onOpenChange={setEditOpen} />}
 
       {entry.metadata !== undefined && (
         <div>
@@ -496,11 +582,19 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
       <section className="cf-discussion">
         <h3>{messages.comments.title}</h3>
         <FeedbackForm.Root
-          onSubmit={async (event) => {
+          onSubmit={(event) => {
             event.preventDefault();
             if (body.trim().length === 0) return;
-            await createComment({ entryId, body });
-            setBody("");
+            if (
+              !allowAuthenticatedAction(isAuthenticated, onUnauthenticated) ||
+              commentAction.pending
+            ) {
+              return;
+            }
+            void commentAction.run(async () => {
+              await createComment({ entryId, body });
+              setBody("");
+            });
           }}
         >
           <FeedbackForm.Textarea
@@ -509,10 +603,15 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
             placeholder={messages.comments.placeholder}
             rows={3}
           />
-          <button type="submit" className="cf-button cf-button--primary">
+          <button
+            type="submit"
+            className="cf-button cf-button--primary"
+            disabled={isAuthenticated === undefined || commentAction.pending}
+          >
             {messages.comments.submit}
           </button>
         </FeedbackForm.Root>
+        <FeedbackActionError failure={commentAction.failure} />
 
         {comments.status === "LoadingFirstPage" && (
           <p className="cf-state">{messages.board.loading}</p>
@@ -530,16 +629,137 @@ function EntryDetail({ entryId, onBack }: FeedbackScreenEntryDetailProps) {
             />
           ))}
         </div>
-        {comments.status === "CanLoadMore" && (
+        {(comments.status === "CanLoadMore" ||
+          comments.status === "LoadingMore") && (
           <button
             type="button"
             className="cf-button"
+            disabled={comments.status === "LoadingMore"}
             onClick={() => comments.loadMore(hooks.pageSizes.comments)}
           >
             {messages.comments.loadMore}
           </button>
         )}
       </section>
+    </div>
+  );
+}
+
+function EditEntryDialog({
+  entry,
+  onOpenChange,
+}: {
+  entry: FeedbackEntryData;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { hooks, isAuthenticated, onUnauthenticated } = useFeedbackBody();
+  const { messages } = useFeedbackUi();
+  const updateEntry = hooks.useUpdateEntry();
+  const action = useFeedbackAction();
+  const [title, setTitle] = useState(entry.title);
+  const [body, setBody] = useState(entry.body);
+
+  useEffect(() => {
+    setTitle(entry.title);
+    setBody(entry.body);
+  }, [entry.body, entry.id, entry.title]);
+
+  const save = async () => {
+    if (
+      action.pending ||
+      title.trim().length === 0 ||
+      body.trim().length === 0 ||
+      !allowAuthenticatedAction(isAuthenticated, onUnauthenticated)
+    ) {
+      return;
+    }
+
+    const result = await action.run(() =>
+      updateEntry({
+        entryId: entry.id,
+        title: title.trim(),
+        body: body.trim(),
+      }),
+    );
+    if (result !== undefined) onOpenChange(false);
+  };
+
+  return (
+    <div
+      className="cf-confirm-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !action.pending) {
+          onOpenChange(false);
+        }
+      }}
+    >
+      <div
+        className="cf-confirm cf-edit-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cf-edit-entry-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <h3 id="cf-edit-entry-title">{messages.form.editTitle}</h3>
+        <p>{messages.form.editDescription}</p>
+        <FeedbackForm.Root
+          className="cf-edit-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
+        >
+          <div className="cf-edit-entry__kind">
+            <span>{messages.form.kind}</span>
+            <strong>{messages.kinds[entry.kind]}</strong>
+          </div>
+          <label className="cf-field">
+            <span>{messages.form.title}</span>
+            <FeedbackForm.Input
+              autoFocus
+              value={title}
+              onChange={(event) => setTitle(event.currentTarget.value)}
+              placeholder={messages.form.titlePlaceholder}
+              disabled={action.pending}
+              required
+            />
+          </label>
+          <label className="cf-field">
+            <span>{messages.form.body}</span>
+            <FeedbackForm.Textarea
+              value={body}
+              onChange={(event) => setBody(event.currentTarget.value)}
+              placeholder={messages.form.bodyPlaceholder}
+              rows={5}
+              disabled={action.pending}
+              required
+            />
+          </label>
+          <div className="cf-inline-actions">
+            <button
+              type="button"
+              className="cf-button"
+              disabled={action.pending}
+              onClick={() => onOpenChange(false)}
+            >
+              {messages.form.cancel}
+            </button>
+            <FeedbackForm.Submit
+              submitting={action.pending}
+              disabled={
+                action.pending ||
+                title.trim().length === 0 ||
+                body.trim().length === 0 ||
+                isAuthenticated === undefined
+              }
+            >
+              {messages.form.saveChanges}
+            </FeedbackForm.Submit>
+          </div>
+          <FeedbackActionError failure={action.failure} />
+        </FeedbackForm.Root>
+      </div>
     </div>
   );
 }
@@ -600,13 +820,31 @@ function MetadataDialog({
 }
 
 function CommentBranch({ comment, entryId }: FeedbackScreenCommentBranchProps) {
-  const { hooks, maxCommentDepth, renderActor } = useFeedbackBody();
+  const {
+    hooks,
+    maxCommentDepth,
+    renderActor,
+    isAuthenticated,
+    onUnauthenticated,
+  } = useFeedbackBody();
   const { messages } = useFeedbackUi();
   const [expanded, setExpanded] = useState(false);
   const [replying, setReplying] = useState(false);
   const [replyBody, setReplyBody] = useState("");
   const setLike = hooks.useSetCommentLike();
   const createComment = hooks.useCreateComment();
+  const likeAction = useFeedbackAction();
+  const replyAction = useFeedbackAction();
+
+  const toggleLike = (desiredState: boolean) => {
+    if (
+      !allowAuthenticatedAction(isAuthenticated, onUnauthenticated) ||
+      likeAction.pending
+    ) {
+      return;
+    }
+    void likeAction.run(() => setLike({ commentId: comment.id, desiredState }));
+  };
 
   return (
     <Comment.Root comment={comment}>
@@ -616,31 +854,48 @@ function CommentBranch({ comment, entryId }: FeedbackScreenCommentBranchProps) {
       <Comment.Body />
       <div className="cf-comment__toolbar">
         <Comment.Like
-          onToggle={(active) =>
-            void setLike({ commentId: comment.id, desiredState: active })
-          }
+          disabled={isAuthenticated === undefined || likeAction.pending}
+          onToggle={toggleLike}
         />
-        {comment.body !== null && comment.depth < maxCommentDepth && (
-          <Comment.Reply onActivate={() => setReplying((value) => !value)} />
+        {comment.depth < maxCommentDepth && (
+          <Comment.Reply
+            disabled={isAuthenticated === undefined || replyAction.pending}
+            onActivate={() => {
+              if (
+                allowAuthenticatedAction(isAuthenticated, onUnauthenticated)
+              ) {
+                setReplying((value) => !value);
+              }
+            }}
+          />
         )}
         <Comment.RepliesButton
           expanded={expanded}
           onExpandedChange={setExpanded}
         />
       </div>
+      <FeedbackActionError failure={likeAction.failure} />
       {replying && (
         <FeedbackForm.Root
-          onSubmit={async (event) => {
+          onSubmit={(event) => {
             event.preventDefault();
             if (replyBody.trim().length === 0) return;
-            await createComment({
-              entryId,
-              parentCommentId: comment.id,
-              body: replyBody,
+            if (
+              !allowAuthenticatedAction(isAuthenticated, onUnauthenticated) ||
+              replyAction.pending
+            ) {
+              return;
+            }
+            void replyAction.run(async () => {
+              await createComment({
+                entryId,
+                parentCommentId: comment.id,
+                body: replyBody,
+              });
+              setReplyBody("");
+              setReplying(false);
+              setExpanded(true);
             });
-            setReplyBody("");
-            setReplying(false);
-            setExpanded(true);
           }}
         >
           <FeedbackForm.Textarea
@@ -650,7 +905,11 @@ function CommentBranch({ comment, entryId }: FeedbackScreenCommentBranchProps) {
             rows={2}
           />
           <div className="cf-inline-actions">
-            <button type="submit" className="cf-button cf-button--primary">
+            <button
+              type="submit"
+              className="cf-button cf-button--primary"
+              disabled={isAuthenticated === undefined || replyAction.pending}
+            >
               {messages.comments.reply}
             </button>
             <button
@@ -663,6 +922,7 @@ function CommentBranch({ comment, entryId }: FeedbackScreenCommentBranchProps) {
           </div>
         </FeedbackForm.Root>
       )}
+      <FeedbackActionError failure={replyAction.failure} />
       {expanded && <ReplyList entryId={entryId} parentCommentId={comment.id} />}
     </Comment.Root>
   );
@@ -689,10 +949,12 @@ function ReplyList({ entryId, parentCommentId }: FeedbackScreenReplyListProps) {
       {visibleReplies.map((reply) => (
         <CommentBranch key={reply.id} comment={reply} entryId={entryId} />
       ))}
-      {replies.status === "CanLoadMore" && (
+      {(replies.status === "CanLoadMore" ||
+        replies.status === "LoadingMore") && (
         <button
           type="button"
           className="cf-button"
+          disabled={replies.status === "LoadingMore"}
           onClick={() => replies.loadMore(hooks.pageSizes.replies)}
         >
           {messages.comments.loadMore}

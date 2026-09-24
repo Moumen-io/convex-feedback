@@ -1,5 +1,6 @@
 import { useFeedbackBody } from "../../../shared/context/FeedbackBodyProvider.js";
 import type { FeedbackScreenContentProps } from "../../../shared/types";
+import { allowAuthenticatedAction } from "../../../shared/helpers.js";
 import { FeedbackScreenHeader } from "./FeedbackScreenHeader";
 import { FeedbackScreenList } from "./FeedbackScreenList";
 import { CreateEntryModal } from "./NewEntry";
@@ -8,15 +9,28 @@ import { FeedbackBoard } from "./primitives.js";
 export function FeedbackScreenContent({
   showHeader = true,
   hideBackButton = false,
+  hideEditButton = false,
   onEntryOpen,
   onCreateEntry,
   ...colors
 }: FeedbackScreenContentProps) {
-  const { showForm, setShowForm, setSelectedEntryId } = useFeedbackBody();
+  const {
+    showForm,
+    setShowForm,
+    setSelectedEntryId,
+    isAuthenticated,
+    onUnauthenticated,
+  } = useFeedbackBody();
 
   const handleEntryOpen = (entryId: string) => {
     setSelectedEntryId(entryId);
     onEntryOpen?.(entryId);
+  };
+
+  const handleCreateEntry = () => {
+    if (allowAuthenticatedAction(isAuthenticated, onUnauthenticated)) {
+      (onCreateEntry ?? (() => setShowForm(true)))();
+    }
   };
 
   return (
@@ -26,8 +40,9 @@ export function FeedbackScreenContent({
 
         <FeedbackScreenList
           hideBackButton={hideBackButton}
+          hideEditButton={hideEditButton}
           onEntryOpen={handleEntryOpen}
-          onCreateEntry={onCreateEntry}
+          onCreateEntry={handleCreateEntry}
         />
       </FeedbackBoard.Root>
 

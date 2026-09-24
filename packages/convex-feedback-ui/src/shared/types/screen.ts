@@ -31,6 +31,9 @@ export type FeedbackCommentTransform = (
  */
 export type FeedbackActorRenderer = (actorId: string) => ReactNode;
 
+/** Called when an authenticated-only UI action is requested anonymously. */
+export type FeedbackUnauthenticatedHandler = () => void;
+
 export interface FeedbackScreenTransformationProps {
   /**
    * Optional presentation-only transform applied to each loaded page of
@@ -48,6 +51,12 @@ export interface FeedbackScreenTransformationProps {
 export interface FeedbackScreenBaseProps {
   /** Hooks created with `createFeedbackHooks`. */
   hooks: FeedbackHooks;
+
+  /**
+   * Called when an unauthenticated visitor tries to create, edit, vote, like,
+   * or comment. The host decides how to present authentication.
+   */
+  onUnauthenticated?: FeedbackUnauthenticatedHandler;
 
   /**
    * Server-side ordering used by the feedback board.
@@ -116,10 +125,11 @@ export interface FeedbackScreenProviderProps
     Required<
       Omit<
         FeedbackScreenBaseProps,
-        "collectMetadata" | "emptyState" | "loading"
+        "collectMetadata" | "emptyState" | "loading" | "onUnauthenticated"
       >
     >,
     FeedbackScreenTransformationProps {
+  onUnauthenticated?: FeedbackUnauthenticatedHandler;
   collectMetadata?: CollectMetadata;
   emptyState?: ReactNode;
   loading?: ReactNode;
@@ -128,6 +138,7 @@ export interface FeedbackScreenProviderProps
 
 export interface FeedbackScreenBodyContextValue
   extends FeedbackScreenTransformationProps, FeedbackScreenProviderProps {
+  isAuthenticated: boolean | undefined;
   query: string;
   debouncedQuery: string;
   showForm: boolean;
@@ -160,6 +171,9 @@ export interface FeedbackScreenListProps {
    */
   showSelectedEntry?: boolean;
 
+  /** Hide the inline edit action when the host renders it elsewhere. */
+  hideEditButton?: boolean;
+
   /** Callback for the empty-state create-entry action. */
   onCreateEntry?: () => void;
 }
@@ -172,6 +186,8 @@ export interface FeedbackScreenEntryCardProps {
   hooks: FeedbackHooks;
   /** Callback when the EntryCard is opened. */
   onOpen: () => void;
+  /** Optional line limit for the entry title in compact lists. */
+  titleNumberOfLines?: number;
 }
 
 export interface FeedbackScreenEntryModalProps {
@@ -191,6 +207,9 @@ export interface FeedbackScreenEntryDetailProps extends FeedbackScreenEntryBaseP
   hideBackButton?: boolean;
   /** Callback when the EntryCard is closed. */
   onBack: () => void;
+
+  /** Hide the inline edit action when the host renders it elsewhere. */
+  hideEditButton?: boolean;
 }
 
 export interface FeedbackScreenCommentBranchProps extends FeedbackScreenEntryBaseProps {

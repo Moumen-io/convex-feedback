@@ -22,9 +22,19 @@
       "bundler": "metro",
       "output": "static"
     },
-    "plugins": ["expo-router", "@clerk/expo", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "@clerk/expo",
+      "expo-secure-store"
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "99ec9c47-6042-40f6-9d31-bbe635b3aa72"
+      }
     }
   }
 }

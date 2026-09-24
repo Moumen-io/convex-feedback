@@ -22,11 +22,7 @@
       "bundler": "metro",
       "output": "static"
     },
-    "plugins": [
-      "expo-router",
-      "@clerk/expo",
-      "expo-secure-store"
-    ],
+    "plugins": ["expo-router", "@clerk/expo", "expo-secure-store"],
     "experiments": {
       "typedRoutes": true
     },

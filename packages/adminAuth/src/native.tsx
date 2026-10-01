@@ -292,7 +292,8 @@ function ClerkAuthBridge({
   const metadata = useProjectAuthMetadata(
     project,
     isAuthenticated,
-    isUserLoaded ? account?.email : undefined,
+    account?.email,
+    isUserLoaded,
   );
 
   const signIn = useCallback(

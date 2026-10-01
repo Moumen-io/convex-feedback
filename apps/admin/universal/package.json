@@ -5,6 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "eas-build-pre-install": "npm install --global npm@11.19.1 && npm --version",
+    "eas-build-post-install": "npm --prefix ../../.. run build:admin",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios --device",

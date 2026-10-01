@@ -271,7 +271,8 @@ function sanitizeAuthMetadata(value: unknown): AdminAuthLastUsed | null {
     return null;
   }
 
-  const email = typeof input.email === "string" ? input.email.trim() : undefined;
+  const email =
+    typeof input.email === "string" ? input.email.trim() : undefined;
   if (email && email.length > 320) return null;
   return {
     provider: input.provider,

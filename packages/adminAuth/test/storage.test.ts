@@ -152,9 +152,7 @@ describe("project auth storage", () => {
     await clearProjectAuthStorage("mixed-one", { clearMetadata: true });
 
     expect(
-      secureStore.values.get(
-        "convex-feedback-admin.mixed-two.provider-token",
-      ),
+      secureStore.values.get("convex-feedback-admin.mixed-two.provider-token"),
     ).toBe("convex-two");
     await expect(projectTwoMetadata.load()).resolves.toEqual({
       provider: "convex-auth",
@@ -206,16 +204,18 @@ describe("project auth storage", () => {
   });
 
   it("keeps separate Clerk instances in separate project token caches", async () => {
-    const clerkProjectOne = createNamespacedClerkTokenCache("clerk-project-one");
-    const clerkProjectTwo = createNamespacedClerkTokenCache("clerk-project-two");
+    const clerkProjectOne =
+      createNamespacedClerkTokenCache("clerk-project-one");
+    const clerkProjectTwo =
+      createNamespacedClerkTokenCache("clerk-project-two");
 
     await clerkProjectOne.saveToken("__clerk_client_jwt", "instance-one");
     await clerkProjectTwo.saveToken("__clerk_client_jwt", "instance-two");
     await clearProjectAuthStorage("clerk-project-one");
 
-    await expect(
-      clerkProjectTwo.getToken("__clerk_client_jwt"),
-    ).resolves.toBe("instance-two");
+    await expect(clerkProjectTwo.getToken("__clerk_client_jwt")).resolves.toBe(
+      "instance-two",
+    );
     expect(
       secureStore.values.get(
         "convex-feedback-admin.clerk-project-one.__clerk_client_jwt",

@@ -71,9 +71,7 @@ export interface AdminAuthAccount {
 
 /** Public, non-secret sign-in details retained to make later sign-in easier. */
 export type AdminAuthLastUsedMethod =
-  | { kind: "password" }
-  | { kind: "email-code" }
-  | { kind: "sso"; id: string };
+  { kind: "password" } | { kind: "email-code" } | { kind: "sso"; id: string };
 
 export interface AdminAuthLastUsed {
   provider: AdminAuthProviderId;

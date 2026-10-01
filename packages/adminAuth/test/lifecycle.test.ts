@@ -136,9 +136,9 @@ describe("project lifecycle", () => {
         },
       },
     };
-    expect(projectAuthStateRequiresReset(clerkProject, secondClerkInstance)).toBe(
-      true,
-    );
+    expect(
+      projectAuthStateRequiresReset(clerkProject, secondClerkInstance),
+    ).toBe(true);
     expect(getProjectAuthInstanceIdentity(clerkProject)).not.toBe(
       getProjectAuthInstanceIdentity(secondClerkInstance),
     );

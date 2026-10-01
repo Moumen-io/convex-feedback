@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const storeMocks = vi.hoisted(() => ({
   clearAuthStorage: vi.fn(() => Promise.resolve()),
   load: vi.fn(),
+  resetRequired: vi.fn(() => false),
   save: vi.fn(() => Promise.resolve()),
 }));
 
@@ -16,7 +17,7 @@ vi.mock("convex-feedback-admin-auth", () => ({
     clear: vi.fn(() => Promise.resolve()),
   }),
   normalizeProjectConfig: (project: unknown) => project,
-  projectAuthStateRequiresReset: () => false,
+  projectAuthStateRequiresReset: storeMocks.resetRequired,
   testConvexAdminConnection: vi.fn(() =>
     Promise.resolve({
       ok: true,
@@ -155,6 +156,8 @@ describe("universal project store setup lifecycle", () => {
     storeMocks.save.mockResolvedValue(undefined);
     storeMocks.clearAuthStorage.mockReset();
     storeMocks.clearAuthStorage.mockResolvedValue(undefined);
+    storeMocks.resetRequired.mockReset();
+    storeMocks.resetRequired.mockReturnValue(false);
   });
 
   test("first launch initializes add mode before setup navigation", async () => {
@@ -215,8 +218,69 @@ describe("universal project store setup lifecycle", () => {
     await act(async () => {
       await latestStore?.removeProject(projectA.id);
     });
+    expect(storeMocks.clearAuthStorage).toHaveBeenCalledWith(projectA.id, {
+      clearMetadata: true,
+    });
     expect(latestStore?.activeProject).toBeUndefined();
     expect(latestStore?.setupMode).toBe("add");
+
+    act(() => {
+      renderer.unmount();
+    });
+  });
+
+  test("switching projects leaves both projects' auth storage alone", async () => {
+    storeMocks.load.mockResolvedValue({
+      projects: [projectA, projectB],
+      activeProjectId: projectA.id,
+    });
+    const renderer = await renderStore();
+
+    await act(async () => {
+      await latestStore?.selectProject(projectB.id);
+    });
+
+    expect(latestStore?.activeProject?.id).toBe(projectB.id);
+    expect(storeMocks.clearAuthStorage).not.toHaveBeenCalled();
+
+    act(() => {
+      renderer.unmount();
+    });
+  });
+
+  test("clears the edited project's old session before saving a new auth identity", async () => {
+    const order: string[] = [];
+    storeMocks.load.mockResolvedValue({
+      projects: [projectA, projectB],
+      activeProjectId: projectA.id,
+    });
+    storeMocks.resetRequired.mockReturnValue(true);
+    storeMocks.clearAuthStorage.mockImplementation(() => {
+      order.push("clear-session");
+      return Promise.resolve();
+    });
+    storeMocks.save.mockImplementation(() => {
+      order.push("save-projects");
+      return Promise.resolve();
+    });
+    const renderer = await renderStore();
+    const changedProject: AdminProjectConfig = {
+      ...projectB,
+      auth: {
+        provider: "clerk",
+        publicConfig: {
+          publishableKey: "pk_test_second_instance",
+          methods: { password: true, emailCode: false, sso: [] },
+        },
+      },
+    };
+
+    await act(async () => {
+      await latestStore?.completeSetup(changedProject);
+    });
+
+    expect(storeMocks.clearAuthStorage).toHaveBeenCalledWith(projectB.id);
+    expect(order).toEqual(["clear-session", "save-projects"]);
 
     act(() => {
       renderer.unmount();

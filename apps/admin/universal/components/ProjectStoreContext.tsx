@@ -152,7 +152,7 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
 
   const removeProject = useCallback(
     async (projectId: string) => {
-      await clearProjectAuthStorage(projectId);
+      await clearProjectAuthStorage(projectId, { clearMetadata: true });
       const wasActive = stateRef.current.activeProjectId === projectId;
       const next = removeProjectState(stateRef.current, projectId);
       await commit(next);

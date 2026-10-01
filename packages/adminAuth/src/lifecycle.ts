@@ -1,4 +1,8 @@
-import type { AdminProjectConfig } from "./contracts.js";
+import type {
+  AdminAuthLastUsed,
+  AdminAuthSignInRequest,
+  AdminProjectConfig,
+} from "./contracts.js";
 import type { AdminProjectStoreState } from "./storage.js";
 
 /**
@@ -11,9 +15,77 @@ export function projectAuthStateRequiresReset(
   next: AdminProjectConfig,
 ): boolean {
   return (
-    previous.convexUrl !== next.convexUrl ||
-    previous.apiNamespace !== next.apiNamespace ||
-    JSON.stringify(previous.auth) !== JSON.stringify(next.auth)
+    getProjectAuthInstanceIdentity(previous) !==
+    getProjectAuthInstanceIdentity(next)
+  );
+}
+
+/**
+ * A stable identity for the auth instance and deployment, excluding enabled
+ * sign-in methods so a UI-only method change does not discard a valid session.
+ */
+export function getProjectAuthInstanceIdentity(
+  project: AdminProjectConfig,
+): string {
+  const { auth } = project;
+  let instance: unknown;
+  if (auth.provider === "clerk") {
+    instance = { publishableKey: auth.publicConfig.publishableKey };
+  } else if (auth.provider === "convex-auth") {
+    instance = { providerIds: auth.publicConfig.providerIds };
+  } else {
+    instance = { publicConfig: auth.publicConfig.publicConfig ?? {} };
+  }
+
+  return JSON.stringify({
+    convexUrl: project.convexUrl,
+    apiNamespace: project.apiNamespace,
+    provider: auth.provider,
+    instance,
+  });
+}
+
+/** Build the safe metadata candidate associated with a primary sign-in try. */
+export function createAdminAuthLastUsed(
+  project: AdminProjectConfig,
+  request: AdminAuthSignInRequest,
+  accountEmail?: string,
+): AdminAuthLastUsed | null {
+  let method: AdminAuthLastUsed["method"];
+  let email: string | undefined;
+  switch (request.kind) {
+    case "password":
+      method = { kind: "password" };
+      email = request.identifier;
+      break;
+    case "email-code":
+      method = { kind: "email-code" };
+      email = request.email;
+      break;
+    case "sso":
+      method = { kind: "sso", id: request.method.id };
+      email = accountEmail;
+      break;
+    case "mfa":
+      return null;
+  }
+
+  const normalizedEmail = email?.trim();
+  return {
+    provider: project.auth.provider,
+    instanceIdentity: getProjectAuthInstanceIdentity(project),
+    method,
+    ...(normalizedEmail ? { email: normalizedEmail } : {}),
+  };
+}
+
+export function isAdminAuthLastUsedForProject(
+  project: AdminProjectConfig,
+  lastUsed: AdminAuthLastUsed,
+): boolean {
+  return (
+    lastUsed.provider === project.auth.provider &&
+    lastUsed.instanceIdentity === getProjectAuthInstanceIdentity(project)
   );
 }
 

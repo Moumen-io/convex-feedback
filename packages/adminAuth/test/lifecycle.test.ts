@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createAdminAuthLastUsed,
+  getProjectAuthInstanceIdentity,
   getProjectRuntimeKey,
+  isAdminAuthLastUsedForProject,
   projectAuthStateRequiresReset,
   removeProject,
   saveProject,
@@ -96,6 +99,125 @@ describe("project lifecycle", () => {
         },
       }),
     ).toBe(true);
+  });
+
+  it("clears sessions when the auth instance changes but keeps them for method changes", () => {
+    const clerkProject: AdminProjectConfig = {
+      ...project("clerk"),
+      auth: {
+        provider: "clerk",
+        publicConfig: {
+          publishableKey: "pk_test_first",
+          methods: { password: true, emailCode: true, sso: [] },
+        },
+      },
+    };
+
+    expect(
+      projectAuthStateRequiresReset(clerkProject, {
+        ...clerkProject,
+        auth: {
+          provider: "clerk",
+          publicConfig: {
+            publishableKey: "pk_test_first",
+            methods: { password: false, emailCode: true, sso: [] },
+          },
+        },
+      }),
+    ).toBe(false);
+
+    const secondClerkInstance: AdminProjectConfig = {
+      ...clerkProject,
+      auth: {
+        provider: "clerk",
+        publicConfig: {
+          publishableKey: "pk_test_second",
+          methods: { password: true, emailCode: true, sso: [] },
+        },
+      },
+    };
+    expect(
+      projectAuthStateRequiresReset(clerkProject, secondClerkInstance),
+    ).toBe(true);
+    expect(getProjectAuthInstanceIdentity(clerkProject)).not.toBe(
+      getProjectAuthInstanceIdentity(secondClerkInstance),
+    );
+    expect(
+      projectAuthStateRequiresReset(clerkProject, {
+        ...clerkProject,
+        auth: project("other-provider").auth,
+      }),
+    ).toBe(true);
+  });
+
+  it("records only the successful sign-in method and project auth identity", () => {
+    const current = project("one");
+    const password = createAdminAuthLastUsed(current, {
+      kind: "password",
+      identifier: "  admin@example.com  ",
+      password: "secret",
+    });
+    expect(password).toEqual({
+      provider: "convex-auth",
+      instanceIdentity: getProjectAuthInstanceIdentity(current),
+      method: { kind: "password" },
+      email: "admin@example.com",
+    });
+    expect(password).not.toHaveProperty("password");
+
+    const sso = createAdminAuthLastUsed(
+      {
+        ...current,
+        auth: {
+          provider: "clerk",
+          publicConfig: {
+            publishableKey: "pk_test_instance",
+            methods: { sso: [{ id: "google", label: "Google" }] },
+          },
+        },
+      },
+      { kind: "sso", method: { id: "google", label: "Google" } },
+      "sso-admin@example.com",
+    );
+    expect(sso?.method).toEqual({ kind: "sso", id: "google" });
+    expect(sso?.email).toBe("sso-admin@example.com");
+    expect(
+      isAdminAuthLastUsedForProject(
+        {
+          ...current,
+          auth: {
+            provider: "clerk",
+            publicConfig: {
+              publishableKey: "pk_test_instance",
+              methods: { sso: [{ id: "google", label: "Google" }] },
+            },
+          },
+        },
+        sso!,
+      ),
+    ).toBe(true);
+    expect(
+      isAdminAuthLastUsedForProject(
+        {
+          ...current,
+          auth: {
+            provider: "clerk",
+            publicConfig: {
+              publishableKey: "pk_test_another_instance",
+              methods: { sso: [{ id: "google", label: "Google" }] },
+            },
+          },
+        },
+        sso!,
+      ),
+    ).toBe(false);
+    expect(
+      createAdminAuthLastUsed(current, {
+        kind: "mfa",
+        method: "totp",
+        code: "123456",
+      }),
+    ).toBeNull();
   });
 
   it("changes the runtime key when relevant configuration changes", () => {

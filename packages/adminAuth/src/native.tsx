@@ -23,7 +23,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
@@ -34,10 +36,16 @@ import type {
   AdminAuthChallenge,
   AdminAuthConfig,
   AdminAuthController,
+  AdminAuthLastUsed,
   AdminAuthResult,
   AdminAuthSignInRequest,
   AdminProjectConfig,
 } from "./contracts.js";
+import {
+  createAdminAuthLastUsed,
+  getProjectAuthInstanceIdentity,
+  isAdminAuthLastUsedForProject,
+} from "./lifecycle.js";
 import {
   clerkErrorResult,
   completeClerkSignIn,
@@ -50,6 +58,7 @@ import { getNativeAuthCallbackUrl } from "./native-callback.js";
 import {
   createSecureTokenStorage,
   createNamespacedClerkTokenCache,
+  createSecureAuthMetadataStore,
   getConvexAuthStorageNamespace,
 } from "./storage.js";
 
@@ -125,7 +134,11 @@ function ConvexAuthRuntime({
   return (
     <ConvexAuthProvider
       client={client}
-      key={`admin-project:${project.id}`}
+      key={[
+        "admin-project",
+        project.id,
+        getProjectAuthInstanceIdentity(project),
+      ].join(":")}
       storage={storage}
       storageNamespace={getConvexAuthStorageNamespace(project.id)}
       shouldHandleCode={false}
@@ -156,9 +169,11 @@ function ConvexAuthBridge({
       ? project.auth.publicConfig.providerIds
       : { password: "", emailCode: "", sso: {} };
   const availableSsoMethods = methods.sso ?? [];
+  const metadata = useProjectAuthMetadata(project, authState.isAuthenticated);
 
   const signIn = useCallback(
     async (request: AdminAuthSignInRequest): Promise<AdminAuthResult> => {
+      metadata.startAttempt(request);
       try {
         const result = await signInWithConvexAuth(
           request,
@@ -170,15 +185,18 @@ function ConvexAuthBridge({
               WebBrowser.openAuthSessionAsync(url, redirectUri),
           },
         );
+        metadata.finishAttempt(request, result);
         if (result.ok && request.kind === "email-code") {
           setEmailCodeSent(!request.code);
         }
         return result;
       } catch (error) {
-        return { ok: false, error: errorMessage(error) };
+        const result = { ok: false as const, error: errorMessage(error) };
+        metadata.finishAttempt(request, result);
+        return result;
       }
     },
-    [actions, providerIds],
+    [actions, metadata.finishAttempt, metadata.startAttempt, providerIds],
   );
 
   const controller = useMemo<AdminAuthController>(
@@ -191,6 +209,7 @@ function ConvexAuthBridge({
           : "signed-out",
       isLoaded: !authState.isLoading,
       isAuthenticated: authState.isAuthenticated,
+      lastUsed: metadata.lastUsed,
       availableSsoMethods,
       ssoAccountCreationPolicy: "provider-managed",
       supportsPassword: methods.password === true,
@@ -208,6 +227,7 @@ function ConvexAuthBridge({
       availableSsoMethods,
       emailCodeSent,
       methods,
+      metadata.lastUsed,
       signIn,
       token,
     ],
@@ -228,7 +248,11 @@ function ClerkRuntime({ project, client, children }: AdminAuthRuntimeProps) {
   if (project.auth.provider !== "clerk") return null;
   return (
     <ClerkProvider
-      key={`admin-project:${project.id}:${project.auth.publicConfig.publishableKey}`}
+      key={[
+        "admin-project",
+        project.id,
+        getProjectAuthInstanceIdentity(project),
+      ].join(":")}
       publishableKey={project.auth.publicConfig.publishableKey}
       tokenCache={tokenCache}
     >
@@ -249,109 +273,128 @@ function ClerkAuthBridge({
   const clerkAuth = useClerkAuth({ treatPendingAsSignedOut: false });
   const clerk = useClerk();
   const convexAuth = useConvexProviderAuth();
-  const { user } = useUser();
+  const { isLoaded: isUserLoaded, user } = useUser();
   const signInResource = useSignIn();
   const [emailCodeSent, setEmailCodeSent] = useState(false);
   const methods =
     project.auth.provider === "clerk" ? project.auth.publicConfig.methods : {};
   const availableSsoMethods = methods.sso ?? [];
   const signInFuture = signInResource.signIn;
+  const account: AdminAuthAccount | undefined = user
+    ? {
+        name: user.fullName ?? user.username ?? undefined,
+        email: user.primaryEmailAddress?.emailAddress,
+        imageUrl: user.imageUrl,
+      }
+    : undefined;
+  const isAuthenticated =
+    clerkAuth.isSignedIn === true && convexAuth.isAuthenticated;
+  const metadata = useProjectAuthMetadata(
+    project,
+    isAuthenticated,
+    isUserLoaded ? account?.email : undefined,
+  );
 
   const signIn = useCallback(
     async (request: AdminAuthSignInRequest): Promise<AdminAuthResult> => {
+      if (!signInFuture) {
+        return { ok: false, error: "Clerk is still loading." };
+      }
+      metadata.startAttempt(request);
       try {
-        if (!signInFuture)
-          return { ok: false, error: "Clerk is still loading." };
-
-        if (request.kind === "password") {
-          return completeClerkSignIn(signInFuture, () =>
-            signInFuture.password({
-              identifier: request.identifier.trim(),
-              password: request.password,
-            }),
-          );
-        }
-
-        if (request.kind === "email-code") {
-          if (request.code) {
-            const code = request.code.trim();
-            const result = await completeClerkSignIn(signInFuture, () =>
-              signInFuture.emailCode.verifyCode({
-                code,
+        const result = await (async (): Promise<AdminAuthResult> => {
+          if (request.kind === "password") {
+            return completeClerkSignIn(signInFuture, () =>
+              signInFuture.password({
+                identifier: request.identifier.trim(),
+                password: request.password,
               }),
             );
-            if (result.ok) setEmailCodeSent(false);
-            return result;
           }
-          const result = await signInFuture.emailCode.sendCode({
-            emailAddress: request.email.trim(),
-          });
-          if (result.error) return clerkErrorResult(result.error.message);
-          setEmailCodeSent(true);
-          return { ok: true };
-        }
 
-        if (request.kind === "sso") {
-          return signInWithClerkSso(
-            request.method.id,
-            createNativeAuthCallbackUrl(),
-            signInFuture,
-            clerk.client,
-            (url, redirectUrl) =>
-              WebBrowser.openAuthSessionAsync(url, redirectUrl),
-            ({ session }) => clerk.setActive({ session }),
-          );
-        }
+          if (request.kind === "email-code") {
+            if (request.code) {
+              const code = request.code.trim();
+              const result = await completeClerkSignIn(signInFuture, () =>
+                signInFuture.emailCode.verifyCode({ code }),
+              );
+              if (result.ok) setEmailCodeSent(false);
+              return result;
+            }
+            const result = await signInFuture.emailCode.sendCode({
+              emailAddress: request.email.trim(),
+            });
+            if (result.error) return clerkErrorResult(result.error.message);
+            setEmailCodeSent(true);
+            return { ok: true };
+          }
 
-        const code = request.code?.trim();
-        if (request.method === "email-link") {
-          const sent = await signInFuture.emailLink.sendLink({
-            verificationUrl: createNativeAuthCallbackUrl(),
-          });
-          if (sent.error) return clerkErrorResult(sent.error.message);
-          const verification =
-            await signInFuture.emailLink.waitForVerification();
-          if (verification.error) {
-            return clerkErrorResult(verification.error.message);
+          if (request.kind === "sso") {
+            return signInWithClerkSso(
+              request.method.id,
+              createNativeAuthCallbackUrl(),
+              signInFuture,
+              clerk.client,
+              (url, redirectUrl) =>
+                WebBrowser.openAuthSessionAsync(url, redirectUrl),
+              ({ session }) => clerk.setActive({ session }),
+            );
           }
-          return finalizeClerkSignIn(signInFuture);
-        } else if (request.method === "email-code") {
-          if (!code) {
-            const result = await signInFuture.mfa.sendEmailCode();
-            return result.error
-              ? clerkErrorResult(result.error.message)
-              : { ok: true };
+
+          const code = request.code?.trim();
+          if (request.method === "email-link") {
+            const sent = await signInFuture.emailLink.sendLink({
+              verificationUrl: createNativeAuthCallbackUrl(),
+            });
+            if (sent.error) return clerkErrorResult(sent.error.message);
+            const verification =
+              await signInFuture.emailLink.waitForVerification();
+            if (verification.error) {
+              return clerkErrorResult(verification.error.message);
+            }
+            return finalizeClerkSignIn(signInFuture);
+          } else if (request.method === "email-code") {
+            if (!code) {
+              const result = await signInFuture.mfa.sendEmailCode();
+              return result.error
+                ? clerkErrorResult(result.error.message)
+                : { ok: true };
+            }
+            return completeClerkSignIn(signInFuture, () =>
+              signInFuture.mfa.verifyEmailCode({ code }),
+            );
+          } else if (request.method === "phone-code") {
+            if (!code) {
+              const result = await signInFuture.mfa.sendPhoneCode();
+              return result.error
+                ? clerkErrorResult(result.error.message)
+                : { ok: true };
+            }
+            return completeClerkSignIn(signInFuture, () =>
+              signInFuture.mfa.verifyPhoneCode({ code }),
+            );
+          } else if (request.method === "totp") {
+            if (!code)
+              return { ok: false, error: "Enter your authenticator code." };
+            return completeClerkSignIn(signInFuture, () =>
+              signInFuture.mfa.verifyTOTP({ code }),
+            );
+          } else {
+            if (!code) return { ok: false, error: "Enter your backup code." };
+            return completeClerkSignIn(signInFuture, () =>
+              signInFuture.mfa.verifyBackupCode({ code }),
+            );
           }
-          return completeClerkSignIn(signInFuture, () =>
-            signInFuture.mfa.verifyEmailCode({ code }),
-          );
-        } else if (request.method === "phone-code") {
-          if (!code) {
-            const result = await signInFuture.mfa.sendPhoneCode();
-            return result.error
-              ? clerkErrorResult(result.error.message)
-              : { ok: true };
-          }
-          return completeClerkSignIn(signInFuture, () =>
-            signInFuture.mfa.verifyPhoneCode({ code }),
-          );
-        } else if (request.method === "totp") {
-          if (!code)
-            return { ok: false, error: "Enter your authenticator code." };
-          return completeClerkSignIn(signInFuture, () =>
-            signInFuture.mfa.verifyTOTP({ code }),
-          );
-        } else {
-          if (!code) return { ok: false, error: "Enter your backup code." };
-          return completeClerkSignIn(signInFuture, () =>
-            signInFuture.mfa.verifyBackupCode({ code }),
-          );
-        }
+        })();
+        metadata.finishAttempt(request, result);
+        return result;
       } catch (error) {
-        return { ok: false, error: errorMessage(error) };
+        const result = { ok: false as const, error: errorMessage(error) };
+        metadata.finishAttempt(request, result);
+        return result;
       }
     },
-    [clerk, signInFuture],
+    [clerk, metadata.finishAttempt, metadata.startAttempt, signInFuture],
   );
 
   const challenge = useMemo<AdminAuthChallenge | null>(() => {
@@ -377,14 +420,6 @@ function ClerkAuthBridge({
     return null;
   }, [emailCodeSent, signInFuture]);
 
-  const account: AdminAuthAccount | undefined = user
-    ? {
-        name: user.fullName ?? user.username ?? undefined,
-        email: user.primaryEmailAddress?.emailAddress,
-        imageUrl: user.imageUrl,
-      }
-    : undefined;
-
   const controller = useMemo<AdminAuthController>(
     () => ({
       provider: "clerk",
@@ -395,9 +430,9 @@ function ClerkAuthBridge({
             ? "signed-in"
             : "signed-out",
       isLoaded: clerkAuth.isLoaded && !convexAuth.isLoading,
-      isAuthenticated:
-        clerkAuth.isSignedIn === true && convexAuth.isAuthenticated,
+      isAuthenticated,
       account,
+      lastUsed: metadata.lastUsed,
       availableSsoMethods,
       ssoAccountCreationPolicy: "existing-only",
       supportsPassword: methods.password === true,
@@ -415,6 +450,8 @@ function ClerkAuthBridge({
       challenge,
       clerkAuth,
       convexAuth,
+      isAuthenticated,
+      metadata.lastUsed,
       methods,
       signIn,
     ],
@@ -440,6 +477,7 @@ function UnsupportedAuthRuntime({
       status: "signed-out",
       isLoaded: true,
       isAuthenticated: false,
+      lastUsed: null,
       availableSsoMethods: [],
       ssoAccountCreationPolicy: "provider-managed",
       supportsPassword: false,
@@ -460,6 +498,113 @@ function UnsupportedAuthRuntime({
       {children}
     </AdminAuthContext.Provider>
   );
+}
+
+interface PendingAuthAttempt {
+  metadata: AdminAuthLastUsed;
+  succeeded: boolean;
+  authenticated: boolean;
+}
+
+function useProjectAuthMetadata(
+  project: AdminProjectConfig,
+  isAuthenticated: boolean,
+  accountEmail?: string,
+  accountLoaded = true,
+) {
+  const store = useMemo(
+    () => createSecureAuthMetadataStore(project.id),
+    [project.id],
+  );
+  const instanceIdentity = getProjectAuthInstanceIdentity(project);
+  const provider = project.auth.provider;
+  const [lastUsed, setLastUsed] = useState<AdminAuthLastUsed | null>(null);
+  const pendingAttempt = useRef<PendingAuthAttempt | null>(null);
+  const writeStarted = useRef(false);
+
+  useEffect(() => {
+    let mounted = true;
+    writeStarted.current = false;
+    pendingAttempt.current = null;
+    setLastUsed(null);
+    void store
+      .load()
+      .then((metadata) => {
+        if (!mounted || writeStarted.current) return;
+        setLastUsed(
+          metadata &&
+            metadata.provider === provider &&
+            metadata.instanceIdentity === instanceIdentity
+            ? metadata
+            : null,
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, [instanceIdentity, provider, store]);
+
+  const persistPendingAttempt = useCallback(() => {
+    const attempt = pendingAttempt.current;
+    if (!attempt || !attempt.succeeded || !attempt.authenticated) return;
+
+    const email = attempt.metadata.email ?? accountEmail?.trim();
+    const metadata: AdminAuthLastUsed = {
+      ...attempt.metadata,
+      ...(email ? { email } : {}),
+    };
+    pendingAttempt.current = null;
+    writeStarted.current = true;
+    void store
+      .save(metadata)
+      .then(() => setLastUsed(metadata))
+      .catch(() => undefined);
+  }, [accountEmail, store]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !accountLoaded) return;
+    if (pendingAttempt.current) pendingAttempt.current.authenticated = true;
+    persistPendingAttempt();
+  }, [accountLoaded, isAuthenticated, persistPendingAttempt]);
+
+  const startAttempt = useCallback(
+    (request: AdminAuthSignInRequest) => {
+      if (request.kind === "mfa") return;
+      const metadata = createAdminAuthLastUsed(project, request, accountEmail);
+      if (!metadata) return;
+      pendingAttempt.current = {
+        metadata,
+        succeeded: false,
+        authenticated: isAuthenticated && accountLoaded,
+      };
+    },
+    [accountEmail, accountLoaded, isAuthenticated, project],
+  );
+
+  const finishAttempt = useCallback(
+    (request: AdminAuthSignInRequest, result: AdminAuthResult) => {
+      if (!result.ok) {
+        if (request.kind !== "mfa") pendingAttempt.current = null;
+        return;
+      }
+      const attempt = pendingAttempt.current;
+      if (!attempt) return;
+      attempt.succeeded = true;
+      if (isAuthenticated && accountLoaded) attempt.authenticated = true;
+      persistPendingAttempt();
+    },
+    [accountLoaded, isAuthenticated, persistPendingAttempt],
+  );
+
+  return {
+    lastUsed:
+      lastUsed && isAdminAuthLastUsedForProject(project, lastUsed)
+        ? lastUsed
+        : null,
+    startAttempt,
+    finishAttempt,
+  };
 }
 
 function errorMessage(error: unknown): string {

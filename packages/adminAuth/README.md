@@ -69,8 +69,20 @@ tokens use provider-specific adapters with a project namespace, so switching
 projects remounts the auth and Convex providers and keeps sessions isolated.
 The adapters record every physical SecureStore key supplied by the auth SDKs in
 a project-owned registry, so removing or reconfiguring a project can clear its
-complete locally stored SecureStore auth state without depending on
-provider-internal key names.
+cached provider sessions without depending on provider-internal key names.
+Session storage and last-used sign-in metadata are isolated by project, even
+when two projects use the same provider. Changing a project's deployment,
+auth provider, or auth-instance identity clears that project's cached session
+before the new configuration is mounted. Selecting another project only
+remounts its own provider; it does not sign out either project.
+
+After authentication completes, SecureStore keeps the project's last-used
+provider and method and, when available, its email. The shared sign-in screen
+uses this metadata to show a single “Last used” badge on the matching SSO
+provider and to prefill email fields. It never stores passwords, verification
+codes, or other credentials, and it does not automatically authenticate or
+select an SSO account. Signing out retains the metadata; removing a project
+deletes both its cached session and its metadata.
 
 Only public client configuration is accepted: Convex deployment URLs, API
 namespaces, Clerk publishable keys, and enabled sign-in methods. Convex server

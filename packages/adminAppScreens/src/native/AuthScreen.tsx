@@ -13,7 +13,7 @@ import {
   Mail,
   ShieldCheck,
 } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type * as React from "react";
 import {
   ActivityIndicator,
@@ -49,6 +49,7 @@ export function AdminAuthScreen({
   const theme = useAdminTheme();
   const styles = createStyles(theme);
   const [identifier, setIdentifier] = useState("");
+  const userEditedIdentifier = useRef(false);
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [mfaMethod, setMfaMethod] = useState<AdminMfaMethod>("email-code");
@@ -73,6 +74,17 @@ export function AdminAuthScreen({
   const mfaIsEmailLink = selectedMfaMethod === "email-link";
   const mfaRequiresCode =
     selectedMfaMethod === "totp" || selectedMfaMethod === "backup-code";
+  const lastUsedSsoMethodId =
+    auth.lastUsed?.provider === auth.provider &&
+    auth.lastUsed.method.kind === "sso"
+      ? auth.lastUsed.method.id
+      : null;
+
+  useEffect(() => {
+    if (auth.lastUsed?.email && !userEditedIdentifier.current) {
+      setIdentifier(auth.lastUsed.email);
+    }
+  }, [auth.lastUsed?.email]);
 
   useEffect(() => {
     setCode("");
@@ -141,6 +153,14 @@ export function AdminAuthScreen({
                   disabled={pending}
                   icon={<KeyRound color={theme.text} size={17} />}
                   label={`Continue with ${method.label}`}
+                  badge={
+                    lastUsedSsoMethodId === method.id ? "Last used" : undefined
+                  }
+                  sublabel={
+                    lastUsedSsoMethodId === method.id && auth.lastUsed?.email
+                      ? `Previous email: ${auth.lastUsed.email}`
+                      : undefined
+                  }
                   onPress={() => void submit({ kind: "sso", method })}
                   styles={styles}
                   tone="secondary"
@@ -251,7 +271,10 @@ export function AdminAuthScreen({
                   autoComplete="email"
                   icon={<Mail color={theme.mutedText} size={17} />}
                   keyboardType="email-address"
-                  onChangeText={setIdentifier}
+                  onChangeText={(value) => {
+                    userEditedIdentifier.current = true;
+                    setIdentifier(value);
+                  }}
                   placeholder="Admin email"
                   styles={styles}
                   value={identifier}
@@ -301,7 +324,10 @@ export function AdminAuthScreen({
                   autoComplete="email"
                   icon={<Mail color={theme.mutedText} size={17} />}
                   keyboardType="email-address"
-                  onChangeText={setIdentifier}
+                  onChangeText={(value) => {
+                    userEditedIdentifier.current = true;
+                    setIdentifier(value);
+                  }}
                   placeholder="Admin email"
                   styles={styles}
                   value={identifier}
@@ -475,6 +501,8 @@ function Field({
 function ActionButton({
   label,
   icon,
+  badge,
+  sublabel,
   disabled,
   onPress,
   tone,
@@ -482,6 +510,8 @@ function ActionButton({
 }: {
   label: string;
   icon?: React.ReactNode;
+  badge?: string;
+  sublabel?: string;
   disabled: boolean;
   onPress: () => void;
   tone: "primary" | "secondary";
@@ -499,16 +529,33 @@ function ActionButton({
         pressed && !disabled && styles.actionPressed,
       ]}
     >
-      {icon}
-      <Text
-        style={
-          tone === "primary"
-            ? styles.actionPrimaryText
-            : styles.actionSecondaryText
-        }
-      >
-        {label}
-      </Text>
+      <View style={styles.actionContent}>
+        {icon}
+        <View style={styles.actionTextStack}>
+          <View style={styles.actionLabelRow}>
+            <Text
+              numberOfLines={1}
+              style={
+                tone === "primary"
+                  ? styles.actionPrimaryText
+                  : styles.actionSecondaryText
+              }
+            >
+              {label}
+            </Text>
+            {badge && (
+              <View style={styles.lastUsedBadge}>
+                <Text style={styles.lastUsedBadgeText}>{badge}</Text>
+              </View>
+            )}
+          </View>
+          {sublabel && (
+            <Text numberOfLines={1} style={styles.actionSublabel}>
+              {sublabel}
+            </Text>
+          )}
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -613,6 +660,20 @@ function createStyles(theme: AdminTheme) {
       minHeight: 50,
       paddingHorizontal: 16,
     },
+    actionContent: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 9,
+      justifyContent: "center",
+      width: "100%",
+    },
+    actionTextStack: { alignItems: "center", flexShrink: 1, gap: 3 },
+    actionLabelRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 7,
+      justifyContent: "center",
+    },
     actionPrimary: { backgroundColor: theme.primary },
     actionSecondary: {
       backgroundColor: theme.surface,
@@ -625,6 +686,23 @@ function createStyles(theme: AdminTheme) {
       fontWeight: "700",
     },
     actionSecondaryText: { color: theme.text, fontSize: 14, fontWeight: "700" },
+    actionSublabel: {
+      color: theme.mutedText,
+      fontSize: 11,
+      textAlign: "center",
+    },
+    lastUsedBadge: {
+      backgroundColor: theme.primarySoft,
+      borderRadius: 99,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+    },
+    lastUsedBadgeText: {
+      color: theme.primary,
+      fontSize: 10,
+      fontWeight: "700",
+      lineHeight: 13,
+    },
     actionDisabled: { opacity: 0.45 },
     actionPressed: { opacity: 0.72 },
     dividerRow: { alignItems: "center", flexDirection: "row", gap: 10 },

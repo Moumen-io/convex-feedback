@@ -69,6 +69,20 @@ export interface AdminAuthAccount {
   imageUrl?: string;
 }
 
+/** Public, non-secret sign-in details retained to make later sign-in easier. */
+export type AdminAuthLastUsedMethod =
+  | { kind: "password" }
+  | { kind: "email-code" }
+  | { kind: "sso"; id: string };
+
+export interface AdminAuthLastUsed {
+  provider: AdminAuthProviderId;
+  /** Identifies the configured auth instance; it is not an auth credential. */
+  instanceIdentity: string;
+  method: AdminAuthLastUsedMethod;
+  email?: string;
+}
+
 export type AdminAuthChallenge =
   | {
       kind: "email-code";
@@ -105,6 +119,7 @@ export interface AdminAuthController {
   isLoaded: boolean;
   isAuthenticated: boolean;
   account?: AdminAuthAccount;
+  lastUsed?: AdminAuthLastUsed | null;
   availableSsoMethods: AdminSsoMethod[];
   ssoAccountCreationPolicy: AdminSsoAccountCreationPolicy;
   supportsPassword: boolean;

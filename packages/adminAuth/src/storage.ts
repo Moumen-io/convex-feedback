@@ -6,7 +6,7 @@ import {
   normalizeProjectConfig,
   validateAdminProjectConfig,
 } from "./config.js";
-import type { AdminProjectConfig } from "./contracts.js";
+import type { AdminAuthLastUsed, AdminProjectConfig } from "./contracts.js";
 
 export const ADMIN_PROJECT_STORE_KEY = "convex-feedback-admin.projects.v1";
 export const CONVEX_AUTH_STORAGE_NAMESPACE_PREFIX = "convex-feedback-admin-";
@@ -21,6 +21,11 @@ export interface AdminProjectStore {
   load: () => Promise<AdminProjectStoreState>;
   save: (state: AdminProjectStoreState) => Promise<void>;
   clear: () => Promise<void>;
+}
+
+export interface AdminAuthMetadataStore {
+  load: () => Promise<AdminAuthLastUsed | null>;
+  save: (metadata: AdminAuthLastUsed) => Promise<void>;
 }
 
 export function createSecureProjectStore(
@@ -121,6 +126,44 @@ export function getProjectAuthStorageRegistryKey(namespace: string): string {
   return secretKey(namespace, AUTH_STORAGE_REGISTRY_KEY);
 }
 
+/** Metadata is stored separately from provider-owned session keys. */
+export function getProjectAuthMetadataKey(namespace: string): string {
+  return `convex-feedback-admin-metadata.${storageNamespaceSegment(namespace)}.last-used.v1`;
+}
+
+export function createSecureAuthMetadataStore(
+  namespace: string,
+): AdminAuthMetadataStore {
+  const tracker = getProjectAuthStorageTracker(namespace);
+  const metadataKey = getProjectAuthMetadataKey(namespace);
+  return {
+    load: () =>
+      runTrackedStorageOperation(tracker, async () => {
+        if (tracker.cleared) return null;
+        const raw = await SecureStore.getItemAsync(metadataKey);
+        if (!raw) return null;
+        try {
+          const parsed: unknown = JSON.parse(raw);
+          const metadata = sanitizeAuthMetadata(parsed);
+          if (metadata) return metadata;
+          await SecureStore.deleteItemAsync(metadataKey);
+          return null;
+        } catch {
+          return null;
+        }
+      }),
+    save: (value) =>
+      runTrackedStorageOperation(tracker, async () => {
+        if (tracker.cleared) return;
+        const metadata = sanitizeAuthMetadata(value);
+        if (!metadata) {
+          throw new Error("The last-used authentication metadata is invalid.");
+        }
+        await SecureStore.setItemAsync(metadataKey, JSON.stringify(metadata));
+      }),
+  };
+}
+
 export function createNamespacedClerkTokenCache(namespace: string): TokenCache {
   const tracker = getProjectAuthStorageTracker(namespace);
   return {
@@ -155,6 +198,7 @@ export function createNamespacedClerkTokenCache(namespace: string): TokenCache {
  */
 export async function clearProjectAuthStorage(
   namespace: string,
+  options: { clearMetadata?: boolean } = {},
 ): Promise<void> {
   const tracker = getProjectAuthStorageTracker(namespace);
   let cleared = false;
@@ -174,6 +218,10 @@ export async function clearProjectAuthStorage(
         );
       }
 
+      if (options.clearMetadata) {
+        await SecureStore.deleteItemAsync(getProjectAuthMetadataKey(namespace));
+      }
+
       // The registry is owned by this package, not by a third-party auth
       // provider. Leave it in place when deletion fails so cleanup can retry.
       await SecureStore.deleteItemAsync(tracker.registryKey);
@@ -183,6 +231,54 @@ export async function clearProjectAuthStorage(
   } finally {
     if (cleared) authStorageTrackers.delete(namespace);
   }
+}
+
+function sanitizeAuthMetadata(value: unknown): AdminAuthLastUsed | null {
+  if (!value || typeof value !== "object") return null;
+  const input = value as Partial<AdminAuthLastUsed>;
+  if (
+    input.provider !== "convex-auth" &&
+    input.provider !== "clerk" &&
+    input.provider !== "auth0" &&
+    input.provider !== "workos" &&
+    input.provider !== "oidc"
+  ) {
+    return null;
+  }
+  if (
+    typeof input.instanceIdentity !== "string" ||
+    !input.instanceIdentity ||
+    input.instanceIdentity.length > 4096 ||
+    !input.method ||
+    typeof input.method !== "object"
+  ) {
+    return null;
+  }
+
+  let method: AdminAuthLastUsed["method"];
+  if (input.method.kind === "password") {
+    method = { kind: "password" };
+  } else if (input.method.kind === "email-code") {
+    method = { kind: "email-code" };
+  } else if (
+    input.method.kind === "sso" &&
+    typeof input.method.id === "string" &&
+    input.method.id.trim() &&
+    input.method.id.trim().length <= 128
+  ) {
+    method = { kind: "sso", id: input.method.id.trim() };
+  } else {
+    return null;
+  }
+
+  const email = typeof input.email === "string" ? input.email.trim() : undefined;
+  if (email && email.length > 320) return null;
+  return {
+    provider: input.provider,
+    instanceIdentity: input.instanceIdentity,
+    method,
+    ...(email ? { email } : {}),
+  };
 }
 
 function sanitizeProject(value: unknown): AdminProjectConfig[] {

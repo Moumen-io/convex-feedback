@@ -25,12 +25,15 @@ vi.mock("expo-secure-store", () => secureStore);
 
 import {
   clearProjectAuthStorage,
+  createSecureAuthMetadataStore,
   createNamespacedClerkTokenCache,
   createSecureProjectStore,
   createSecureTokenStorage,
   getConvexAuthStorageNamespace,
+  getProjectAuthMetadataKey,
   getProjectAuthStorageRegistryKey,
 } from "../src/storage.js";
+import type { AdminAuthLastUsed } from "../src/contracts.js";
 
 describe("project auth storage", () => {
   beforeEach(() => {
@@ -125,9 +128,107 @@ describe("project auth storage", () => {
     ).toBeUndefined();
   });
 
+  it("isolates mixed provider sessions and last-used metadata by project", async () => {
+    const projectOneClerk = createNamespacedClerkTokenCache("mixed-one");
+    const projectTwoConvex = createSecureTokenStorage("mixed-two");
+    const projectOneMetadata = createSecureAuthMetadataStore("mixed-one");
+    const projectTwoMetadata = createSecureAuthMetadataStore("mixed-two");
+
+    await projectOneClerk.saveToken("__clerk_client_jwt", "clerk-one");
+    await projectTwoConvex.setItem("provider-token", "convex-two");
+    await projectOneMetadata.save({
+      provider: "clerk",
+      instanceIdentity: "clerk-one-instance",
+      method: { kind: "sso", id: "google" },
+      email: "one@example.com",
+    });
+    await projectTwoMetadata.save({
+      provider: "convex-auth",
+      instanceIdentity: "convex-two-instance",
+      method: { kind: "password" },
+      email: "two@example.com",
+    });
+
+    await clearProjectAuthStorage("mixed-one", { clearMetadata: true });
+
+    expect(
+      secureStore.values.get(
+        "convex-feedback-admin.mixed-two.provider-token",
+      ),
+    ).toBe("convex-two");
+    await expect(projectTwoMetadata.load()).resolves.toEqual({
+      provider: "convex-auth",
+      instanceIdentity: "convex-two-instance",
+      method: { kind: "password" },
+      email: "two@example.com",
+    });
+    expect(
+      secureStore.values.get(getProjectAuthMetadataKey("mixed-one")),
+    ).toBeUndefined();
+    expect(
+      secureStore.values.get(getProjectAuthMetadataKey("mixed-two")),
+    ).toBeDefined();
+  });
+
+  it("stores only last-used method metadata and retains it when sessions are cleared", async () => {
+    const metadataStore = createSecureAuthMetadataStore("metadata-project");
+    const unsafeMetadata = {
+      provider: "clerk",
+      instanceIdentity: "clerk-instance",
+      method: { kind: "email-code" },
+      email: "  admin@example.com  ",
+      password: "never-save-this",
+      verificationCode: "123456",
+    };
+
+    await metadataStore.save(unsafeMetadata as AdminAuthLastUsed);
+    const stored = secureStore.values.get(
+      getProjectAuthMetadataKey("metadata-project"),
+    );
+    expect(stored).toBe(
+      JSON.stringify({
+        provider: "clerk",
+        instanceIdentity: "clerk-instance",
+        method: { kind: "email-code" },
+        email: "admin@example.com",
+      }),
+    );
+
+    await clearProjectAuthStorage("metadata-project");
+    await expect(
+      createSecureAuthMetadataStore("metadata-project").load(),
+    ).resolves.toEqual({
+      provider: "clerk",
+      instanceIdentity: "clerk-instance",
+      method: { kind: "email-code" },
+      email: "admin@example.com",
+    });
+  });
+
+  it("keeps separate Clerk instances in separate project token caches", async () => {
+    const clerkProjectOne = createNamespacedClerkTokenCache("clerk-project-one");
+    const clerkProjectTwo = createNamespacedClerkTokenCache("clerk-project-two");
+
+    await clerkProjectOne.saveToken("__clerk_client_jwt", "instance-one");
+    await clerkProjectTwo.saveToken("__clerk_client_jwt", "instance-two");
+    await clearProjectAuthStorage("clerk-project-one");
+
+    await expect(
+      clerkProjectTwo.getToken("__clerk_client_jwt"),
+    ).resolves.toBe("instance-two");
+    expect(
+      secureStore.values.get(
+        "convex-feedback-admin.clerk-project-one.__clerk_client_jwt",
+      ),
+    ).toBeUndefined();
+  });
+
   it("keeps project IDs isolated when SecureStore sanitization would collide", async () => {
     expect(getProjectAuthStorageRegistryKey("team/a")).not.toBe(
       getProjectAuthStorageRegistryKey("team_a"),
+    );
+    expect(getProjectAuthMetadataKey("team/a")).not.toBe(
+      getProjectAuthMetadataKey("team_a"),
     );
 
     const slashProject = createSecureTokenStorage("team/a");

@@ -212,6 +212,15 @@ function SetupRouteNavigator({
               name="roadmap/[roadmapId]/edit"
               options={modalScreenOptions("Edit roadmap item", theme)}
             />,
+            ...(Platform.OS === "ios"
+              ? [
+                  <Stack.Screen
+                    key="roadmap/reorder"
+                    name="roadmap/reorder"
+                    options={modalScreenOptions("Reorder roadmap", theme)}
+                  />,
+                ]
+              : []),
           ]
         : null}
     </Stack>

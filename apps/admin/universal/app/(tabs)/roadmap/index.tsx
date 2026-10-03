@@ -1,6 +1,7 @@
 import { RoadmapScreen } from "convex-feedback-admin-app-screens/native";
 import { useRouter } from "expo-router";
 import { useStackHeaderHeight } from "convex-feedback-ui/expo";
+import { Platform } from "react-native";
 
 import { roadmapRouteParams } from "@/lib/roadmap-route";
 
@@ -10,6 +11,11 @@ export default function RoadmapRoute() {
   return (
     <RoadmapScreen
       onNewItem={() => router.push("/roadmap/new")}
+      onReorder={
+        Platform.OS === "ios"
+          ? () => router.push("/roadmap/reorder")
+          : undefined
+      }
       onOpenItem={(item) =>
         router.push({
           pathname: "/roadmap/[roadmapId]",

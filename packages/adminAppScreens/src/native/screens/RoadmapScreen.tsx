@@ -24,18 +24,21 @@ interface RoadmapToolbarProps {
   canLoadMore: boolean;
   onLoadMore: () => void;
   onNewItem: () => void;
+  onReorder?: () => void;
 }
 
 export interface RoadmapScreenProps {
   topInset: number;
   onNewItem: () => void;
   onOpenItem: (item: RoadmapItem) => void;
+  onReorder?: () => void;
 }
 
 export function RoadmapScreen({
   topInset,
   onNewItem,
   onOpenItem,
+  onReorder,
 }: RoadmapScreenProps) {
   const theme = useAdminTheme();
   const styles = createStyles(theme);
@@ -55,6 +58,7 @@ export function RoadmapScreen({
         loadingMore={roadmap.status === "LoadingMore"}
         onLoadMore={() => roadmap.loadMore(feedbackHooks.pageSizes.roadmap)}
         onNewItem={onNewItem}
+        onReorder={onReorder}
       />
       <RoadmapBoard
         items={items ?? []}
@@ -125,6 +129,7 @@ export function RoadmapScreen({
 function RoadmapToolbar(toolbar: RoadmapToolbarProps) {
   const theme = useAdminTheme();
   const addIcon = useToolbarIcon("plus", "add");
+  const reorderIcon = useToolbarIcon("arrow.up.arrow.down", "swap_vert");
 
   return (
     <Stack.Toolbar placement="right">
@@ -137,6 +142,14 @@ function RoadmapToolbar(toolbar: RoadmapToolbarProps) {
         >
           {toolbar.loadingMore ? "Loading…" : "More"}
         </Stack.Toolbar.Button>
+      )}
+      {toolbar.onReorder && (
+        <Stack.Toolbar.Button
+          accessibilityLabel="Reorder roadmap items"
+          icon={reorderIcon}
+          onPress={toolbar.onReorder}
+          tintColor={theme.text}
+        />
       )}
       <Stack.Toolbar.Button
         accessibilityLabel="Add roadmap item"

@@ -44,7 +44,12 @@ export default function ReorderRoadmapRoute() {
       mutationInProgress.current = true;
       setSaving(true);
       try {
-        await moveRoadmapItem(args);
+        const result = await moveRoadmapItem(args);
+        if (typeof result !== "number") {
+          throw new Error(
+            "This request was rate limited. Please try again later.",
+          );
+        }
       } finally {
         mutationInProgress.current = false;
         setSaving(false);
@@ -108,20 +113,25 @@ function RoadmapStageSection({
   const feedbackHooks = useAdminFeedbackHooks();
   const { messages } = useFeedbackUi();
   const theme = useAdminTheme();
-  const roadmap = feedbackHooks.useRoadmap(status);
-  const [items, setItems] = useState<RoadmapItem[]>(() => [
-    ...(roadmap.results ?? []),
-  ]);
+  const roadmap = feedbackHooks.useRoadmap(status, { includeLookahead: true });
+  const hasMoreItems =
+    roadmap.status === "CanLoadMore" || roadmap.status === "LoadingMore";
+  const roadmapItems = roadmap.results ?? [];
+  const lookaheadItem = hasMoreItems ? roadmapItems.at(-1) : undefined;
+  // Keep the extra row hidden so it can anchor moves at the loaded-page end.
+  const visibleItems =
+    hasMoreItems && lookaheadItem ? roadmapItems.slice(0, -1) : roadmapItems;
+  const [items, setItems] = useState<RoadmapItem[]>(() => [...visibleItems]);
   const itemsRef = useRef(items);
   const loadingMore = roadmap.status === "LoadingMore";
-  const canLoadMore =
-    roadmap.status === "CanLoadMore" || roadmap.status === "LoadingMore";
+  const canLoadMore = hasMoreItems;
 
   useEffect(() => {
     const nextItems = [...(roadmap.results ?? [])];
+    if (hasMoreItems && nextItems.length > 0) nextItems.pop();
     itemsRef.current = nextItems;
     setItems(nextItems);
-  }, [roadmap.results]);
+  }, [roadmap.results, hasMoreItems]);
 
   const handleMove = useCallback(
     (sourceIndices: number[], destination: number) => {
@@ -144,6 +154,13 @@ function RoadmapStageSection({
           destination > sourceIndex ? destination - 1 : destination,
         ),
       );
+      if (
+        hasMoreItems &&
+        destinationIndex === remainingItems.length &&
+        !lookaheadItem
+      ) {
+        return;
+      }
       const nextItems = [...remainingItems];
       nextItems.splice(destinationIndex, 0, movedItem);
       if (
@@ -156,7 +173,7 @@ function RoadmapStageSection({
       setItems(nextItems);
 
       const previousItem = nextItems[destinationIndex - 1];
-      const nextItem = nextItems[destinationIndex + 1];
+      const nextItem = nextItems[destinationIndex + 1] ?? lookaheadItem;
 
       void onMove({
         roadmapId: movedItem.id,
@@ -172,7 +189,7 @@ function RoadmapStageSection({
         );
       });
     },
-    [busyRef, onMove, status],
+    [busyRef, hasMoreItems, lookaheadItem, onMove, status],
   );
 
   return (

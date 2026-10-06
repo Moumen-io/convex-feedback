@@ -363,28 +363,39 @@ function createFeedbackHooksImplementation<RateLimitResult>(
     /**
      * An unfiltered roadmap is composed from one stream per status so a
      * rebalance cannot mix live and replacement positions in the UI.
+     * Status-filtered callers may request one extra item for a page boundary.
      */
-    useRoadmap(status?: RoadmapStatus) {
+    useRoadmap(
+      status?: RoadmapStatus,
+      options: {
+        /** Fetch one extra item after the current page for ordering boundaries. */
+        includeLookahead?: boolean;
+      } = {},
+    ) {
+      const initialNumItems =
+        status !== undefined && options.includeLookahead
+          ? roadmapPageSize + 1
+          : roadmapPageSize;
       const planned = usePaginatedQuery(
         api.listRoadmap,
         status === undefined || status === "planned"
           ? { status: "planned" }
           : "skip",
-        { initialNumItems: roadmapPageSize },
+        { initialNumItems },
       );
       const inProgress = usePaginatedQuery(
         api.listRoadmap,
         status === undefined || status === "in_progress"
           ? { status: "in_progress" }
           : "skip",
-        { initialNumItems: roadmapPageSize },
+        { initialNumItems },
       );
       const shipped = usePaginatedQuery(
         api.listRoadmap,
         status === undefined || status === "shipped"
           ? { status: "shipped" }
           : "skip",
-        { initialNumItems: roadmapPageSize },
+        { initialNumItems },
       );
 
       if (status === "planned") return planned;

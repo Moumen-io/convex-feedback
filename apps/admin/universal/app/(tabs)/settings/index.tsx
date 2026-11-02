@@ -10,7 +10,10 @@ import {
 import { useState } from "react";
 
 import { useUniversalAdmin } from "@/components/RuntimeContext";
-import { Alert } from "react-native";
+import { Alert, Linking, Pressable, Text, View } from "react-native";
+
+const LEGAL_BASE =
+  "https://github.com/Moumen-io/convex-feedback/blob/main/apps/admin/universal";
 
 export default function SettingsScreen() {
   const auth = useAdminAuth();
@@ -56,6 +59,14 @@ export default function SettingsScreen() {
         onSignOut={() => void auth.signOut()}
         projects={runtime.projects}
       />
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28, flexDirection: "row", gap: 24 }}>
+        <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`${LEGAL_BASE}/PRIVACY.md`)}>
+          <Text style={{ color: theme.mutedText, fontSize: 13 }}>Privacy Policy</Text>
+        </Pressable>
+        <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`${LEGAL_BASE}/TERMS.md`)}>
+          <Text style={{ color: theme.mutedText, fontSize: 13 }}>Terms of Use</Text>
+        </Pressable>
+      </View>
       <AdminAccountModal
         onClose={() => setAccountOpen(false)}
         theme={theme}

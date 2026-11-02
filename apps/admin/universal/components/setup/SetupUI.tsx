@@ -2,6 +2,7 @@ import { Check, Copy, ShieldCheck } from "lucide-react-native";
 import type * as React from "react";
 import {
   Platform,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -264,6 +265,9 @@ export function createSetupStyles(theme: AdminTheme) {
   });
 }
 
+const LEGAL_BASE =
+  "https://github.com/Moumen-io/convex-feedback/blob/main/apps/admin/universal";
+
 export function SetupPage({
   children,
   step,
@@ -310,6 +314,14 @@ export function SetupPage({
             expo-secure-store.
             {"\n"}Server-side secrets are never requested or stored.
           </Text>
+        </View>
+        <View style={{ flexDirection: "row", gap: 24 }}>
+          <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`${LEGAL_BASE}/PRIVACY.md`)}>
+            <Text style={styles.hint}>Privacy Policy</Text>
+          </Pressable>
+          <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`${LEGAL_BASE}/TERMS.md`)}>
+            <Text style={styles.hint}>Terms of Use</Text>
+          </Pressable>
         </View>
       </ScrollView>
       <Host>

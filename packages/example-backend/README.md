@@ -51,6 +51,42 @@ For local development:
 
 Point both values at the same Convex development deployment.
 
+## Use Clerk authentication
+
+The backend accepts Clerk session tokens when `CLERK_JWT_ISSUER_DOMAIN` is set
+on the Convex deployment. This is optional, so the anonymous Convex Auth flow
+used by the basic demos continues to work when the variable is unset.
+
+Convex environment variable to add:
+
+- `CLERK_JWT_ISSUER_DOMAIN`: the Clerk Frontend API URL for that environment.
+  Use the development Clerk instance on the development deployment and the
+  production Clerk instance on the production deployment.
+
+The existing anonymous Convex Auth flow also uses `JWT_PRIVATE_KEY` and
+`JWKS`. `npm run setup -w convex-feedback-example-backend` creates them for
+development; see the production setup below for the production command.
+
+In the Clerk Dashboard, activate the Convex integration and copy the Frontend
+API URL for each Clerk instance. Set the development and production URLs on the
+matching Convex deployments:
+
+```bash
+npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-dev.clerk.accounts.dev
+npx convex env --prod set CLERK_JWT_ISSUER_DOMAIN https://clerk.your-domain.com
+```
+
+Run these commands from `packages/example-backend`. Sync the updated auth
+configuration by running `npm run dev -w convex-feedback-example-backend` for
+development or `npm run deploy -w convex-feedback-example-backend` for
+production. The Clerk Frontend API URL must match the Clerk instance used by the
+client.
+
+For client apps using Clerk, configure the Clerk publishable key in the app's
+environment (for example, `VITE_CLERK_PUBLISHABLE_KEY` for the web client or
+`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` for Expo/native). These are client-side
+variables and do not belong in Convex.
+
 ## Deploy the backend
 
 The production backend should be deployed once, independently from the two frontend deployments.
